@@ -322,7 +322,9 @@ func _layout_hand() -> void:
 	var n := hand_views.size()
 	if n == 0:
 		return
-	var avail := w - 80.0
+	# Generous side margin: edge cards are rotated and dropped by the arc, so they
+	# need extra room to be seen fully when scrolled to either end.
+	var avail := w - 200.0
 	# Fixed, readable overlap. If the hand is wider than the screen it scrolls by swipe.
 	var step := hs.x * 0.5
 	var total := hs.x + step * float(n - 1)
@@ -343,7 +345,7 @@ func _layout_hand() -> void:
 		v.size = hs
 		v.pivot_offset = Vector2(hs.x / 2.0, hs.y * 1.6)
 		v.rotation_degrees = o * tilt
-		var drop := o * o * 2.2 # bottom arc
+		var drop := minf(o * o * 2.2, 40.0) # bottom arc, capped so edge cards stay on screen
 		var y := base_y + drop
 		if v.lifted:
 			y -= 30.0
