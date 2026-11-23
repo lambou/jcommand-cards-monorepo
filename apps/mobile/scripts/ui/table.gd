@@ -66,6 +66,10 @@ var _shown_required: Dictionary = {}
 var _alerted: Dictionary = {} # players whose CHECK alert already fired
 var _last_alert_ms: Dictionary = {}
 var _was_human_turn := false
+var _hand_scroll := 0.0 # px the hand fan is shifted by swiping (0 = centred)
+var _hand_max_scroll := 0.0
+var _hand_visible_frac := 1.0 # share of the whole hand that fits on screen
+var hand_bar: Control
 
 
 func _ready() -> void:
@@ -168,6 +172,13 @@ func _build() -> void:
 	fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	fx.z_index = 1000
 	add_child(fx)
+
+	hand_bar = Control.new() # scroll indicator for an overflowing hand
+	hand_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hand_bar.z_index = 500
+	hand_bar.draw.connect(_draw_hand_bar)
+	add_child(hand_bar)
 
 	_build_picker()
 	_relayout()
@@ -312,15 +323,23 @@ func _layout_hand() -> void:
 	if n == 0:
 		return
 	var avail := w - 80.0
-	# Show about half of each card; squeeze only when the hand would overflow.
-	var step := minf(hs.x * 0.52, (avail - hs.x) / maxf(float(n - 1), 1.0))
+	# Fixed, readable overlap. If the hand is wider than the screen it scrolls by swipe.
+	var step := hs.x * 0.5
 	var total := hs.x + step * float(n - 1)
-	var x0 := (w - total) / 2.0
+	var max_scroll := maxf((total - avail) / 2.0, 0.0)
+	_hand_scroll = clampf(_hand_scroll, -max_scroll, max_scroll)
+	_hand_max_scroll = max_scroll
+	_hand_visible_frac = minf(avail / total, 1.0)
+	if hand_bar != null:
+		hand_bar.queue_redraw()
+	var x0 := (w - total) / 2.0 + _hand_scroll
 	var base_y := h - hs.y - 40.0
 	var tilt := minf(5.0, 36.0 / maxf(float(n), 1.0))
 	for i in n:
 		var v: Control = hand_views[i]
-		var o := float(i) - float(n - 1) / 2.0
+		# Fan position is relative to the screen centre, so scrolling rolls cards along the arc.
+		var cx := x0 + step * float(i) + hs.x / 2.0
+		var o := clampf((cx - w / 2.0) / step, -6.0, 6.0)
 		v.size = hs
 		v.pivot_offset = Vector2(hs.x / 2.0, hs.y * 1.6)
 		v.rotation_degrees = o * tilt
@@ -823,6 +842,14 @@ func _refresh() -> void:
 		if not _shown_required.is_empty() and not Settings.reduce():
 			required_view.scale = Vector2(1.25, 1.25)
 			create_tween().tween_property(required_view, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			# Suit change: sparks + ring in the suit's colour around the spinning 3D suit.
+			if st["required"]["kind"] != "free":
+				var fx_col: Color = Color(1.0, 0.82, 0.2)
+				if st["required"]["kind"] == "suit":
+					fx_col = CardArt.suit_color(st["required"]["suit"]).lerp(Color.WHITE, 0.35)
+				var fx_c: Vector2 = required_view.position + required_view.size * Vector2(0.62, 0.5)
+				Fx.ring(self, fx_c, fx_col, 90.0, 0.55, 8.0)
+				Fx.burst(self, fx_c, fx_col, 14, 300.0, 0.5)
 		_shown_required = (st["required"] as Dictionary).duplicate()
 
 	message_label.text = "\n".join(_log.slice(maxi(_log.size() - 2, 0)))
@@ -851,6 +878,7 @@ func _rebuild_hand(st: Dictionary, human_turn: bool) -> void:
 		var ok: bool = legal.has(c["id"])
 		v.set_flags(human_turn and not ok, human_turn and ok)
 		v.pressed.connect(_on_card_pressed)
+		v.dragged.connect(_on_hand_dragged)
 		if _hidden.has(c["id"]):
 			v.modulate.a = 0.0
 		add_child(v)
@@ -905,6 +933,35 @@ func _flash(text: String) -> void:
 	await get_tree().create_timer(1.6).timeout
 	if mine == _flash_serial and game != null:
 		message_label.text = "\n".join(_log.slice(maxi(_log.size() - 2, 0)))
+
+
+## Slim track under the hand plus edge chevrons, shown only when cards are off-screen.
+func _draw_hand_bar() -> void:
+	if _hand_max_scroll <= 0.5 or hand_views.is_empty():
+		return
+	var w := size.x
+	var h := size.y
+	var track_w := 180.0
+	var track := Rect2((w - track_w) / 2.0, h - 22.0, track_w, 8.0)
+	hand_bar.draw_rect(track, Color(1, 1, 1, 0.22))
+	var thumb_w := maxf(track_w * _hand_visible_frac, 30.0)
+	# Positive scroll = fan moved right = earlier (left) cards revealed.
+	var t := 0.5 - _hand_scroll / (2.0 * _hand_max_scroll)
+	var thumb := Rect2(track.position.x + (track_w - thumb_w) * t, track.position.y, thumb_w, track.size.y)
+	hand_bar.draw_rect(thumb, Color(1.0, 0.82, 0.25, 0.95))
+
+	# Chevrons at the screen edges where more cards are hidden.
+	var cy := h - _hand_card_size().y * 0.55
+	var col := Color(1, 1, 1, 0.75)
+	if _hand_scroll < _hand_max_scroll - 1.0: # more cards to the left
+		hand_bar.draw_colored_polygon(PackedVector2Array([Vector2(26, cy), Vector2(48, cy - 24), Vector2(48, cy + 24)]), col)
+	if _hand_scroll > -_hand_max_scroll + 1.0: # more cards to the right
+		hand_bar.draw_colored_polygon(PackedVector2Array([Vector2(w - 26, cy), Vector2(w - 48, cy - 24), Vector2(w - 48, cy + 24)]), col)
+
+
+func _on_hand_dragged(dx: float) -> void:
+	_hand_scroll += dx
+	_layout_hand()
 
 
 func _on_card_pressed(card_id: int) -> void:

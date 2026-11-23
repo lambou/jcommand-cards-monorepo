@@ -5,6 +5,13 @@ const TextFx := preload("res://scripts/ui/text_fx.gd")
 const CardArt := preload("res://scripts/ui/card_art.gd")
 
 signal pressed(card_id: int)
+signal dragged(dx: float)
+
+const DRAG_THRESHOLD := 14.0
+var _down := false
+var _dragging := false
+var _last_x := 0.0
+var _down_x := 0.0
 
 const BASE := Vector2(150, 215)
 
@@ -35,9 +42,27 @@ func set_flags(p_dimmed: bool, p_lifted: bool, p_badge: String = "") -> void:
 	queue_redraw()
 
 
+## A press only counts as a tap if the finger is released without dragging; a drag
+## is reported as horizontal movement (used to scroll the hand).
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		pressed.emit(int(card.get("id", -1)))
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_down = true
+			_dragging = false
+			_last_x = get_global_mouse_position().x
+			_down_x = _last_x
+		elif _down:
+			_down = false
+			if not _dragging:
+				pressed.emit(int(card.get("id", -1)))
+		accept_event()
+	elif event is InputEventMouseMotion and _down:
+		var x := get_global_mouse_position().x
+		if not _dragging and absf(x - _down_x) > DRAG_THRESHOLD:
+			_dragging = true
+		if _dragging:
+			dragged.emit(x - _last_x)
+		_last_x = x
 		accept_event()
 
 
