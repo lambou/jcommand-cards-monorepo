@@ -47,6 +47,7 @@
       "playOn": "required",
       "sets": "suit",
       "penalty": 2,
+      "playOnLion": true,
       "onStart": "redeal"
     },
     "LION": {

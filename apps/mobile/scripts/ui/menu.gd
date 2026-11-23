@@ -12,7 +12,7 @@ YOUR TURN
 Play a card of the required suit, or tap the bank to draw one card (that ends your turn).
 
 SPECIAL CARDS
-7 - next player draws 2.
+7 - next player draws 2. A 7 can be played on any Lion.
 Lion - next player draws 4. Red Lion goes on red cards, black on black. After a Lion, play any card of its color.
 Penalties stack: answer a 7 or Lion with another 7 or Lion (any suit) to pass the total on.
 2 - goes on anything and slides under the pile; nothing changes.

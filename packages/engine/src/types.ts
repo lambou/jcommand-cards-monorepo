@@ -83,6 +83,8 @@ export interface RuleDef {
   playOn: PlayOn;
   sets: Sets;
   penalty?: number;
+  /** Playable on any Lion regardless of the required colour. */
+  playOnLion?: boolean;
   slideUnder?: boolean;
   /** Default true. Lions have no number, so they never rank-match. */
   matchRank?: boolean;

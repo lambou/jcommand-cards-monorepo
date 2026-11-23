@@ -263,7 +263,7 @@
     "seed": 8,
     "maxSteps": 1500,
     "expect": {
-      "steps": 91,
+      "steps": 97,
       "over": true,
       "loser": "A",
       "finishedOrder": [
@@ -277,16 +277,16 @@
         "C": 1
       },
       "handSizes": {
-        "A": 4,
+        "A": 3,
         "B": 0,
         "C": 0
       },
       "pending": 0,
-      "required": "C",
+      "required": "D",
       "current": "B",
-      "stackTop": "5C",
-      "stackSize": 11,
-      "bankSize": 39
+      "stackTop": "4D",
+      "stackSize": 15,
+      "bankSize": 36
     }
   },
   {
@@ -341,24 +341,27 @@
     },
     "maxSteps": 1500,
     "expect": {
-      "steps": 1500,
-      "over": false,
-      "loser": null,
-      "finishedOrder": [],
+      "steps": 571,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "B",
+        "A"
+      ],
       "places": {
-        "A": null,
-        "B": null
+        "A": 2,
+        "B": 1
       },
       "handSizes": {
         "A": 15,
-        "B": 10
+        "B": 0
       },
       "pending": 0,
       "required": "H",
-      "current": "A",
-      "stackTop": "6H",
-      "stackSize": 26,
-      "bankSize": 3
+      "current": "B",
+      "stackTop": "10H",
+      "stackSize": 23,
+      "bankSize": 16
     }
   }
 ]
