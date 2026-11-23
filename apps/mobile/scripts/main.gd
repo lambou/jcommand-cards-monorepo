@@ -4,6 +4,9 @@ extends Control
 ##   --selftest              play full games through the real UI handlers; exit code 0 = pass
 ##   --shot=<file.png> [--bots=N]   save <file>_a/_b/_c.png: mid-deal, a card mid-flight, settled
 ##   --menushot=<file.png>   screenshot of the menu
+##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
+##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
+##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
 const Menu := preload("res://scripts/ui/menu.gd")
 const Table := preload("res://scripts/ui/table.gd")
@@ -43,6 +46,15 @@ func _ready() -> void:
 			podium_path = a.substr(13)
 		elif a.begins_with("--checkshot="):
 			_checkshot(a.substr(12))
+			return
+		elif a == "--modelview":
+			_swap(preload("res://scripts/ui/model_view.gd").new())
+			return
+		elif a.begins_with("--modelviewshot="):
+			_modelviewshot(a.substr(16))
+			return
+		elif a.begins_with("--suitshot="):
+			_suitshot(a.substr(11))
 			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
@@ -127,6 +139,35 @@ func _save(path: String, suffix: String) -> void:
 	var p := path.get_basename() + suffix + ".png"
 	get_viewport().get_texture().get_image().save_png(p)
 	print("saved ", p)
+
+
+func _modelviewshot(path: String) -> void:
+	var v := preload("res://scripts/ui/model_view.gd").new()
+	_swap(v)
+	await get_tree().create_timer(0.5).timeout
+	for a in [0, 90, 180, 270]:
+		v.angle = float(a)
+		await get_tree().create_timer(0.2).timeout
+		_save(path, "_%d" % a)
+	get_tree().quit()
+
+
+## Opens the J suit picker, then picks a suit and captures the PLAY pill spinning in the new suit.
+func _suitshot(path: String) -> void:
+	var t := _start_game(2, "normal")
+	t.game.bot_delay = 5.0
+	t.game.rng.seed = 5
+	await get_tree().create_timer(3.5).timeout   # let the deal finish
+	t.picker.visible = true
+	await get_tree().create_timer(0.4).timeout
+	_save(path, "_picker")
+	t.picker.visible = false
+	t.game.state["required"] = {"kind": "suit", "suit": "S"}
+	t.game.updated.emit([])
+	for i in 4:
+		await get_tree().create_timer(0.18).timeout
+		_save(path, "_pill%d" % i)
+	get_tree().quit()
 
 
 ## Gives the human a 2, plays it, and captures the slide-under animation frame by frame.
