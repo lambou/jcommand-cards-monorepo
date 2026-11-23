@@ -266,7 +266,7 @@ func _relayout() -> void:
 	var hs := _hand_card_size()
 	var free_top := oy + oh
 	var free_bottom := h - hs.y - 150.0
-	var block_h := cs.y + 64.0 + required_view.size.y + 100.0 + 110.0
+	var block_h := cs.y + 80.0 + required_view.size.y + 100.0 + 110.0
 	var cy := free_top + maxf((free_bottom - free_top - block_h) / 2.0, 20.0)
 	bank_view.size = cs
 	bank_view.position = Vector2(w / 2.0 - cs.x - 36, cy)
@@ -275,9 +275,13 @@ func _relayout() -> void:
 	stack_view.pivot_offset = cs / 2.0
 	bank_view.queue_redraw()
 	stack_view.queue_redraw()
-	bank_caption.position = Vector2(bank_view.position.x - 40, cy + cs.y + 6)
+	# Captions sit below the pile's peeking cards (up to 3 offset ~6px*k, scaled) and above it in z.
+	var cap_y := cy + cs.y + 30.0
+	bank_caption.z_index = 10
+	stack_caption.z_index = 10
+	bank_caption.position = Vector2(bank_view.position.x - 40, cap_y)
 	bank_caption.size = Vector2(cs.x + 80, 44)
-	stack_caption.position = Vector2(stack_view.position.x - 60, cy + cs.y + 6)
+	stack_caption.position = Vector2(stack_view.position.x - 60, cap_y)
 	stack_caption.size = Vector2(cs.x + 120, 44)
 
 	# Your own last-played card, left of the bank.
@@ -288,7 +292,7 @@ func _relayout() -> void:
 	you_caption.position = Vector2(you_last.position.x - 40, you_last.position.y + ms.y + 2)
 	you_caption.size = Vector2(ms.x + 80, 34)
 
-	required_view.position = Vector2((w - required_view.size.x) / 2.0, cy + cs.y + 64)
+	required_view.position = Vector2((w - required_view.size.x) / 2.0, cy + cs.y + 80)
 	required_view.pivot_offset = required_view.size / 2.0
 	message_label.position = Vector2(40, required_view.position.y + 100)
 	message_label.size = Vector2(w - 80, 110)
