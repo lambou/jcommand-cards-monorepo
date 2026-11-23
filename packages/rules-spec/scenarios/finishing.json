@@ -1,0 +1,180 @@
+[
+  {
+    "name": "1v1-cannot-finish-on-ace",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["AH"], "B": ["3H", "4H"] },
+      "bank": ["5D"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AH", "expectError": true },
+      { "player": "A", "action": "draw", "expect": { "handSizes": { "A": 2 }, "current": "B", "over": false } }
+    ]
+  },
+  {
+    "name": "1v1-ace-not-last-card-is-fine",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["AH", "3S"], "B": ["3H", "4H"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AH", "expect": { "current": "A", "over": false } }
+    ]
+  },
+  {
+    "name": "1v1-finish-on-normal-card-wins",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["5H"], "B": ["3D", "4D"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "5H", "expect": { "over": true, "loser": "B", "places": { "A": 1, "B": 2 } } }
+    ]
+  },
+  {
+    "name": "1v1-finish-on-two-wins",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["2S"], "B": ["3D", "4D"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "2S", "expect": { "over": true, "loser": "B" } }
+    ]
+  },
+  {
+    "name": "1v1-finish-on-jack-wins",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["JH"], "B": ["3D", "4D"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "JH", "suit": "D", "expect": { "over": true, "loser": "B" } }
+    ]
+  },
+  {
+    "name": "1v1-finish-on-seven-unblocked-wins",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H"], "B": ["3H", "4H"] },
+      "bank": ["KD", "KC"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H", "expect": { "over": false, "current": "B", "pending": 2, "statuses": { "A": "provisional" } } },
+      { "player": "B", "action": "takePenalty", "expect": { "over": true, "loser": "B", "places": { "A": 1, "B": 2 }, "handSizes": { "B": 4 } } }
+    ]
+  },
+  {
+    "name": "1v1-finish-on-seven-blocked-sends-penalty-back",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H"], "B": ["7D", "4C"] },
+      "bank": ["KD", "KC", "QS", "QH"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "play", "card": "7D", "expect": { "pending": 4, "current": "A", "over": false } },
+      { "player": "A", "action": "draw", "expectError": true },
+      {
+        "player": "A", "action": "takePenalty",
+        "expect": { "over": false, "current": "B", "required": "D", "handSizes": { "A": 4, "B": 1 }, "statuses": { "A": "playing" } }
+      }
+    ]
+  },
+  {
+    "name": "3p-finish-on-ace-is-allowed-and-skips",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["AH"], "B": ["3S", "4S"], "C": ["5S", "6S"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AH", "expect": { "over": false, "current": "C", "places": { "A": 1 }, "statuses": { "A": "finished" } } }
+    ]
+  },
+  {
+    "name": "3p-finish-on-seven-confirmed-when-penalty-lands-elsewhere",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["7H"], "B": ["3S", "4S"], "C": ["5S", "6S"] },
+      "bank": ["KD", "QD"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H", "expect": { "statuses": { "A": "provisional" }, "current": "B" } },
+      { "player": "B", "action": "takePenalty", "expect": { "statuses": { "A": "finished" }, "places": { "A": 1 }, "current": "C", "over": false, "handSizes": { "B": 4 } } }
+    ]
+  },
+  {
+    "name": "3p-penalty-chain-returns-to-provisional-finisher",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["7H"], "B": ["7D", "3S"], "C": ["7C", "4S"] },
+      "bank": ["KD", "KC", "QS", "QH", "10H", "10D"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "play", "card": "7D" },
+      { "player": "C", "action": "play", "card": "7C", "expect": { "pending": 6, "current": "A" } },
+      {
+        "player": "A", "action": "takePenalty",
+        "expect": { "pending": 0, "current": "B", "over": false, "required": "C", "handSizes": { "A": 6, "B": 1, "C": 1 }, "statuses": { "A": "playing" } }
+      }
+    ]
+  },
+  {
+    "name": "3p-everyone-else-finishes-on-penalty-cards-last-payer-loses",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["7H"], "B": ["7D"], "C": ["7C"] },
+      "bank": ["KD", "KC", "QS", "QH", "10H", "10D"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "play", "card": "7D" },
+      { "player": "C", "action": "play", "card": "7C", "expect": { "pending": 6, "current": "A", "over": false } },
+      {
+        "player": "A", "action": "takePenalty",
+        "expect": { "over": true, "loser": "A", "places": { "B": 1, "C": 2, "A": 3 }, "finishedOrder": ["B", "C", "A"] }
+      }
+    ]
+  },
+  {
+    "name": "3p-last-player-who-cannot-block-draws-and-loses",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["7H"], "B": ["7D"], "C": ["3S", "5S"] },
+      "bank": ["KD", "KC", "QS", "QH"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "play", "card": "7D", "expect": { "pending": 4, "current": "C" } },
+      {
+        "player": "C", "action": "takePenalty",
+        "expect": { "over": true, "loser": "C", "places": { "A": 1, "B": 2, "C": 3 } }
+      }
+    ]
+  },
+  {
+    "name": "3p-after-one-player-is-out-the-1v1-ace-rule-applies",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["5H"], "B": ["AS"], "C": ["3S", "4S"] },
+      "bank": ["KD"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "5H", "expect": { "over": false, "places": { "A": 1 }, "current": "B" } },
+      { "player": "B", "action": "play", "card": "AS", "expectError": true }
+    ]
+  }
+]

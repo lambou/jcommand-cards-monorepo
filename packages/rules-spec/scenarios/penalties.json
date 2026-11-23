@@ -1,0 +1,111 @@
+[
+  {
+    "name": "seven-chain-lands-on-third-player",
+    "description": "A 7, B 7 (any suit on a pending penalty), C cannot block and draws 4. No draw-1 during a penalty.",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["7H", "3S"], "B": ["7D", "4C"], "C": ["5H", "6S", "9D"] },
+      "bank": ["KD", "KC", "QS", "QH", "10H", "10D"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H", "expect": { "pending": 2, "current": "B", "required": "H" } },
+      { "player": "B", "action": "play", "card": "7D", "expect": { "pending": 4, "current": "C", "required": "D" } },
+      { "player": "C", "action": "draw", "expectError": true },
+      { "player": "C", "action": "play", "card": "5H", "expectError": true },
+      {
+        "player": "C", "action": "takePenalty",
+        "expect": {
+          "pending": 0, "current": "A", "required": "D",
+          "hands": { "C": ["5H", "6S", "9D", "KD", "KC", "QS", "QH"] },
+          "bank": ["10H", "10D"]
+        }
+      },
+      { "player": "A", "action": "play", "card": "3S", "expectError": true }
+    ]
+  },
+  {
+    "name": "two-cannot-block-a-penalty",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H", "KD"], "B": ["2C", "3D"] },
+      "bank": ["QS", "QH"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H", "expect": { "pending": 2 } },
+      { "player": "B", "action": "play", "card": "2C", "expectError": true },
+      { "player": "B", "action": "takePenalty", "expect": { "handSizes": { "B": 4 }, "current": "A", "required": "H" } }
+    ]
+  },
+  {
+    "name": "lion-follows-color-and-chains-with-lion",
+    "description": "Red lion on a red card; black lion on a pending penalty is fine; penalty taker then faces a black-color requirement.",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["LR", "3H"], "B": ["LB", "5D", "2C"] },
+      "bank": ["4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "LR", "expect": { "pending": 4, "required": "red", "current": "B" } },
+      { "player": "B", "action": "play", "card": "LB", "expect": { "pending": 8, "required": "black", "current": "A" } },
+      { "player": "A", "action": "takePenalty", "expect": { "pending": 0, "handSizes": { "A": 9 }, "current": "B", "required": "black" } },
+      { "player": "B", "action": "play", "card": "5D", "expectError": true },
+      { "player": "B", "action": "play", "card": "2C", "expect": { "required": "black", "stackTop": "LB", "stackBottom": "2C" } }
+    ]
+  },
+  {
+    "name": "black-lion-illegal-on-red-card",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["LB", "3H"], "B": ["4H"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "LB", "expectError": true },
+      { "player": "A", "action": "play", "card": "3H", "expect": { "current": "B" } }
+    ]
+  },
+  {
+    "name": "after-lion-any-suit-of-that-color",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["LR", "4D", "4C"], "B": ["5C", "6C"] },
+      "bank": ["KS", "KC", "QS", "QC"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "LR" },
+      { "player": "B", "action": "takePenalty", "expect": { "current": "A", "required": "red" } },
+      { "player": "A", "action": "play", "card": "4C", "expectError": true },
+      { "player": "A", "action": "play", "card": "4D", "expect": { "required": "D" } }
+    ]
+  },
+  {
+    "name": "lion-is-always-legal-when-free",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["LB", "3H"], "B": ["4H"] },
+      "stack": ["9H"],
+      "required": "free"
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "LB", "expect": { "pending": 4, "required": "black" } }
+    ]
+  },
+  {
+    "name": "cannot-draw-one-during-penalty",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H", "3H"], "B": ["4S"] },
+      "bank": ["KD", "KC", "QS"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "draw", "expectError": true },
+      { "player": "B", "action": "takePenalty", "expect": { "handSizes": { "B": 3 } } }
+    ]
+  }
+]

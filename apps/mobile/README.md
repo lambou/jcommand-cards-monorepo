@@ -1,0 +1,28 @@
+# Godot client
+
+Open this folder in Godot 4.7 and press Play, or run:
+
+    godot --path apps/mobile
+
+You play against 1-3 bots, fully offline.
+
+## Layout
+- `scripts/engine/` - GDScript port of `packages/engine` (`engine.gd` = rules; must stay identical to the TypeScript engine)
+- `scripts/ai/bot.gd` - bot players (`easy` = mostly random, `normal` = heuristic)
+- `scripts/game/offline_game.gd` - offline session: runs the engine, drives the bots
+- `scripts/audio/sfx.gd` - synthesised sound effects (`Sfx.play("name")`); `scripts/game/settings.gd` - saved settings (sound, volume, reduce motion)
+- `scripts/ui/` - menu, table, placeholder vector cards (`card_art.gd`, `card_view.gd`, ...)
+- `scripts/main.gd` - root; also hosts debug flags (below)
+- `data/rules.json` - synced copy of `packages/rules-spec/rules.json` (`pnpm sync-rules`)
+
+## Tests and tools (all headless-friendly)
+    godot --headless --path apps/mobile -s res://scripts/tests/run_conformance.gd   # shared scenarios vs TS engine
+    godot --headless --path apps/mobile -- --selftest                               # plays full games through the real UI handlers
+    godot --headless --path apps/mobile -s res://scripts/tests/sim_bots.gd -- 100   # bot-vs-bot win rates / game length
+    godot --path apps/mobile -- --shot=out.png --bots=2                             # out_a/_b/_c.png: mid-deal, a card mid-flight, settled
+    godot --path apps/mobile -- --menushot=out.png                                  # screenshot of the menu
+    godot --path apps/mobile -- --exportsounds=out_dir                              # write every sound as a .wav so you can listen
+    godot --path apps/mobile -- --reduce --selftest                                 # run with Reduce motion on (not saved)
+    godot --path apps/mobile -- --settingsshot=out.png                              # screenshot of the settings screen
+    godot --headless --path apps/mobile -s res://scripts/tests/sim_tune.gd -- 300 2     # tune the experimental 'hard' bot vs 'normal'
+    godot --headless --path apps/mobile -s res://scripts/tests/sim_choices.gd -- 100   # how often a turn offers a real choice

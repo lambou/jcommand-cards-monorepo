@@ -1,0 +1,13 @@
+{
+  "name": "@jcommand/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@jcommand/engine": "workspace:*"
+  }
+}

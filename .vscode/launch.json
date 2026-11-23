@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Play (Godot)",
+      "type": "godot",
+      "request": "launch",
+      "project": "${workspaceFolder}/apps/mobile",
+      "scene": "main",
+      "additional_options": ""
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "name": "start-7-and-lion-go-to-bottom-of-bank",
+    "playerIds": ["A", "B"],
+    "deck": ["3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "7H", "LR", "5D", "KD"],
+    "expect": {
+      "stackTop": "5D",
+      "required": "D",
+      "current": "A",
+      "bankSize": 3,
+      "bankBottom": ["LR", "7H"],
+      "bankTop": ["KD", "7H", "LR"]
+    }
+  },
+  {
+    "name": "start-jack-is-free",
+    "playerIds": ["A", "B"],
+    "deck": ["3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "JH", "KD"],
+    "expect": { "stackTop": "JH", "required": "free", "current": "A" }
+  },
+  {
+    "name": "start-two-is-free",
+    "playerIds": ["A", "B"],
+    "deck": ["3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "2H", "KD"],
+    "expect": { "stackTop": "2H", "required": "free", "current": "A" }
+  },
+  {
+    "name": "start-ace-skips-first-player",
+    "playerIds": ["A", "B", "C"],
+    "deck": [
+      "3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "4C", "5C", "6C", "8C", "9C", "AH", "KD"
+    ],
+    "expect": { "stackTop": "AH", "required": "H", "current": "B" }
+  },
+  {
+    "name": "start-normal-card-sets-suit",
+    "playerIds": ["A", "B", "C"],
+    "deck": [
+      "3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "4C", "5C", "6C", "8C", "9C", "KH", "KD"
+    ],
+    "expect": {
+      "hands": { "A": ["3S", "6S", "10S", "3C", "6C"], "B": ["4S", "8S", "QS", "4C", "8C"], "C": ["5S", "9S", "KS", "5C", "9C"] },
+      "stackTop": "KH",
+      "required": "H",
+      "current": "A"
+    }
+  }
+]

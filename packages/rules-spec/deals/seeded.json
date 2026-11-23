@@ -1,0 +1,173 @@
+[
+  {
+    "name": "seed-42-three-players",
+    "playerIds": [
+      "A",
+      "B",
+      "C"
+    ],
+    "seed": 42,
+    "expect": {
+      "hands": {
+        "A": [
+          "7C",
+          "9C",
+          "AD",
+          "9D",
+          "6C"
+        ],
+        "B": [
+          "JD",
+          "9H",
+          "4C",
+          "JH",
+          "KH"
+        ],
+        "C": [
+          "6S",
+          "KD",
+          "AS",
+          "QC",
+          "8H"
+        ]
+      },
+      "stackTop": "AC",
+      "required": "C",
+      "current": "B",
+      "bankSize": 38,
+      "bankTop": [
+        "10D",
+        "AH",
+        "4D",
+        "3C",
+        "2H"
+      ]
+    }
+  },
+  {
+    "name": "seed-7-two-players",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 7,
+    "expect": {
+      "hands": {
+        "A": [
+          "AH",
+          "QS",
+          "AC",
+          "10D",
+          "KD"
+        ],
+        "B": [
+          "4H",
+          "10C",
+          "7D",
+          "QH",
+          "7C"
+        ]
+      },
+      "stackTop": "8S",
+      "required": "S",
+      "current": "A",
+      "bankSize": 43,
+      "bankTop": [
+        "7H",
+        "6S",
+        "9D",
+        "8H",
+        "2D"
+      ]
+    }
+  },
+  {
+    "name": "seed-123456789-four-players",
+    "playerIds": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "seed": 123456789,
+    "expect": {
+      "hands": {
+        "A": [
+          "AD",
+          "3D",
+          "AH",
+          "JD",
+          "10D"
+        ],
+        "B": [
+          "KS",
+          "JC",
+          "8H",
+          "6S",
+          "JS"
+        ],
+        "C": [
+          "2S",
+          "QC",
+          "4D",
+          "7D",
+          "3C"
+        ],
+        "D": [
+          "JH",
+          "LB",
+          "6D",
+          "6C",
+          "4C"
+        ]
+      },
+      "stackTop": "2H",
+      "required": "free",
+      "current": "A",
+      "bankSize": 33,
+      "bankTop": [
+        "KH",
+        "3S",
+        "8S",
+        "2D",
+        "9S"
+      ]
+    }
+  },
+  {
+    "name": "seed-4000000000-two-players-hand-3",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 4000000000,
+    "settings": {
+      "handSize": 3
+    },
+    "expect": {
+      "hands": {
+        "A": [
+          "QC",
+          "9C",
+          "10H"
+        ],
+        "B": [
+          "4C",
+          "7S",
+          "LR"
+        ]
+      },
+      "stackTop": "4H",
+      "required": "H",
+      "current": "A",
+      "bankSize": 47,
+      "bankTop": [
+        "AC",
+        "JC",
+        "KC",
+        "7C",
+        "10D"
+      ]
+    }
+  }
+]

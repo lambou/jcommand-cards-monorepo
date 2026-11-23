@@ -1,0 +1,48 @@
+[
+  {
+    "name": "refill-turns-the-stack-over-keeping-floor",
+    "description": "Old bottom of the stack becomes the top of the bank (no reshuffle). Slid 2s come out first.",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["4H", "KD"], "B": ["5S", "6S"] },
+      "bank": [],
+      "stack": ["2C", "KS", "QH", "9H"]
+    },
+    "steps": [
+      {
+        "player": "A", "action": "draw",
+        "expect": { "hands": { "A": ["4H", "KD", "2C"] }, "stackSize": 1, "stackTop": "9H", "bank": ["KS", "QH"], "current": "B" }
+      }
+    ]
+  },
+  {
+    "name": "refill-with-reshuffle-setting-is-seeded-and-identical-across-engines",
+    "description": "reshuffleOnRefill=true shuffles the recycled pile with the seeded RNG (rngState starts at 1).",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["4H", "KD"], "B": ["5S", "6S"] },
+      "bank": [],
+      "stack": ["2C", "KS", "QH", "JD", "10C", "9H"],
+      "settings": { "reshuffleOnRefill": true }
+    },
+    "steps": [
+      {
+        "player": "A", "action": "draw",
+        "expect": { "hands": { "A": ["4H", "KD", "JD"] }, "bank": ["2C", "KS", "QH", "10C"], "stackSize": 1 }
+      }
+    ]
+  },
+  {
+    "name": "refill-in-the-middle-of-a-penalty",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H", "3H"], "B": ["4S"] },
+      "bank": ["KD"],
+      "stack": ["5D", "6D", "9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H", "expect": { "stackSize": 4 } },
+      { "player": "B", "action": "takePenalty", "expect": { "handSizes": { "B": 3 }, "stackSize": 1, "stackTop": "7H", "bankSize": 2 } }
+    ]
+  }
+]

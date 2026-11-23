@@ -1,0 +1,32 @@
+[
+  {
+    "name": "follow-suit-and-voluntary-draw",
+    "description": "Off-suit plays are rejected; drawing is a full turn even when a card is playable.",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["5H", "9S", "KC"], "B": ["3D", "4D", "6C"] },
+      "bank": ["QD", "QC"],
+      "stack": ["8H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "9S", "expectError": true },
+      { "player": "A", "action": "play", "card": "5H", "expect": { "current": "B", "stackTop": "5H", "required": "H" } },
+      { "player": "B", "action": "play", "card": "3D", "expectError": true },
+      { "player": "A", "action": "draw", "expectError": true },
+      { "player": "B", "action": "draw", "expect": { "current": "A", "handSizes": { "B": 4 }, "bankSize": 1 } },
+      { "player": "A", "action": "draw", "expect": { "current": "B", "handSizes": { "A": 3 }, "bankSize": 0 } }
+    ]
+  },
+  {
+    "name": "normal-card-must-match-suit-exactly",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["5H", "5D"], "B": ["3S"] },
+      "stack": ["8H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "5D", "expectError": true },
+      { "player": "A", "action": "play", "card": "5H", "expect": { "required": "H" } }
+    ]
+  }
+]

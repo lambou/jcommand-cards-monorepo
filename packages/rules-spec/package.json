@@ -1,0 +1,9 @@
+{
+  "name": "@jcommand/rules-spec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Declarative card rules + golden scenarios shared by the TypeScript and GDScript engines",
+  "exports": {
+    "./rules.json": "./rules.json"
+  }
+}

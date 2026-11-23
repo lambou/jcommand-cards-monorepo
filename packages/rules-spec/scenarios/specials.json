@@ -1,0 +1,89 @@
+[
+  {
+    "name": "two-slides-under-and-changes-nothing",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["2S", "3H"], "B": ["4H", "5H"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "2S", "expect": { "stackTop": "9H", "stackBottom": "2S", "stackSize": 2, "required": "H", "current": "B" } },
+      { "player": "B", "action": "play", "card": "4H", "expect": { "stackTop": "4H" } }
+    ]
+  },
+  {
+    "name": "jack-must-match-suit-unless-on-jack",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["JS", "JH", "4S"], "B": ["JD", "KS"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "JS", "suit": "S", "expectError": true },
+      { "player": "A", "action": "play", "card": "JH", "expectError": true },
+      { "player": "A", "action": "play", "card": "JH", "suit": "S", "expect": { "required": "S", "current": "B" } },
+      { "player": "B", "action": "play", "card": "JD", "suit": "C", "expect": { "required": "C", "current": "A" } },
+      { "player": "A", "action": "play", "card": "4S", "expectError": true },
+      { "player": "A", "action": "play", "card": "JS", "suit": "H", "expect": { "required": "H" } }
+    ]
+  },
+  {
+    "name": "jack-can-keep-the-same-suit",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["JH", "4S"], "B": ["KH"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "JH", "suit": "H", "expect": { "required": "H" } }
+    ]
+  },
+  {
+    "name": "ace-skips-next-and-ace-on-ace-any-suit-3p",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["AH", "3S", "3C"], "B": ["4H", "5H"], "C": ["AD", "6C", "KS"] },
+      "bank": ["2D"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AH", "expect": { "current": "C", "required": "H" } },
+      { "player": "C", "action": "play", "card": "AD", "expect": { "current": "B", "required": "D" } }
+    ]
+  },
+  {
+    "name": "first-ace-must-match-suit",
+    "setup": {
+      "players": ["A", "B", "C"],
+      "hands": { "A": ["AD", "3S"], "B": ["4H"], "C": ["5H"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AD", "expectError": true }
+    ]
+  },
+  {
+    "name": "ace-in-two-player-game-plays-again",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["AH", "3H", "4H"], "B": ["5H"] },
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "AH", "expect": { "current": "A" } }
+    ]
+  },
+  {
+    "name": "ace-cannot-be-played-during-a-penalty",
+    "setup": {
+      "players": ["A", "B"],
+      "hands": { "A": ["7H", "3H"], "B": ["AH", "4S"] },
+      "bank": ["KD", "KC"],
+      "stack": ["9H"]
+    },
+    "steps": [
+      { "player": "A", "action": "play", "card": "7H" },
+      { "player": "B", "action": "play", "card": "AH", "expectError": true }
+    ]
+  }
+]

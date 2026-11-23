@@ -1,0 +1,364 @@
+[
+  {
+    "name": "2p-seed-1",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 1,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 17,
+      "over": true,
+      "loser": "B",
+      "finishedOrder": [
+        "A",
+        "B"
+      ],
+      "places": {
+        "A": 1,
+        "B": 2
+      },
+      "handSizes": {
+        "A": 0,
+        "B": 9
+      },
+      "pending": 0,
+      "required": "C",
+      "current": "A",
+      "stackTop": "4C",
+      "stackSize": 13,
+      "bankSize": 32
+    }
+  },
+  {
+    "name": "2p-seed-2",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 2,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 14,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "B",
+        "A"
+      ],
+      "places": {
+        "A": 2,
+        "B": 1
+      },
+      "handSizes": {
+        "A": 7,
+        "B": 0
+      },
+      "pending": 0,
+      "required": "H",
+      "current": "B",
+      "stackTop": "6H",
+      "stackSize": 11,
+      "bankSize": 36
+    }
+  },
+  {
+    "name": "3p-seed-3",
+    "playerIds": [
+      "A",
+      "B",
+      "C"
+    ],
+    "seed": 3,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 83,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "B",
+        "C",
+        "A"
+      ],
+      "places": {
+        "A": 3,
+        "B": 1,
+        "C": 2
+      },
+      "handSizes": {
+        "A": 9,
+        "B": 0,
+        "C": 0
+      },
+      "pending": 0,
+      "required": "C",
+      "current": "C",
+      "stackTop": "JS",
+      "stackSize": 9,
+      "bankSize": 36
+    }
+  },
+  {
+    "name": "3p-seed-4",
+    "playerIds": [
+      "A",
+      "B",
+      "C"
+    ],
+    "seed": 4,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 95,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "B",
+        "C",
+        "A"
+      ],
+      "places": {
+        "A": 3,
+        "B": 1,
+        "C": 2
+      },
+      "handSizes": {
+        "A": 8,
+        "B": 0,
+        "C": 0
+      },
+      "pending": 0,
+      "required": "red",
+      "current": "A",
+      "stackTop": "LR",
+      "stackSize": 13,
+      "bankSize": 33
+    }
+  },
+  {
+    "name": "4p-seed-5",
+    "playerIds": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "seed": 5,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 143,
+      "over": true,
+      "loser": "D",
+      "finishedOrder": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "places": {
+        "A": 1,
+        "B": 2,
+        "C": 3,
+        "D": 4
+      },
+      "handSizes": {
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 5
+      },
+      "pending": 0,
+      "required": "H",
+      "current": "C",
+      "stackTop": "KH",
+      "stackSize": 3,
+      "bankSize": 46
+    }
+  },
+  {
+    "name": "4p-seed-6-reshuffle",
+    "playerIds": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "seed": 6,
+    "settings": {
+      "reshuffleOnRefill": true
+    },
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 162,
+      "over": true,
+      "loser": "D",
+      "finishedOrder": [
+        "C",
+        "A",
+        "B",
+        "D"
+      ],
+      "places": {
+        "A": 2,
+        "B": 3,
+        "C": 1,
+        "D": 4
+      },
+      "handSizes": {
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 4
+      },
+      "pending": 0,
+      "required": "S",
+      "current": "B",
+      "stackTop": "QS",
+      "stackSize": 30,
+      "bankSize": 20
+    }
+  },
+  {
+    "name": "2p-seed-7-reshuffle",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 7,
+    "settings": {
+      "reshuffleOnRefill": true
+    },
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 101,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "B",
+        "A"
+      ],
+      "places": {
+        "A": 2,
+        "B": 1
+      },
+      "handSizes": {
+        "A": 6,
+        "B": 0
+      },
+      "pending": 0,
+      "required": "C",
+      "current": "B",
+      "stackTop": "4C",
+      "stackSize": 17,
+      "bankSize": 31
+    }
+  },
+  {
+    "name": "3p-seed-8",
+    "playerIds": [
+      "A",
+      "B",
+      "C"
+    ],
+    "seed": 8,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 91,
+      "over": true,
+      "loser": "A",
+      "finishedOrder": [
+        "C",
+        "B",
+        "A"
+      ],
+      "places": {
+        "A": 3,
+        "B": 2,
+        "C": 1
+      },
+      "handSizes": {
+        "A": 4,
+        "B": 0,
+        "C": 0
+      },
+      "pending": 0,
+      "required": "C",
+      "current": "B",
+      "stackTop": "5C",
+      "stackSize": 11,
+      "bankSize": 39
+    }
+  },
+  {
+    "name": "4p-seed-9",
+    "playerIds": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "seed": 9,
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 156,
+      "over": true,
+      "loser": "C",
+      "finishedOrder": [
+        "A",
+        "B",
+        "D",
+        "C"
+      ],
+      "places": {
+        "A": 1,
+        "B": 2,
+        "C": 4,
+        "D": 3
+      },
+      "handSizes": {
+        "A": 0,
+        "B": 0,
+        "C": 8,
+        "D": 0
+      },
+      "pending": 0,
+      "required": "D",
+      "current": "D",
+      "stackTop": "5D",
+      "stackSize": 13,
+      "bankSize": 33
+    }
+  },
+  {
+    "name": "2p-seed-10-no-rank-match",
+    "playerIds": [
+      "A",
+      "B"
+    ],
+    "seed": 10,
+    "settings": {
+      "matchRank": false
+    },
+    "maxSteps": 1500,
+    "expect": {
+      "steps": 1500,
+      "over": false,
+      "loser": null,
+      "finishedOrder": [],
+      "places": {
+        "A": null,
+        "B": null
+      },
+      "handSizes": {
+        "A": 15,
+        "B": 10
+      },
+      "pending": 0,
+      "required": "H",
+      "current": "A",
+      "stackTop": "6H",
+      "stackSize": 26,
+      "bankSize": 3
+    }
+  }
+]

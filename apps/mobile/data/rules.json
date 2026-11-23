@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "deck": {
+    "suits": [
+      "H",
+      "D",
+      "C",
+      "S"
+    ],
+    "ranks": [
+      "A",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "J",
+      "Q",
+      "K"
+    ],
+    "lions": [
+      "red",
+      "black"
+    ]
+  },
+  "defaultSettings": {
+    "handSize": 5,
+    "reshuffleOnRefill": false,
+    "matchRank": true
+  },
+  "ranks": {
+    "default": {
+      "playOn": "required",
+      "sets": "suit"
+    },
+    "2": {
+      "playOn": "any",
+      "sets": "none",
+      "slideUnder": true,
+      "onStart": "free"
+    },
+    "7": {
+      "playOn": "required",
+      "sets": "suit",
+      "penalty": 2,
+      "onStart": "redeal"
+    },
+    "LION": {
+      "playOn": "required",
+      "sets": "color",
+      "penalty": 4,
+      "onStart": "redeal"
+    },
+    "J": {
+      "playOn": "requiredOrSameRank",
+      "sets": "chosen",
+      "onStart": "free"
+    },
+    "A": {
+      "playOn": "requiredOrSameRank",
+      "sets": "suit",
+      "skipNext": 1,
+      "cannotFinishWhenTwoPlayersLeft": true,
+      "onStart": "skipFirst"
+    }
+  }
+}

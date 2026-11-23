@@ -1,0 +1,326 @@
+[
+  {
+    "name": "same-rank-switches-suit",
+    "description": "5 of Hearts can be played on 5 of Diamonds; the new required suit is Hearts.",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "5H",
+          "3S"
+        ],
+        "B": [
+          "4D",
+          "8H"
+        ]
+      },
+      "stack": [
+        "5D"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "5H",
+        "expect": {
+          "required": "H",
+          "stackTop": "5H",
+          "current": "B"
+        }
+      },
+      {
+        "player": "B",
+        "action": "play",
+        "card": "4D",
+        "expectError": true
+      },
+      {
+        "player": "B",
+        "action": "play",
+        "card": "8H",
+        "expect": {
+          "required": "H"
+        }
+      }
+    ]
+  },
+  {
+    "name": "different-rank-and-suit-is-still-illegal",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "6H",
+          "3S"
+        ],
+        "B": [
+          "4D"
+        ]
+      },
+      "stack": [
+        "5D"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "6H",
+        "expectError": true
+      },
+      {
+        "player": "A",
+        "action": "play",
+        "card": "3S",
+        "expectError": true
+      }
+    ]
+  },
+  {
+    "name": "seven-on-seven-of-another-suit-without-penalty",
+    "description": "Rank matching also works for a 7 when no penalty is pending; the penalty still applies.",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "7D",
+          "3S"
+        ],
+        "B": [
+          "4H"
+        ]
+      },
+      "bank": [
+        "KD",
+        "KC"
+      ],
+      "stack": [
+        "7H"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "7D",
+        "expect": {
+          "pending": 2,
+          "required": "D",
+          "current": "B"
+        }
+      }
+    ]
+  },
+  {
+    "name": "rank-match-can-be-switched-off",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "5H",
+          "3S"
+        ],
+        "B": [
+          "4D"
+        ]
+      },
+      "stack": [
+        "5D"
+      ],
+      "settings": {
+        "matchRank": false
+      }
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "5H",
+        "expectError": true
+      }
+    ]
+  },
+  {
+    "name": "rank-match-is-not-allowed-during-a-penalty",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "7H",
+          "3H"
+        ],
+        "B": [
+          "3S",
+          "3D"
+        ]
+      },
+      "bank": [
+        "KD",
+        "KC"
+      ],
+      "stack": [
+        "9H"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "7H"
+      },
+      {
+        "player": "B",
+        "action": "play",
+        "card": "3S",
+        "expectError": true
+      }
+    ]
+  },
+  {
+    "name": "finishing-on-a-rank-match-wins",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "9S"
+        ],
+        "B": [
+          "3D",
+          "4D"
+        ]
+      },
+      "stack": [
+        "9H"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "9S",
+        "expect": {
+          "over": true,
+          "loser": "B",
+          "required": "S"
+        }
+      }
+    ]
+  },
+  {
+    "name": "lion-on-lion-after-the-penalty-was-taken",
+    "description": "A plays a Lion, B cannot block and draws 4, then C may play the other Lion on it (a Lion matches a Lion whatever its color).",
+    "setup": {
+      "players": [
+        "A",
+        "B",
+        "C"
+      ],
+      "hands": {
+        "A": [
+          "LR",
+          "3H"
+        ],
+        "B": [
+          "5C",
+          "6C"
+        ],
+        "C": [
+          "LB",
+          "4D"
+        ]
+      },
+      "bank": [
+        "KD",
+        "KC",
+        "QS",
+        "QH"
+      ],
+      "stack": [
+        "9H"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "LR",
+        "expect": {
+          "pending": 4,
+          "required": "red",
+          "current": "B"
+        }
+      },
+      {
+        "player": "B",
+        "action": "takePenalty",
+        "expect": {
+          "pending": 0,
+          "current": "C",
+          "handSizes": {
+            "B": 6
+          }
+        }
+      },
+      {
+        "player": "C",
+        "action": "play",
+        "card": "LB",
+        "expect": {
+          "pending": 4,
+          "required": "black",
+          "stackTop": "LB",
+          "current": "A"
+        }
+      }
+    ]
+  },
+  {
+    "name": "lion-needs-a-matching-color-on-a-non-lion-card",
+    "description": "Lion-on-Lion is the only exception: on any other card a Lion still needs its own color.",
+    "setup": {
+      "players": [
+        "A",
+        "B"
+      ],
+      "hands": {
+        "A": [
+          "LB",
+          "3H"
+        ],
+        "B": [
+          "4H"
+        ]
+      },
+      "stack": [
+        "9H"
+      ]
+    },
+    "steps": [
+      {
+        "player": "A",
+        "action": "play",
+        "card": "LB",
+        "expectError": true
+      }
+    ]
+  }
+]

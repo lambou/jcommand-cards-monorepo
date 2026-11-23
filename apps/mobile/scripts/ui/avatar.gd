@@ -1,0 +1,89 @@
+extends RefCounted
+## Placeholder vector avatars drawn with circles and polygons. One style per player slot:
+## 0 = you, 1..3 = the bots.
+
+const STYLES := [
+	{"name": "You", "bg": Color(0.96, 0.76, 0.22), "skin": Color(0.97, 0.80, 0.66), "hair": Color(0.28, 0.17, 0.08), "kind": "cap", "accent": Color(0.85, 0.15, 0.18)},
+	{"name": "Rex", "bg": Color(0.27, 0.55, 0.86), "skin": Color(0.86, 0.63, 0.46), "hair": Color(0.10, 0.10, 0.12), "kind": "spiky", "accent": Color(0.1, 0.1, 0.12)},
+	{"name": "Luna", "bg": Color(0.86, 0.36, 0.58), "skin": Color(0.99, 0.86, 0.73), "hair": Color(0.74, 0.34, 0.14), "kind": "bob", "accent": Color(0.74, 0.34, 0.14)},
+	{"name": "Zed", "bg": Color(0.34, 0.70, 0.46), "skin": Color(0.55, 0.38, 0.27), "hair": Color(0.06, 0.06, 0.07), "kind": "afro", "accent": Color(0.06, 0.06, 0.07)},
+]
+
+const DARK := Color(0.12, 0.10, 0.12)
+
+
+static func index_for(id: String) -> int:
+	if id.begins_with("bot"):
+		return clampi(int(id.substr(3)), 1, STYLES.size() - 1)
+	return 0
+
+
+static func display_name(idx: int) -> String:
+	return STYLES[idx % STYLES.size()]["name"]
+
+
+static func _dir(a: float) -> Vector2:
+	return Vector2(cos(a), sin(a))
+
+
+static func _half_disc(ci: CanvasItem, c: Vector2, rad: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for k in 17:
+		pts.append(c + _dir(PI + PI * float(k) / 16.0) * rad)
+	ci.draw_colored_polygon(pts, col)
+
+
+## Draws the avatar centred on `c` with radius `r`. `ring_w` > 0 adds a border ring.
+static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false) -> void:
+	var st: Dictionary = STYLES[idx % STYLES.size()]
+	var skin: Color = st["skin"]
+	var hair: Color = st["hair"]
+	ci.draw_circle(c, r, st["bg"])
+	ci.draw_circle(c + Vector2(0, r * 0.55), r * 0.62, (st["bg"] as Color).darkened(0.18)) # shoulders glow
+
+	var hc := c + Vector2(0, r * 0.1)
+	var hr := r * 0.5
+
+	# Hair behind the head.
+	match st["kind"]:
+		"afro":
+			ci.draw_circle(hc + Vector2(0, -hr * 0.3), hr * 1.32, hair)
+		"bob":
+			ci.draw_circle(hc + Vector2(0, -hr * 0.1), hr * 1.18, hair)
+			ci.draw_circle(hc + Vector2(-hr * 0.98, hr * 0.55), hr * 0.46, hair)
+			ci.draw_circle(hc + Vector2(hr * 0.98, hr * 0.55), hr * 0.46, hair)
+
+	# Ears + head.
+	ci.draw_circle(hc + Vector2(-hr * 0.98, hr * 0.05), hr * 0.18, skin)
+	ci.draw_circle(hc + Vector2(hr * 0.98, hr * 0.05), hr * 0.18, skin)
+	ci.draw_circle(hc, hr, skin)
+
+	# Hair / hat on top.
+	match st["kind"]:
+		"cap":
+			_half_disc(ci, hc + Vector2(0, -hr * 0.08), hr * 1.04, st["accent"])
+			ci.draw_colored_polygon(PackedVector2Array([
+				hc + Vector2(-hr * 0.2, -hr * 0.12), hc + Vector2(hr * 1.35, -hr * 0.12),
+				hc + Vector2(hr * 1.35, hr * 0.08), hc + Vector2(-hr * 0.2, hr * 0.08)]), (st["accent"] as Color).darkened(0.2))
+			ci.draw_circle(hc + Vector2(0, -hr * 0.95), hr * 0.1, Color.WHITE)
+		"spiky":
+			for i in 5:
+				var a := deg_to_rad(-90.0 + float(i - 2) * 30.0)
+				ci.draw_colored_polygon(PackedVector2Array([
+					hc + _dir(a - 0.24) * hr * 0.92, hc + _dir(a + 0.24) * hr * 0.92, hc + _dir(a) * hr * 1.6]), hair)
+			_half_disc(ci, hc + Vector2(0, -hr * 0.05), hr * 1.0, hair)
+		"bob", "afro":
+			_half_disc(ci, hc + Vector2(0, -hr * 0.05), hr * 1.03, hair)
+
+	# Face.
+	var eye_y := -hr * 0.02
+	for sx in [-1.0, 1.0]:
+		var ec: Vector2 = hc + Vector2(sx * hr * 0.4, eye_y)
+		ci.draw_circle(ec, hr * 0.13, DARK)
+		ci.draw_circle(ec + Vector2(hr * 0.04, -hr * 0.05), hr * 0.045, Color.WHITE)
+		ci.draw_circle(hc + Vector2(sx * hr * 0.62, hr * 0.3), hr * 0.14, Color(1.0, 0.45, 0.5, 0.35))
+	var smile := hr * (0.42 if happy else 0.3)
+	ci.draw_arc(hc + Vector2(0, hr * (0.22 if happy else 0.3)), smile, 0.12 * PI, 0.88 * PI, 14, DARK, maxf(2.0, hr * 0.07), true)
+
+	if ring_w > 0.0:
+		ci.draw_arc(c, r, 0.0, TAU, 48, ring, ring_w, true)
