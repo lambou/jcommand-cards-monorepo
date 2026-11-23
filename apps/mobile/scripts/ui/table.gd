@@ -209,32 +209,96 @@ func _build_picker() -> void:
 	dim.color = Color(0, 0, 0, 0.65)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	picker.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	picker.add_child(center)
+
+	# Felt-green card panel with a gold rim and a soft drop shadow.
+	var panel := PanelContainer.new()
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(0.05, 0.22, 0.15)
+	ps.set_corner_radius_all(44)
+	ps.set_border_width_all(6)
+	ps.border_color = Color(0.93, 0.76, 0.28)
+	ps.shadow_color = Color(0, 0, 0, 0.55)
+	ps.shadow_size = 40
+	ps.shadow_offset = Vector2(0, 14)
+	ps.content_margin_left = 54
+	ps.content_margin_right = 54
+	ps.content_margin_top = 40
+	ps.content_margin_bottom = 40
+	panel.add_theme_stylebox_override("panel", ps)
+	center.add_child(panel)
+
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 30)
-	picker.add_child(box)
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+
+	var font := preload("res://assets/fonts/LilitaOne-Regular.ttf")
 	var title := Label.new()
 	title.text = "Choose the next suit"
-	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_font_override("font", font)
+	title.add_theme_font_size_override("font_size", 58)
+	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+	title.add_theme_color_override("font_outline_color", Color(0.02, 0.1, 0.07))
+	title.add_theme_constant_override("outline_size", 12)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	var sub := Label.new()
+	sub.text = "Your Jack changes the suit in play"
+	sub.add_theme_font_override("font", font)
+	sub.add_theme_font_size_override("font_size", 28)
+	sub.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 14)
+	box.add_child(gap)
+
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 24)
+	row.add_theme_constant_override("separation", 26)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(row)
 	for s in ["H", "D", "C", "S"]:
 		var b := SuitButton.new(s)
 		b.chosen.connect(_on_suit_chosen)
 		row.add_child(b)
+
+	var gap2 := Control.new()
+	gap2.custom_minimum_size = Vector2(0, 14)
+	box.add_child(gap2)
 	var cancel := Button.new()
 	cancel.text = "Cancel"
-	cancel.add_theme_font_size_override("font_size", 40)
-	cancel.custom_minimum_size = Vector2(240, 80)
+	cancel.add_theme_font_override("font", font)
+	cancel.add_theme_font_size_override("font_size", 36)
+	cancel.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
+	cancel.add_theme_color_override("font_hover_color", Color.WHITE)
+	cancel.custom_minimum_size = Vector2(220, 70)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var sb := StyleBoxFlat.new()
+		sb.set_corner_radius_all(35)
+		sb.bg_color = Color(1, 1, 1, 0.14 if state == "hover" or state == "pressed" else 0.07)
+		sb.set_border_width_all(3)
+		sb.border_color = Color(1, 1, 1, 0.35)
+		if state == "focus":
+			sb.bg_color = Color(0, 0, 0, 0)
+		cancel.add_theme_stylebox_override(state, sb)
 	cancel.pressed.connect(func(): picker.visible = false; _pending_j = -1)
 	box.add_child(cancel)
 	add_child(picker)
+
+	# Pop-in whenever the picker is shown.
+	picker.visibility_changed.connect(func():
+		if not picker.visible or Settings.reduce():
+			return
+		panel.pivot_offset = panel.size / 2.0
+		panel.scale = Vector2(0.86, 0.86)
+		picker.modulate.a = 0.0
+		var tw := create_tween().set_parallel(true)
+		tw.tween_property(picker, "modulate:a", 1.0, 0.18)
+		tw.tween_property(panel, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 
 
 # ---------------------------------------------------------------- layout
