@@ -42,7 +42,7 @@ var game: Node
 var bots := 2
 var difficulty := "normal"
 
-var bg: ColorRect
+var bg: TableBg
 var menu_button: Button
 var settings_button: Button
 var opp_views: Dictionary = {}
@@ -139,10 +139,9 @@ func _build() -> void:
 	_pending_j = -1
 	over_panel = null
 
-	bg = ColorRect.new()
-	bg.color = Color(0.07, 0.33, 0.21)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Settings.load_settings()
+	bg = TableBg.new()
+	bg.style = Settings.table_style % TableBg.STYLES.size()
 	add_child(bg)
 
 	game = OfflineGame.new()

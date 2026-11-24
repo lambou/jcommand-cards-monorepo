@@ -11,6 +11,7 @@ static var show_reactions := true # emoji reactions: the button, and bots reacti
 static var hand_you := true # 3D hand that plays your cards
 static var hand_bots := true # 3D hands that play the opponents' cards
 static var hand_color := 0 # index into Hand3D.STYLES; opponents get the following ones
+static var table_style := 0 # index into TableBg.STYLES
 
 static var _loaded := false
 
@@ -29,6 +30,7 @@ static func load_settings() -> void:
 	hand_you = bool(cfg.get_value("game", "hand_you", true))
 	hand_bots = bool(cfg.get_value("game", "hand_bots", true))
 	hand_color = maxi(int(cfg.get_value("game", "hand_color", 0)), 0)
+	table_style = maxi(int(cfg.get_value("game", "table_style", 0)), 0)
 
 
 ## Whether a 3D hand should play the cards of you (`bots` false) or of the opponents; off with reduce motion.
@@ -52,4 +54,5 @@ static func save() -> void:
 	cfg.set_value("game", "hand_you", hand_you)
 	cfg.set_value("game", "hand_bots", hand_bots)
 	cfg.set_value("game", "hand_color", hand_color)
+	cfg.set_value("game", "table_style", table_style)
 	cfg.save(PATH)

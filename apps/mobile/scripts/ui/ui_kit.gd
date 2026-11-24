@@ -50,6 +50,7 @@ const PILL_W := 190
 const PILL_H := 110
 const ICON_BTN := 110       # icon-only HUD button (touch target)
 const MARGIN_SCREEN := 50  # edge margin for full-screen content
+const MAX_CONTENT_W := 980  # widest a page's content gets (1080 minus margins); wider screens just get more side margin
 
 enum Variant { PRIMARY, SECONDARY, TERTIARY, DANGER }
 
@@ -128,10 +129,12 @@ static func scroll_page(title_text: String, close_text: String, on_close: Callab
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var pad := MarginContainer.new()
 	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pad.add_theme_constant_override("margin_left", MARGIN_SCREEN)
-	pad.add_theme_constant_override("margin_right", MARGIN_SCREEN)
 	scroll.add_child(pad)
 	var content := VBoxContainer.new()
+	# Fixed-width column centred in the page: wider screens just get more empty side space. (Side margins
+	# can't do this: their size feeds the minimum size, so the page could no longer shrink when resized.)
+	content.custom_minimum_size.x = MAX_CONTENT_W
+	content.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	content.add_theme_constant_override("separation", SPACE_M)
 	pad.add_child(content)
 
