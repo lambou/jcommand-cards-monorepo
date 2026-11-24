@@ -225,6 +225,21 @@ func carry(node: Control, reach: float, carry_t: float) -> void:
 	_tw.tween_callback(_activate.bind(false))
 
 
+## Switch to another card mid-carry: the grip relaxes to a flat pushing hand, follows `node` for `hold`
+## seconds (a 2 sliding under the pile), then lets go and leaves.
+func hand_over(node: Control, hold: float) -> void:
+	if _tw != null:
+		_tw.kill()
+	_follow = node
+	_tw = create_tween()
+	_tw.tween_property(self, "grip", 0.35, 0.12)
+	_tw.tween_interval(maxf(hold - 0.12, 0.0))
+	_tw.tween_callback(func(): _follow = null)
+	_tw.tween_property(self, "grip", 0.0, 0.1)
+	_tw.tween_property(self, "pos:y", size.y + 450.0, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_tw.tween_callback(_activate.bind(false))
+
+
 func _grip_point(node: Control) -> Vector2:
 	return node.position + node.size / 2.0 + Vector2(0, node.size.y * node.scale.y * GRIP_Y)
 

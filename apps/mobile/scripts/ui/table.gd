@@ -31,6 +31,7 @@ const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q"
 const FLY := 0.42 # seconds for a card to travel
 const STAGGER := 0.07 # delay between cards of one batch
 const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
+const SLIDE_UNDER_TIME := 0.5 # lift 0.16 + slide 0.3, then the hand lets go as the pile lowers
 
 var game: Node
 var bots := 2
@@ -669,12 +670,15 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 			_stack_note = "%s slides a 2 under" % _who(who)
 			_update_captions()
 			_update_seats(game.state)
-			_slide_under(card, to_c, dir, func():
+			var under := _slide_under(card, to_c, dir, func():
 				_sliding -= 1
 				_stack_note = "%s slid a 2 under" % _who(who)
 				_update_peek()
 				_update_captions()
 				_update_seats(game.state))
+			if grab:
+				# The hand keeps hold and pushes the 2 under the lifted pile, leaving as the pile settles.
+				hand3d.hand_over(under, SLIDE_UNDER_TIME)
 		else:
 			_floor_held = -1
 			_set_floor(card, true)
@@ -685,7 +689,8 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 			_impact(card, str(e.get("chosenSuit", "")), prev_req)
 			_maybe_check_alert(who), true, grab)
 	if grab:
-		hand3d.carry(flight, REACH, FLY)
+		# A sliding 2 keeps the hand on it past the landing (hand_over takes it from there).
+		hand3d.carry(flight, REACH, FLY + (6.0 if slide else 0.0))
 
 
 ## The 3D hand is skipped when motion is reduced.
@@ -694,7 +699,7 @@ func _hand_ok() -> bool:
 
 
 ## The pile lifts, the 2 slides in beneath it, and the pile settles back down.
-func _slide_under(card: Dictionary, start_c: Vector2, dir: float, done: Callable) -> void:
+func _slide_under(card: Dictionary, start_c: Vector2, dir: float, done: Callable) -> Control:
 	Sfx.play("slide")
 	var cs := stack_view.size
 	var rest := stack_view.position
@@ -723,6 +728,7 @@ func _slide_under(card: Dictionary, start_c: Vector2, dir: float, done: Callable
 		under.queue_free()
 		if done.is_valid():
 			done.call())
+	return under
 
 
 ## The pile shows a little thickness: up to 3 cards peeking out from underneath.
