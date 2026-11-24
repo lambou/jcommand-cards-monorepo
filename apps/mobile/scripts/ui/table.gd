@@ -21,6 +21,7 @@ const Podium := preload("res://scripts/ui/podium.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+const Hand3D := preload("res://scripts/ui/hand3d.gd")
 
 signal quit_to_menu
 
@@ -29,6 +30,7 @@ const SUIT_ORDER := {"H": 0, "D": 1, "C": 2, "S": 3, "": 4}
 const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "LION"]
 const FLY := 0.42 # seconds for a card to travel
 const STAGGER := 0.07 # delay between cards of one batch
+const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
 
 var game: Node
 var bots := 2
@@ -50,6 +52,7 @@ var you_caption: Label
 var message_label: Label
 var banner_label: Label
 var fx: Control
+var hand3d: Control
 var picker: Control
 var over_panel: Control
 
@@ -73,6 +76,7 @@ var _hand_scroll := 0.0 # px the hand fan is shifted by swiping (0 = centred)
 var _hand_max_scroll := 0.0
 var _hand_visible_frac := 1.0 # share of the whole hand that fits on screen
 var hand_bar: Control
+var _hold_layout := 0.0 # seconds the hand fan waits before closing a gap
 
 
 func _ready() -> void:
@@ -175,6 +179,10 @@ func _build() -> void:
 	fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	fx.z_index = 1000
 	add_child(fx)
+
+	hand3d = Hand3D.new() # the 3D hand that picks up and plays your cards
+	hand3d.z_index = 1001
+	add_child(hand3d)
 
 	hand_bar = Control.new() # scroll indicator for an overflowing hand
 	hand_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -382,7 +390,13 @@ func _relayout() -> void:
 	_layout_hand()
 
 
-func _layout_hand() -> void:
+## Fans the hand out. With `smooth`, cards glide to their new slots (see _process); `delay` keeps the
+## existing cards where they are for that long first (e.g. while the 3D hand reaches for one).
+func _layout_hand(smooth: bool = false, delay: float = 0.0) -> void:
+	if delay > 0.0:
+		get_tree().create_timer(delay).timeout.connect(func():
+			if is_inside_tree():
+				_layout_hand(true))
 	var w := size.x
 	var h := size.y
 	var hs := _hand_card_size()
@@ -406,19 +420,28 @@ func _layout_hand() -> void:
 	var tilt := minf(5.0, 36.0 / maxf(float(n), 1.0))
 	for i in n:
 		var v: Control = hand_views[i]
+		var placed: bool = v.has_meta("placed")
+		if delay > 0.0 and placed:
+			continue # keeps its current slot until the delayed layout runs
 		# Fan position is relative to the screen centre, so scrolling rolls cards along the arc.
 		var cx := x0 + step * float(i) + hs.x / 2.0
 		var o := clampf((cx - w / 2.0) / step, -6.0, 6.0)
 		v.size = hs
 		v.pivot_offset = Vector2(hs.x / 2.0, hs.y * 1.6)
-		v.rotation_degrees = o * tilt
 		var drop := minf(o * o * 2.2, 40.0) # bottom arc, capped so edge cards stay on screen
 		var y := base_y + drop
 		if v.lifted:
 			y -= 30.0
 		elif v.dimmed:
 			y += 8.0
-		v.position = Vector2(x0 + step * float(i), y)
+		var target := Vector2(x0 + step * float(i), y)
+		var target_rot := deg_to_rad(o * tilt)
+		v.set_meta("tp", target)
+		v.set_meta("tr", target_rot)
+		if not smooth or not placed:
+			v.position = target
+			v.rotation = target_rot
+			v.set_meta("placed", true)
 		v.z_index = i
 
 
@@ -455,6 +478,13 @@ func _on_updated(events: Array) -> void:
 	for e in events:
 		if e["type"] == "play" and not Rules.rule_of(e["card"]["rank"]).get("slideUnder", false):
 			_floor_held = e["card"]["id"]
+
+	# While the 3D hand reaches for a card, the rest of the hand stays put, then closes the gap smoothly.
+	_hold_layout = 0.0
+	if not first and _hand_ok():
+		for e in events:
+			if e["type"] == "play" and e["playerId"] == ME:
+				_hold_layout = REACH
 
 	var prev_req: Dictionary = _shown_required.duplicate()
 	_refresh()
@@ -537,7 +567,8 @@ func _seat_center(id: String) -> Vector2:
 
 ## Flies a card from one place to another inside the fx layer. `flip` turns it face-up mid-flight.
 func _fly(card: Dictionary, start_face_up: bool, flip: bool, from_c: Vector2, from_w: float,
-		to_c: Vector2, to_w: float, delay: float, dur: float, on_land: Callable, trail: bool = false) -> void:
+		to_c: Vector2, to_w: float, delay: float, dur: float, on_land: Callable, trail: bool = false,
+		early_show: bool = false) -> Control:
 	var v := CardView.new()
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.set_card(card, start_face_up)
@@ -545,7 +576,7 @@ func _fly(card: Dictionary, start_face_up: bool, flip: bool, from_c: Vector2, fr
 	v.pivot_offset = v.size / 2.0
 	v.position = from_c - v.size / 2.0
 	v.scale = Vector2.ONE * (from_w / to_w)
-	v.visible = false
+	v.visible = early_show # shown while the 3D hand is still reaching for it
 	var streak: Line2D = null
 	if trail and not Settings.reduce():
 		streak = Line2D.new()
@@ -575,6 +606,7 @@ func _fly(card: Dictionary, start_face_up: bool, flip: bool, from_c: Vector2, fr
 		if streak != null:
 			create_tween().tween_property(streak, "modulate:a", 0.0, 0.2)
 			get_tree().create_timer(0.25).timeout.connect(streak.queue_free))
+	return v
 
 
 func _animate_deal(st: Dictionary) -> void:
@@ -630,7 +662,8 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 		# Stop just outside the stack; the slide-under finishes the job.
 		to_c += Vector2(0, dir * stack_view.size.y * 0.9)
 		_sliding += 1
-	_fly(card, face_up, flip, from_c, from_w, to_c, stack_view.size.x, 0.0, FLY, func():
+	var grab := who == ME and old_rects.has(card["id"]) and _hand_ok()
+	var flight := _fly(card, face_up, flip, from_c, from_w, to_c, stack_view.size.x, REACH if grab else 0.0, FLY, func():
 		_last_played[who] = card
 		if slide:
 			_stack_note = "%s slides a 2 under" % _who(who)
@@ -650,7 +683,14 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 			_update_captions()
 			_update_seats(game.state)
 			_impact(card, str(e.get("chosenSuit", "")), prev_req)
-			_maybe_check_alert(who), true)
+			_maybe_check_alert(who), true, grab)
+	if grab:
+		hand3d.carry(flight, REACH, FLY)
+
+
+## The 3D hand is skipped when motion is reduced.
+func _hand_ok() -> bool:
+	return hand3d != null and not Settings.reduce()
 
 
 ## The pile lifts, the 2 slides in beneath it, and the pile settles back down.
@@ -698,15 +738,18 @@ func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) ->
 	var bank_w := bank_view.size.x
 	if who == ME:
 		var i := 0
+		var grab := count == 1 and new_ids.size() == 1 and _hand_ok()
 		for id in new_ids:
 			var hv := _hand_view(id)
 			if hv == null:
 				continue
 			var cid: int = id
 			var card: Dictionary = hv.card
-			_fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, STAGGER * i, FLY, func():
+			var flight := _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, REACH if grab else STAGGER * i, FLY, func():
 				_unhide(cid)
-				Sfx.play("draw", 0.7))
+				Sfx.play("draw", 0.7), false, grab)
+			if grab:
+				hand3d.carry(flight, REACH, FLY)
 			i += 1
 	else:
 		var n := mini(count, 10)
@@ -929,9 +972,26 @@ func _refresh() -> void:
 		_show_over(st)
 
 
-func _rebuild_hand(st: Dictionary, human_turn: bool) -> void:
+## Cards glide to their slots instead of snapping when the hand changes or is swiped.
+func _process(delta: float) -> void:
+	var k := 1.0 - exp(-delta * 14.0)
 	for v in hand_views:
-		v.queue_free()
+		if not v.has_meta("tp"):
+			continue
+		var tp: Vector2 = v.get_meta("tp")
+		var tr: float = v.get_meta("tr")
+		v.position = v.position.lerp(tp, k)
+		v.rotation = lerp_angle(v.rotation, tr, k)
+		if v.position.distance_squared_to(tp) < 0.04:
+			v.position = tp
+			v.rotation = tr
+
+
+func _rebuild_hand(st: Dictionary, human_turn: bool) -> void:
+	# Keep the views of cards that are still in hand so they can glide to their new slots.
+	var old := {}
+	for v in hand_views:
+		old[v.card["id"]] = v
 	hand_views.clear()
 	var me: Dictionary = _find(st, ME)
 	var legal := {}
@@ -942,17 +1002,24 @@ func _rebuild_hand(st: Dictionary, human_turn: bool) -> void:
 	var cards: Array = (me["hand"] as Array).duplicate()
 	cards.sort_custom(_card_less)
 	for c in cards:
-		var v := CardView.new()
-		v.set_card(c, true)
+		var v: Control = old.get(c["id"])
 		var ok: bool = legal.has(c["id"])
+		if v != null:
+			old.erase(c["id"])
+		else:
+			v = CardView.new()
+			v.set_card(c, true)
+			v.pressed.connect(_on_card_pressed)
+			v.dragged.connect(_on_hand_dragged)
+			if _hidden.has(c["id"]):
+				v.modulate.a = 0.0
+			add_child(v)
 		v.set_flags(human_turn and not ok, human_turn and ok)
-		v.pressed.connect(_on_card_pressed)
-		v.dragged.connect(_on_hand_dragged)
-		if _hidden.has(c["id"]):
-			v.modulate.a = 0.0
-		add_child(v)
 		hand_views.append(v)
-	_layout_hand()
+	for gone in old.values(): # the played card: its flight node takes over from here
+		gone.queue_free()
+	_layout_hand(true, _hold_layout)
+	_hold_layout = 0.0
 
 
 func _card_less(a: Dictionary, b: Dictionary) -> bool:
@@ -1030,7 +1097,7 @@ func _draw_hand_bar() -> void:
 
 func _on_hand_dragged(dx: float) -> void:
 	_hand_scroll += dx
-	_layout_hand()
+	_layout_hand(true)
 
 
 func _on_card_pressed(card_id: int) -> void:
