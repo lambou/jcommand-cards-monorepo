@@ -4,6 +4,7 @@ extends Control
 ##   --selftest              play full games through the real UI handlers; exit code 0 = pass
 ##   --shot=<file.png> [--bots=N]   save <file>_a/_b/_c.png: mid-deal, a card mid-flight, settled
 ##   --menushot=<file.png>   screenshot of the menu
+##   --bootshot=<file.png>   <file>_splash.png / _loading.png of the start-up sequence
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
 ##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
@@ -14,6 +15,7 @@ extends Control
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
+const Boot := preload("res://scripts/ui/boot.gd")
 const Menu := preload("res://scripts/ui/menu.gd")
 const Table := preload("res://scripts/ui/table.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
@@ -100,6 +102,15 @@ func _ready() -> void:
 			get_viewport().get_texture().get_image().save_png(a.substr(12))
 			get_tree().quit()
 			return
+		elif a.begins_with("--bootshot="):
+			var b := Boot.new()
+			_swap(b)
+			await get_tree().create_timer(1.0).timeout
+			_save(a.substr(11), "_splash")
+			await get_tree().create_timer(2.2).timeout
+			_save(a.substr(11), "_loading")
+			get_tree().quit()
+			return
 		elif a.begins_with("--menushot="):
 			_show_menu()
 			await get_tree().create_timer(0.4).timeout
@@ -114,7 +125,14 @@ func _ready() -> void:
 	elif shot != "":
 		_autoshot(shot, bots)
 	else:
-		_show_menu()
+		_boot()
+
+
+## Splash + loading screen, then the menu.
+func _boot() -> void:
+	var b := Boot.new()
+	b.finished.connect(_show_menu)
+	_swap(b)
 
 
 func _swap(node: Control) -> void:
