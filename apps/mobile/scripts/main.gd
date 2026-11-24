@@ -6,6 +6,7 @@ extends Control
 ##   --menushot=<file.png>   screenshot of the menu
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
+##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
@@ -57,6 +58,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--suitshot="):
 			_suitshot(a.substr(11))
+			return
+		elif a.begins_with("--comboshot="):
+			_comboshot(a.substr(12))
 			return
 		elif a.begins_with("--reactshot="):
 			_reactshot(a.substr(12))
@@ -293,6 +297,40 @@ func _reactshot(path: String) -> void:
 	t.react_menu.open()
 	await get_tree().create_timer(0.6).timeout
 	_save(path, "_menu")
+	get_tree().quit()
+
+
+## Rigs a 1v1 game so you hold four Aces, plays them in a row and captures each combo popup.
+func _comboshot(path: String) -> void:
+	var t := _start_game(1, "normal")
+	t.game.bot_delay = 99.0
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(1.0).timeout
+	var st: Dictionary = t.game.state
+	st["required"] = {"kind": "free"}
+	st["pending"] = 0
+	var hand: Array = st["players"][0]["hand"]
+	hand.clear()
+	var suits := {"H": "red", "D": "red", "C": "black", "S": "black"}
+	var id := 9001
+	for su in suits:
+		hand.append({"id": id, "rank": "A", "suit": su, "color": suits[su]})
+		id += 1
+	hand.append({"id": id, "rank": "5", "suit": "H", "color": "red"})
+	hand.append({"id": id + 1, "rank": "9", "suit": "S", "color": "black"})
+	st["current"] = 0
+	t.game.updated.emit([])
+	await get_tree().create_timer(0.6).timeout
+	var names := ["", "_x2", "_x3", "_jackpot", "_jackpot_follow"]
+	for i in 4:
+		t.game.human_play(9001 + i)
+		await get_tree().create_timer(0.95 if i > 0 else 0.7).timeout
+		if i > 0:
+			_save(path, names[i])
+	t.game.human_play(id)
+	await get_tree().create_timer(0.95).timeout
+	_save(path, names[4])
 	get_tree().quit()
 
 

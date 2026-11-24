@@ -2,7 +2,7 @@ extends Node
 ## Sound effects, synthesised in code (sine tones, filtered noise, sweeps) so the game needs no
 ## audio assets yet. Add one instance to the tree, then call `Sfx.play("name")` from anywhere.
 ##
-## Names: play, draw, deal, slide, thump, roar, penalty, stop, check, turn, nope, win, lose.
+## Names: combo_2..combo_5, jackpot, play, draw, deal, slide, thump, roar, penalty, stop, check, turn, nope, win, lose.
 
 const Settings := preload("res://scripts/game/settings.gd")
 
@@ -135,7 +135,31 @@ func _build() -> void:
 		_tone(b, 0.2 * float(i), down[i], 0.55, 0.32, 5.0, [1.0, 0.25])
 	_streams["lose"] = _stream(b)
 
+	_build_combos()
 	_build_reactions()
+
+
+## Combo chimes climb a major arpeggio (one more note each step); the jackpot is a long fanfare.
+func _build_combos() -> void:
+	var scale := [523.25, 659.25, 783.99, 1046.5, 1318.5]
+	for n in range(2, 6):
+		var b := _buf(0.5 + 0.1 * float(n))
+		for i in n:
+			_tone(b, 0.07 * float(i), scale[i], 0.4, 0.3, 7.0, [1.0, 0.35, 0.12])
+		_tone(b, 0.07 * float(n - 1), scale[n - 1] * 2.0, 0.3, 0.1, 10.0)
+		_streams["combo_%d" % n] = _stream(b)
+
+	# Jackpot: rising run, big held chord, glittering sparkle on top.
+	var j := _buf(2.6)
+	var run := [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568.0]
+	for i in run.size():
+		_tone(j, 0.09 * float(i), run[i], 0.5, 0.28, 5.0, [1.0, 0.35, 0.15])
+	for f in [523.25, 659.25, 783.99, 1046.5]:
+		_tone(j, 0.6, f, 1.9, 0.17, 1.6, [1.0, 0.4, 0.15])
+	_tone(j, 0.6, 130.8, 1.6, 0.3, 2.0, [1.0, 0.5])
+	for i in 14:
+		_tone(j, 0.7 + 0.08 * float(i), 1900.0 + 140.0 * float(i % 5), 0.12, 0.07, 22.0)
+	_streams["jackpot"] = _stream(j)
 
 
 ## Short, friendly sounds for the emoji reactions (see reactions.gd).

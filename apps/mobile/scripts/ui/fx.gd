@@ -50,7 +50,7 @@ static func burst(parent: Control, center: Vector2, color: Color, amount: int = 
 
 
 ## Text that pops in, floats up and fades out.
-static func popup_text(parent: Control, text: String, center: Vector2, color: Color, font_size: int = 64, rise: float = 90.0, dur: float = 1.1) -> void:
+static func popup_text(parent: Control, text: String, center: Vector2, color: Color, font_size: int = 64, rise: float = 90.0, dur: float = 1.1) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", font_size)
@@ -75,6 +75,7 @@ static func popup_text(parent: Control, text: String, center: Vector2, color: Co
 	tw.tween_property(l, "position:y", l.position.y - rise, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(l, "modulate:a", 0.0, dur * 0.35).set_delay(dur * 0.65)
 	tw.tween_callback(l.queue_free)
+	return l
 
 
 ## A red STOP sign that slams in.

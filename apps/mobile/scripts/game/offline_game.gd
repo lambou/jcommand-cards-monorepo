@@ -94,14 +94,18 @@ func _apply(action: Dictionary) -> bool:
 		return false
 	state = res["state"]
 	# Safety valve: if everybody keeps passing with an exhausted bank, end the game.
+	var extra: Array = []
 	for e in res["events"]:
-		_track_chain(e)
+		var bonus_event := _track_chain(e)
+		if not bonus_event.is_empty():
+			extra.append(bonus_event)
 		if e["type"] == "draw":
 			if e["playerId"] == HUMAN_ID and int(e["count"]) > 0:
 				human_draws += 1
 			_passes = _passes + 1 if int(e["count"]) == 0 else 0
 		elif e["type"] == "play":
 			_passes = 0
+	res["events"].append_array(extra)
 	if _passes >= state["players"].size() * 2 and not state["over"]:
 		_force_end(res["events"])
 	updated.emit(res["events"])
@@ -110,7 +114,8 @@ func _apply(action: Dictionary) -> bool:
 
 ## A chain is consecutive plays by one player with nobody else acting in between
 ## (in practice: Aces skipping the opponent in 1v1). Only the human's chains score.
-func _track_chain(e: Dictionary) -> void:
+## Returns a "combo" event ({len, aces, jackpot, fresh}) when the human extends a chain, else {}.
+func _track_chain(e: Dictionary) -> Dictionary:
 	var t: String = e["type"]
 	if t == "play" and e["playerId"] == HUMAN_ID:
 		_human_last_rank = e["card"]["rank"]
@@ -124,21 +129,24 @@ func _track_chain(e: Dictionary) -> void:
 	elif t == "finish" and e["playerId"] == HUMAN_ID:
 		human_finish_rank = _human_last_rank   # confirmed exit: the card that emptied the hand
 	if t != "play" and t != "draw" and t != "penaltyTaken":
-		return
+		return {}
 	var pid: String = e["playerId"]
 	if t != "play":
 		_chain_player = ""
-		return
+		return {}
 	var is_ace: bool = e["card"]["rank"] == "A"
 	if pid == _chain_player:
 		if pid == HUMAN_ID:
 			var c: Dictionary = human_chains[human_chains.size() - 1]
 			c["len"] += 1
 			c["aces"] += 1 if is_ace else 0
+			return {"type": "combo", "playerId": pid, "len": c["len"], "aces": c["aces"],
+				"jackpot": c["aces"] >= 4, "fresh": is_ace and c["aces"] == 4}
 	else:
 		_chain_player = pid
 		if pid == HUMAN_ID:
 			human_chains.append({"len": 1, "aces": 1 if is_ace else 0})
+	return {}
 
 
 ## Ranks the remaining players by fewest cards when nobody can move any more.

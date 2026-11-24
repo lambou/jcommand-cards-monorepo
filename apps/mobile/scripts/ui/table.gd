@@ -548,6 +548,8 @@ func _on_updated(events: Array) -> void:
 			"skip":
 				_flash_seat(e["playerId"])
 				_stop_sign_later(e["playerId"])
+			"combo":
+				_combo_effect(e)
 
 
 func _who(id: String) -> String:
@@ -871,6 +873,43 @@ func _penalty_effect(who: String, count: int, lead: float = 0.0) -> void:
 	else:
 		_flash_seat(who)
 	Fx.popup_text(fx, "+%d cards" % count, c, Color(1.0, 0.4, 0.35), 80)
+
+
+var _combo_labels: Array = [] # popups of the latest combo, replaced by the next one
+
+
+## Score feedback for a chain of plays: a growing "COMBO xN" over the pile, and a full jackpot
+## show when the fourth Ace lands. Waits for the card to land first.
+func _combo_effect(e: Dictionary) -> void:
+	await get_tree().create_timer(REACH + FLY).timeout
+	if not is_inside_tree() or fx == null:
+		return
+	var n := int(e["len"])
+	# Below the pile: clear of the suit announcement above it and the opponent's seat.
+	var c := Vector2(size.x * 0.30, size.y * 0.69) # left of the 3D hand's arm
+	for old in _combo_labels:
+		if is_instance_valid(old):
+			old.queue_free() # a new combo replaces the previous popup instead of overlapping it
+	_combo_labels.clear()
+	if bool(e["fresh"]):
+		Sfx.play("jackpot")
+		Fx.flash(fx, Color(1.0, 0.97, 0.78), 0.55, 0.9)
+		Fx.shake(self, 18.0, 0.5)
+		Fx.confetti(fx, size.x)
+		Fx.burst(fx, _center(stack_view), Color(1.0, 0.85, 0.2), 40, 620.0, 0.9)
+		c.y -= size.y * 0.06
+		_combo_labels.append(Fx.popup_text(fx, "JACKPOT!", c, Color(1.0, 0.85, 0.2), 108, 140.0, 1.8))
+		_combo_labels.append(Fx.popup_text(fx, "FOUR ACES", c + Vector2(0, 120), Color(1.0, 0.95, 0.7), 64, 100.0, 1.6))
+	elif bool(e["jackpot"]) and n > 4:
+		Sfx.play("combo_5")
+		Fx.burst(fx, _center(stack_view), Color(1.0, 0.85, 0.2), 24, 480.0, 0.7)
+		_combo_labels.append(Fx.popup_text(fx, "JACKPOT x%d" % n, c, Color(1.0, 0.85, 0.2), 80, 110.0, 1.4))
+	else:
+		Sfx.play("combo_%d" % clampi(n, 2, 5))
+		var hue := clampf(float(n - 2) / 3.0, 0.0, 1.0)
+		var col := Color(1.0, 0.9, 0.35).lerp(Color(1.0, 0.45, 0.2), hue)
+		Fx.burst(fx, _center(stack_view), col, 8 + 4 * n, 300.0 + 40.0 * float(n), 0.5)
+		_combo_labels.append(Fx.popup_text(fx, "COMBO x%d" % n, c, col, 64 + 12 * mini(n, 5), 100.0, 1.2))
 
 
 func _stop_sign_later(id: String) -> void:
