@@ -166,7 +166,7 @@ static func list() -> Array:
 ## The unfinished game that can be resumed, or {}.
 static func in_progress() -> Dictionary:
 	for rec in list():
-		if not rec["finished"] and (rec["actions"] as Array).size() > 0:
+		if not rec["finished"]:
 			return rec
 	return {}
 
