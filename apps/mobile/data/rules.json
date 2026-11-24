@@ -54,6 +54,7 @@
       "playOn": "required",
       "sets": "color",
       "penalty": 4,
+      "playOnSeven": true,
       "onStart": "redeal"
     },
     "J": {

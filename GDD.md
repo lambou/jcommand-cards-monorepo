@@ -81,6 +81,7 @@ Legal if its suit matches `required`. If `required` is a color, any suit of that
 - **Penalty pending:** it can be played on top of a pending penalty regardless of color.
 - After a penalty is taken, the next player must play a card of the Lion's color (either suit).
 - With `required = free`, any Lion is legal.
+- **Lion on 7:** a Lion can be played on a 7 that is the floor card, whatever its color (mirror of 7 on Lion).
 - **Lion on Lion:** a Lion can be played on a Lion that is the floor card, whatever its color. Example: A plays the red Lion, B cannot block and draws 4, and C may now play the black Lion on it. The played Lion's color becomes the required color, and its +4 applies.
 
 ### 6.4 Penalty chain

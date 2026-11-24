@@ -94,6 +94,7 @@ export function isPlayable(s: GameState, hand: Card[], card: Card): boolean {
   }
   const floor = s.stack[s.stack.length - 1]!;
   if (rule.playOnLion && floor.rank === 'LION') return true;
+  if (rule.playOnSeven && floor.rank === '7') return true;
   switch (rule.playOn) {
     case 'any': return true;
     case 'required':
