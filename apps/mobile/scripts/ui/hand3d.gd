@@ -7,6 +7,18 @@ const GLOVE := Color(0.97, 0.96, 0.92)
 const SLEEVE := Color(0.13, 0.24, 0.42)
 const CUFF := Color(0.93, 0.76, 0.28)
 const CAM_DIST := 2000.0
+const Settings := preload("res://scripts/game/settings.gd")
+
+## Selectable looks: [name, glove/skin colour, sleeve colour].
+const STYLES := [
+	["Classic", Color(0.97, 0.96, 0.92), Color(0.13, 0.24, 0.42)],
+	["Peach", Color(0.96, 0.80, 0.68), Color(0.55, 0.15, 0.22)],
+	["Tan", Color(0.85, 0.65, 0.48), Color(0.15, 0.40, 0.30)],
+	["Brown", Color(0.60, 0.40, 0.28), Color(0.85, 0.55, 0.15)],
+	["Deep", Color(0.36, 0.23, 0.17), Color(0.40, 0.25, 0.60)],
+	["Red", Color(0.85, 0.15, 0.15), Color(0.12, 0.12, 0.15)],
+	["Shadow", Color(0.12, 0.12, 0.14), Color(0.70, 0.12, 0.18)],
+]
 const HAND_SCALE := 0.95
 ## Where on the card the fingertips hold it, as a fraction of the card height below its centre.
 const GRIP_Y := 0.2
@@ -30,6 +42,10 @@ var _fingers: Array = [] # {"base": Node3D, "joints": Array[Node3D], "def": Dict
 var _thumb_base: Node3D
 var _thumb_joints: Array = []
 var _follow: Control
+var _skin_mat: StandardMaterial3D
+var _sleeve_mat: StandardMaterial3D
+var _dir := 1.0 # 1 = reaches up from the bottom (you), -1 = reaches down from the top (opponents)
+var _scale := 1.0 # hand size follows the card it holds (opponents' cards start small)
 var _tw: Tween
 var _tilt := 0.0
 var _last_pos := Vector2.ZERO
@@ -126,6 +142,8 @@ func _chain(parent: Node3D, lens: Array, r: float, mat: Material) -> Array:
 func _build_hand() -> void:
 	var skin := _mat(GLOVE)
 	var sleeve := _mat(SLEEVE, 0.8)
+	_skin_mat = skin
+	_sleeve_mat = sleeve
 	var cuff := _mat(CUFF, 0.4)
 
 	# Local origin = grip point. The palm sits below and above the card plane so the fingers curl onto it.
@@ -204,12 +222,16 @@ func _activate(on: bool) -> void:
 
 ## Reach in from below, grip `node` (a flying/resting card) and carry it for `carry_t` seconds, then leave.
 ## The card should start moving after `reach` seconds.
-func carry(node: Control, reach: float, carry_t: float) -> void:
+## `style` picks a STYLES entry (-1 = the player's own choice from settings).
+func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, style: int = -1) -> void:
 	if _tw != null:
 		_tw.kill()
 	_follow = null
+	_dir = -1.0 if from_top else 1.0
+	set_style(style if style >= 0 else Settings.hand_color)
+	_scale = _scale_for(node)
 	var grab := _grip_point(node)
-	pos = Vector2(grab.x, size.y + 420.0)
+	pos = Vector2(grab.x, _away_y())
 	_last_pos = pos
 	grip = 0.0
 	_tilt = 0.0
@@ -221,7 +243,7 @@ func carry(node: Control, reach: float, carry_t: float) -> void:
 	_tw.tween_interval(carry_t)
 	_tw.tween_callback(func(): _follow = null)
 	_tw.tween_property(self, "grip", 0.0, 0.1)
-	_tw.tween_property(self, "pos:y", size.y + 450.0, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_tw.tween_property(self, "pos:y", _away_y(), 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_tw.tween_callback(_activate.bind(false))
 
 
@@ -236,12 +258,28 @@ func hand_over(node: Control, hold: float) -> void:
 	_tw.tween_interval(maxf(hold - 0.12, 0.0))
 	_tw.tween_callback(func(): _follow = null)
 	_tw.tween_property(self, "grip", 0.0, 0.1)
-	_tw.tween_property(self, "pos:y", size.y + 450.0, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_tw.tween_property(self, "pos:y", _away_y(), 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_tw.tween_callback(_activate.bind(false))
 
 
+func set_style(i: int) -> void:
+	var st: Array = STYLES[posmod(i, STYLES.size())]
+	_skin_mat.albedo_color = st[1]
+	_sleeve_mat.albedo_color = st[2]
+
+
 func _grip_point(node: Control) -> Vector2:
-	return node.position + node.size / 2.0 + Vector2(0, node.size.y * node.scale.y * GRIP_Y)
+	return node.position + node.size / 2.0 + Vector2(0, node.size.y * node.scale.y * GRIP_Y * _dir)
+
+
+## Off-screen resting spot: below the screen for your hand, above it for the opponents'.
+func _away_y() -> float:
+	return size.y + 430.0 if _dir > 0.0 else -430.0
+
+
+## Small cards (a bot's, at its seat) get a smaller hand; it grows as the card does.
+func _scale_for(node: Control) -> float:
+	return clampf(node.size.x * node.scale.x / 180.0, 0.6, 1.0)
 
 
 func _process(delta: float) -> void:
@@ -253,5 +291,8 @@ func _process(delta: float) -> void:
 	# Lean into the direction of travel.
 	_tilt = lerpf(_tilt, clampf(-vel.x * 0.0004, -0.4, 0.4), minf(delta * 8.0, 1.0))
 	_root.position = Vector3(pos.x, -pos.y, 0.0)
-	_root.rotation.z = _tilt
+	if _follow != null and is_instance_valid(_follow):
+		_scale = lerpf(_scale, _scale_for(_follow), minf(delta * 10.0, 1.0))
+	_root.scale = Vector3.ONE * HAND_SCALE * _scale
+	_root.rotation.z = (PI if _dir < 0.0 else 0.0) + _tilt * _dir
 	_apply_pose()

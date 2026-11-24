@@ -57,6 +57,9 @@ func _ready() -> void:
 		elif a.begins_with("--suitshot="):
 			_suitshot(a.substr(11))
 			return
+		elif a.begins_with("--reactshot="):
+			_reactshot(a.substr(12))
+			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
 			return
@@ -249,6 +252,26 @@ func _podiumshot(path: String, bots: int) -> void:
 
 
 ## Forces Rex down to one card and captures the CHECK alert, then the persistent warnings.
+## Screenshots of the reaction stickers on the real table: bots reacting, then the picker open.
+func _reactshot(path: String) -> void:
+	var t := _start_game(3, "normal")
+	t.game.bot_delay = 99.0 # we drive the bots by hand
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(1.0).timeout
+	t.show_reaction("bot1", "angry")
+	t.show_reaction("bot2", "laugh")
+	t.show_reaction("bot3", "hurry")
+	t.show_reaction("you", "gg")
+	await get_tree().create_timer(0.55).timeout
+	_save(path, "_stickers")
+	await get_tree().create_timer(2.4).timeout
+	t.react_menu.open()
+	await get_tree().create_timer(0.6).timeout
+	_save(path, "_menu")
+	get_tree().quit()
+
+
 func _checkshot(path: String) -> void:
 	var t := _start_game(2, "normal")
 	t.game.bot_delay = 99.0 # we drive the bots by hand
