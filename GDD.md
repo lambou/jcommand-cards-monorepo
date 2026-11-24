@@ -15,12 +15,12 @@ Status: Draft v0.2 (rules confirmed with the designer; items in section 14 still
 
 **Pillars**
 1. **Fast, readable turns.** The player always knows what is legal and what is pending.
-2. **Penalty chains are the drama.** 7s and Lions build tension.
+2. **Penalty chains are the drama.** 7s and Jokers build tension.
 3. **Hidden hands.** Each player's cards are private, so there is no shared-device play.
 
 ## 2. Components
 
-- **Deck:** 54 cards = 52 standard cards (♥ ♦ ♣ ♠, A 2–10 J Q K) + 2 Lions (1 red, 1 black).
+- **Deck:** 54 cards = 52 standard cards (♥ ♦ ♣ ♠, A 2–10 J Q K) + 2 Jokers (1 red, 1 black).
 - **Colors:** ♥ and ♦ are red; ♣ and ♠ are black.
 - **Bank:** the face-down draw pile.
 - **Stack:** the face-up discard pile. Its top card is the "floor card".
@@ -34,7 +34,7 @@ Status: Draft v0.2 (rules confirmed with the designer; items in section 14 still
 
 | Flipped card | Result |
 |---|---|
-| 7 or Lion | Goes to the bottom of the bank. Flip another card (repeat if needed). |
+| 7 or Joker | Goes to the bottom of the bank. Flip another card (repeat if needed). |
 | J | The first player chooses the required suit. |
 | Ace (Stop) | The first player is skipped. The second player plays first. |
 | 2 | Treated as free. The first player may play any suit. |
@@ -49,7 +49,7 @@ The engine tracks these values:
 - `required`: one of `{ suit: S }`, `{ color: C }`, or `free`
   - Normally this is the suit of the floor card.
   - A J sets it to the chosen suit.
-  - A Lion sets it to the Lion's color.
+  - A Joker sets it to the Joker's color.
   - The starting 2 sets it to `free`.
 - `pendingPenalty`: an integer (0, 2, 4, 6, …), the accumulated draw penalty.
 - `floorCard`: the top card of the stack. Slid 2s do not change it.
@@ -60,7 +60,7 @@ On your turn you do exactly one of these:
 
 1. **Play** a legal card (section 6).
 2. **Draw 1** card from the bank, voluntarily. This is your whole turn. You cannot play the drawn card until your next turn. Not allowed while a penalty is pending.
-3. **Take the penalty**, if `pendingPenalty > 0` and you have no 7 or Lion to play, or you choose not to play one. You draw the whole penalty, and that is your whole turn. Play then continues with the next player.
+3. **Take the penalty**, if `pendingPenalty > 0` and you have no 7 or Joker to play, or you choose not to play one. You draw the whole penalty, and that is your whole turn. Play then continues with the next player.
 
 You may draw voluntarily even if you hold a playable card.
 
@@ -69,24 +69,24 @@ You may draw voluntarily even if you hold a playable card.
 ### 6.1 Normal card (3–6, 8–10, Q, K)
 Legal if its suit matches `required`. If `required` is a color, any suit of that color is legal. If `required` is `free`, any card is legal. Afterwards `required` becomes the played card's suit.
 
-**Rank match ("passive J"):** a card can also be played on a card of the **same rank**, whatever the suit. The played card's suit becomes the new `required` suit. Example: 5♥ on 5♦, and the required suit is now ♥. This applies to every numbered or lettered card, including 7 (7♦ on 7♥ still adds its +2 penalty) and Ace. Lions count as a rank of their own, so a Lion can be played on a Lion floor card whatever its color (see 6.3). Rank matching is not allowed while a penalty is pending. Setting `matchRank` (default `true`) turns it off.
+**Rank match ("passive J"):** a card can also be played on a card of the **same rank**, whatever the suit. The played card's suit becomes the new `required` suit. Example: 5♥ on 5♦, and the required suit is now ♥. This applies to every numbered or lettered card, including 7 (7♦ on 7♥ still adds its +2 penalty) and Ace. Jokers count as a rank of their own, so a Joker can be played on a Joker floor card whatever its color (see 6.3). Rank matching is not allowed while a penalty is pending. Setting `matchRank` (default `true`) turns it off.
 
 ### 6.2 Seven (7)
 - **Normal situation:** it must match `required`. It adds +2 to `pendingPenalty`.
 - **Penalty pending:** it can be played on top of a pending penalty regardless of suit.
 - After a penalty is taken, the next player must match the suit of the last 7.
 
-### 6.3 Lion (red or black)
-- **Normal situation:** a red Lion is legal when the required suit or color is red. A black Lion is legal when it is black. It adds +4 to `pendingPenalty`.
+### 6.3 Joker (red or black)
+- **Normal situation:** a red Joker is legal when the required suit or color is red. A black Joker is legal when it is black. It adds +4 to `pendingPenalty`.
 - **Penalty pending:** it can be played on top of a pending penalty regardless of color.
-- After a penalty is taken, the next player must play a card of the Lion's color (either suit).
-- With `required = free`, any Lion is legal.
-- **Lion on 7:** a Lion can be played on a 7 that is the floor card, whatever its color (mirror of 7 on Lion).
-- **Lion on Lion:** a Lion can be played on a Lion that is the floor card, whatever its color. Example: A plays the red Lion, B cannot block and draws 4, and C may now play the black Lion on it. The played Lion's color becomes the required color, and its +4 applies.
+- After a penalty is taken, the next player must play a card of the Joker's color (either suit).
+- With `required = free`, any Joker is legal.
+- **Joker on 7:** a Joker can be played on a 7 that is the floor card, whatever its color (mirror of 7 on Joker).
+- **Joker on Joker:** a Joker can be played on a Joker that is the floor card, whatever its color. Example: A plays the red Joker, B cannot block and draws 4, and C may now play the black Joker on it. The played Joker's color becomes the required color, and its +4 applies.
 
 ### 6.4 Penalty chain
-- Penalties stack: 7 → +2, Lion → +4. 7 + 7 = 4, 7 + Lion = 6, and so on.
-- The target must play a 7 or a Lion, which passes the total to the next player. Otherwise they draw the total from the bank.
+- Penalties stack: 7 → +2, Joker → +4. 7 + 7 = 4, 7 + Joker = 6, and so on.
+- The target must play a 7 or a Joker, which passes the total to the next player. Otherwise they draw the total from the bank.
 - **A 2 cannot block a penalty.**
 - The player who draws the penalty loses their turn, and the next player plays normally. That player must follow the `required` rule set by the last penalty card.
 
@@ -110,7 +110,7 @@ Legal if its suit matches `required`. If `required` is a color, any suit of that
 
 | Pending penalty | Legal plays | Otherwise |
 |---|---|---|
-| Yes | 7, Lion | Draw the whole penalty |
+| Yes | 7, Joker | Draw the whole penalty |
 | No | Per card rules above, or draw 1 | n/a |
 
 ## 7. Bank Exhaustion
@@ -130,13 +130,13 @@ Slid 2s sit at the bottom of the stack, so they come out first.
 
 ### 8.1 Two players (1v1)
 - **Last card is an Ace:** it cannot finish the game. You must draw 1 card from the bank and keep playing. (A Stop would skip the opponent and make you play again with an empty hand.)
-- **Last card is a 7 or Lion:** the game ends only if the opponent cannot block with a 7 or Lion. If they block, the chain comes back, and you must draw the total and continue.
+- **Last card is a 7 or Joker:** the game ends only if the opponent cannot block with a 7 or Joker. If they block, the chain comes back, and you must draw the total and continue.
 - **Any other last card** (including 2 and J): you win immediately.
 
 ### 8.2 Three or four players
 - A player who finishes leaves the rotation. First finisher is 1st place, and so on.
 - **Last card is an Ace:** allowed. The skip still applies.
-- **Last card is a 7 or Lion:** the penalty passes on as normal.
+- **Last card is a 7 or Joker:** the penalty passes on as normal.
   - If the next player blocks, the chain continues.
   - Whoever ends up unable to block draws the total.
   - **Edge case:** if every other player's last cards are all penalty cards and the chain ends on the last remaining player, that player draws and loses. The game ends.
@@ -185,10 +185,10 @@ Slid 2s sit at the bottom of the stack, so they come out first.
 - **Avatars:** every player has a placeholder vector portrait (you plus the bots Rex, Luna and Zed). Bots show theirs on their seat, and yours sits beside your hand. A gold ring marks whose turn it is.
 - **Results podium:** when the game ends, a podium rises with 1st in the middle (crowned), 2nd on the left and 3rd on the right, each with the player's avatar and name. 4th place gets a small row below. If you finished 1st, confetti falls.
 - **Check:** when a player plays down to exactly one card, everyone must notice, but calmly (no shake, no full-screen flash, no blinking). A short "CHECK!" with "<Name> has ONE card left!" shows in the band between the table and your hand for about 1.4 s, with one ring from that player's seat and a soft red vignette at the screen edges. While the player keeps one card, their seat has a steady red border and a CHECK! badge, with only a slow glow. If it is you, your avatar gets a gold glow and badge and the banner reads "CHECK! Play your last card to win". There is deliberately no banner listing who is in check, because with three of four players in check it would overwhelm the screen. A re-fire within 10 s gets only the ring. It clears as soon as the hand is no longer exactly one card.
-- **Sound:** all effects are synthesised in code (no audio assets yet): a soft slap when a card lands, ticks for dealing and drawing, a swish for a 2 sliding under, a thump for a 7, a growl for a Lion, two sinking notes for a penalty, two beeps for Stop, a gentle two-note chime for Check (it still plays on a quick re-fire), a small ping when it becomes your turn, a short blip for an illegal tap, and a rising arpeggio (win) or falling notes (lose) on the podium.
+- **Sound:** all effects are synthesised in code (no audio assets yet): a soft slap when a card lands, ticks for dealing and drawing, a swish for a 2 sliding under, a thump for a 7, a growl for a Joker, two sinking notes for a penalty, two beeps for Stop, a gentle two-note chime for Check (it still plays on a quick re-fire), a small ping when it becomes your turn, a short blip for an illegal tap, and a rising arpeggio (win) or falling notes (lose) on the podium.
 - **Settings (menu and in-game):** sound on/off, volume (10% steps), and **Reduce motion**. Settings are saved on the device. Reduce motion turns off the shake, vignette and flash, rings, sparks, confetti, seat and avatar pulsing, card trails, pops and bounces, and the pile lift when a 2 slides under. Cards still move, and every message and badge still shows.
 - **Feedback:** drawn cards animate from the bank to the hand. A skipped player shows a "Stop" banner.
-- **Art:** placeholder vector cards. Suit and rank are drawn procedurally in Godot. Lions are a red or black paw/crown icon.
+- **Art:** placeholder vector cards. Suit and rank are drawn procedurally in Godot. Jokers are a red or black paw/crown icon.
 
 ## 12. Technical Architecture
 
@@ -241,8 +241,8 @@ A full rule DSL with two interpreters was considered. It is overkill for this ru
 ## 14. Decisions and Open Items
 
 **Confirmed by the designer**
-1. **Provisional finish on a penalty card with 3+ players.** A player who finishes on a 7 or Lion is only confirmed finished once the penalty lands on someone else. If the chain comes all the way back to them, they draw it and are back in the game, as in 1v1.
-2. **No voluntary draw in a penalty chain.** You can only play a 7 or Lion, or take the whole penalty.
+1. **Provisional finish on a penalty card with 3+ players.** A player who finishes on a 7 or Joker is only confirmed finished once the penalty lands on someone else. If the chain comes all the way back to them, they draw it and are back in the game, as in 1v1.
+2. **No voluntary draw in a penalty chain.** You can only play a 7 or Joker, or take the whole penalty.
 3. **Ranking by finish order.** First finisher is 1st place, and so on.
 4. **Online turn timer** is 30 s. On timeout the player auto-draws 1, or takes the penalty if one is pending.
 

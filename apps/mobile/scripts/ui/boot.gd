@@ -17,7 +17,7 @@ const SPLASH_OUT := 0.5
 const MIN_LOADING := 1.2   # keep the loading screen readable even when everything is cached
 const TIPS := [
 	"Aces skip the next player.",
-	"Answer a 7 or a Lion with another to pass the penalty on.",
+	"Answer a 7 or a Joker with another to pass the penalty on.",
 	"A J lets you choose the next suit.",
 	"Finish without drawing from the bank for a CLEAN FINISH bonus.",
 	"A 2 goes on anything.",

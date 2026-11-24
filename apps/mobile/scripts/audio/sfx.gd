@@ -84,7 +84,7 @@ func _build() -> void:
 	_noise(b, 0.0, 0.1, 0.3, 30.0, 0.1)
 	_streams["thump"] = _stream(b)
 
-	# Lion: a falling growl.
+	# Joker: a falling growl.
 	b = _buf(0.7)
 	_sweep(b, 0.0, 250.0, 70.0, 0.6, 0.5, 3.5)
 	_sweep(b, 0.0, 500.0, 140.0, 0.6, 0.22, 4.0)

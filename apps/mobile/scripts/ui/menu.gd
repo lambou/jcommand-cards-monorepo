@@ -18,9 +18,9 @@ YOUR TURN
 Play a card of the required suit, or tap the bank to draw one card (that ends your turn).
 
 SPECIAL CARDS
-7 - next player draws 2. A 7 can be played on any Lion.
-Lion - next player draws 4. Red Lion goes on red cards, black on black. After a Lion, play any card of its color.
-Penalties stack: answer a 7 or Lion with another 7 or Lion (any suit) to pass the total on.
+7 - next player draws 2. A 7 can be played on any Joker.
+Joker - next player draws 4. Red Joker goes on red cards, black on black. After a Joker, play any card of its color.
+Penalties stack: answer a 7 or Joker with another 7 or Joker (any suit) to pass the total on.
 2 - goes on anything and slides under the pile; nothing changes.
 J - you choose the next suit. A J can go on another J.
 Ace (Stop) - skips the next player. An Ace can go on another Ace.
@@ -29,7 +29,7 @@ SCORING
 Points for your finishing place, multiplied for more opponents and for Normal difficulty. Finish without ever drawing from the bank (a CLEAN FINISH) for 3000 bonus points. Forced penalty draws do not count against you.
 
 ENDING
-In a 2-player game you cannot finish on an Ace, and a last 7 or Lion only wins if the opponent cannot answer it."""
+In a 2-player game you cannot finish on an Ace, and a last 7 or Joker only wins if the opponent cannot answer it."""
 
 var bots := 2
 var difficulty := "normal"

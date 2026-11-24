@@ -74,7 +74,7 @@ const SPECIAL := {
 	"A": Color(0.08, 0.66, 0.56),
 	"LION": Color(0.96, 0.74, 0.12),
 }
-const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "LION": "LION +4"}
+const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "LION": "JOKER +4"}
 
 
 ## Face-down card, usable for any rect (also the opponents' fans).
@@ -197,7 +197,7 @@ func _draw() -> void:
 	var pip_suit := ""
 	if rank == "LION":
 		col = CardArt.RED if card["color"] == "red" else CardArt.BLACK
-		corner_text = "L"
+		corner_text = "J"
 		CardArt.draw_lion(self, card["color"], Vector2(size.x / 2.0, size.y * 0.37), 34 * u)
 	elif rank != "":
 		pip_suit = card["suit"]

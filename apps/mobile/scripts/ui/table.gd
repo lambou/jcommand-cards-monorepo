@@ -734,7 +734,7 @@ func _who(id: String) -> String:
 
 func _card_text(card: Dictionary) -> String:
 	if card["rank"] == "LION":
-		return "%s Lion" % str(card["color"]).capitalize()
+		return "%s Joker" % str(card["color"]).capitalize()
 	return "%s of %s" % [card["rank"], CardArt.SUIT_NAMES[card["suit"]]]
 
 
@@ -1035,7 +1035,7 @@ func _impact(card: Dictionary, chosen: String, prev_req: Dictionary) -> void:
 			Sfx.play("roar")
 			Fx.ring(fx, c, Color(1.0, 0.25, 0.2, 0.9), stack_view.size.x * 1.5, 0.7, 18.0)
 			Fx.burst(fx, c, Color(1.0, 0.8, 0.2), 26, 560.0)
-			Fx.popup_text(fx, "LION! +%d" % pending, above, Color(1.0, 0.35, 0.3), 100)
+			Fx.popup_text(fx, "JOKER! +%d" % pending, above, Color(1.0, 0.35, 0.3), 100)
 			Fx.shake(self, 16.0, 0.45)
 			Fx.flash(fx, Color(1.0, 0.1, 0.1), 0.22, 0.5)
 		"J":
@@ -1087,7 +1087,7 @@ func _bonus_effect(e: Dictionary) -> void:
 			if e["kind"] == "penalty_finish":
 				Sfx.play("bonus_out")
 				Fx.flash(fx, Color(1.0, 0.97, 0.78), 0.3, 0.6)
-				var what := "A 7" if e["rank"] == "7" else "A LION"
+				var what := "A 7" if e["rank"] == "7" else "A JOKER"
 				_combo_labels.append(Fx.popup_text(fx, "%s WENT OUT ON %s" % [pts, what], c, gold, 52, 100.0, 1.6))
 			else:
 				c.y += 90.0
