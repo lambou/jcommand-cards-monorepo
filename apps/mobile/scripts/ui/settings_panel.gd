@@ -5,6 +5,8 @@ const UI := preload("res://scripts/ui/ui_kit.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Hand3D := preload("res://scripts/ui/hand3d.gd")
+const Avatar := preload("res://scripts/ui/avatar.gd")
+const AvatarView := preload("res://scripts/ui/avatar_view.gd")
 
 signal closed
 
@@ -19,6 +21,7 @@ const TABLE_RADIUS := 22
 var _table_frames: Array = []
 var _table_names: Array = []
 var _volume_label: Label
+var _avatar_views: Array = []
 
 
 func _ready() -> void:
@@ -59,6 +62,14 @@ func _ready() -> void:
 	_hand_color_btn = UI.button("", UI.Variant.SECONDARY, _on_hand_color)
 	inner.add_child(_hand_color_btn)
 	inner.add_child(UI.hint("3D hands pick up and play the cards: yours from the bottom, the opponents' from the top. They are also off while Reduce motion is on."))
+	inner.add_child(UI.heading("Your avatar"))
+	var avs := HBoxContainer.new()
+	avs.alignment = BoxContainer.ALIGNMENT_CENTER
+	avs.add_theme_constant_override("separation", 12)
+	inner.add_child(avs)
+	for i in Avatar.STYLES.size():
+		avs.add_child(_avatar_choice(i))
+	inner.add_child(UI.hint("Tap an avatar to play as it. The opponents use the other three. Takes effect when the next game starts."))
 	inner.add_child(UI.heading("Table"))
 	var tables := HBoxContainer.new()
 	tables.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -169,6 +180,32 @@ func _table_choice(i: int) -> Control:
 	return box
 
 
+## One tappable avatar portrait with its name underneath.
+func _avatar_choice(i: int) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(150, 150)
+	btn.flat = true
+	btn.pressed.connect(func():
+		Settings.avatar = i
+		Settings.save()
+		_refresh()
+		Sfx.play("check"))
+	var v := AvatarView.new(i)
+	v.size = Vector2(142, 142)
+	v.position = Vector2(4, 4)
+	btn.add_child(v)
+	_avatar_views.append(v)
+	box.add_child(btn)
+	var l := Label.new()
+	l.text = Avatar.display_name(i)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 24)
+	box.add_child(l)
+	return box
+
+
 static func _rounded_shader() -> Shader:
 	var s := Shader.new()
 	s.code = """
@@ -217,6 +254,8 @@ func _refresh() -> void:
 		sb.anti_aliasing = true
 		(_table_names[i] as Label).add_theme_color_override("font_color", Color(1.0, 0.85, 0.3) if on else Color(1, 1, 1, 0.7))
 		(_table_frames[i] as Panel).add_theme_stylebox_override("panel", sb)
+	for i in _avatar_views.size():
+		(_avatar_views[i] as AvatarView).active = i == Settings.avatar % Avatar.STYLES.size()
 	_hand_you_btn.text = "Your 3D hand: %s" % ("On" if Settings.hand_you else "Off")
 	_hand_bots_btn.text = "Opponents' 3D hands: %s" % ("On" if Settings.hand_bots else "Off")
 	_sound_btn.text = "Sound: %s" % ("On" if Settings.sound_enabled else "Off")

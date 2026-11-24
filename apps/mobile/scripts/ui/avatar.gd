@@ -13,10 +13,18 @@ const Settings := preload("res://scripts/game/settings.gd")
 const DARK :=Color(0.12, 0.10, 0.12)
 
 
+## Style index for a player id: you get the avatar picked in Settings, the bots the others in order.
 static func index_for(id: String) -> int:
-	if id.begins_with("bot"):
-		return clampi(int(id.substr(3)), 1, STYLES.size() - 1)
-	return 0
+	Settings.load_settings()
+	var mine := Settings.avatar % STYLES.size()
+	if not id.begins_with("bot"):
+		return mine
+	var slot := clampi(int(id.substr(3)), 1, STYLES.size() - 1)
+	var others := []
+	for i in STYLES.size():
+		if i != mine:
+			others.append(i)
+	return others[slot - 1]
 
 
 static func display_name(idx: int) -> String:

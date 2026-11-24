@@ -222,7 +222,7 @@ func _build() -> void:
 	you_last.visible = false
 	add_child(you_last)
 
-	you_avatar = AvatarView.new(0)
+	you_avatar = AvatarView.new(Avatar.index_for("you"))
 	add_child(you_avatar)
 
 	required_view = RequiredView.new()
