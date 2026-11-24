@@ -78,7 +78,7 @@ func _draw() -> void:
 	var pulse := 0.5 if Settings.reduce() else 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 0.5)
 	var box := StyleBoxFlat.new()
 	box.set_corner_radius_all(22)
-	box.bg_color = Color(0.05, 0.22, 0.14, 0.85)
+	box.bg_color = Color(TableBg.current_theme()["panel"], 0.85)
 	box.set_border_width_all(6 if active else 2)
 	box.border_color = Color(1.0, 0.82, 0.2) if active else Color(1, 1, 1, 0.25)
 	if check:

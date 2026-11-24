@@ -47,7 +47,7 @@ func _ready() -> void:
 
 	_panel = Panel.new()
 	var ps := StyleBoxFlat.new()
-	ps.bg_color = Color(0.05, 0.22, 0.15, 0.97)
+	ps.bg_color = Color(TableBg.current_theme()["panel"], 0.97)
 	ps.set_corner_radius_all(40)
 	ps.set_border_width_all(6)
 	ps.border_color = Color(0.93, 0.76, 0.28)
@@ -141,7 +141,7 @@ func _draw_button() -> void:
 	var dim := 0.45 if _cooling() else 1.0
 	_button.draw_circle(c + Vector2(0, 5), BTN / 2.0, Color(0, 0, 0, 0.35 * dim))
 	_button.draw_circle(c, BTN / 2.0, Color(0.93, 0.76, 0.28, dim))
-	_button.draw_circle(c, BTN / 2.0 - 7.0, Color(0.05, 0.22, 0.15, dim))
+	_button.draw_circle(c, BTN / 2.0 - 7.0, Color(TableBg.current_theme()["panel"], dim))
 	Art.draw(_button, "laugh", c, BTN / 2.0 - 12.0, 0.9, false)
 	if _cooling():
 		_button.draw_circle(c, BTN / 2.0, Color(0, 0, 0, 0.3))
@@ -182,6 +182,6 @@ class Cell extends Control:
 		var t := fposmod(_t, 2.4) if not Settings.reduce() else 0.9
 		Art.draw(self, id, c, r, t)
 		if dim < 1.0:
-			draw_circle(c, r * 1.02, Color(0.05, 0.22, 0.15, 0.55))
+			draw_circle(c, r * 1.02, Color(TableBg.current_theme()["panel"], 0.55))
 		var label: String = Reactions.info(id).get("name", id)
 		draw_string(FONT, Vector2(0, size.y - 12.0), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 28, Color(1, 1, 1, 0.9 * dim))

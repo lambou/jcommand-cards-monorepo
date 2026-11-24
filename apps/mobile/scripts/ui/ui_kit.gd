@@ -352,8 +352,8 @@ static func toggle(text: String, on: bool, handler: Callable) -> Button:
 
 
 ## Round icon-only button (HUD). kind: "home" or "gear". Touch-sized (ICON_BTN).
-static func icon_button(kind: String, on_press: Callable, variant: Variant = Variant.SECONDARY) -> Button:
-	var face := face_color(variant)
+static func icon_button(kind: String, on_press: Callable, variant: Variant = Variant.SECONDARY, face_override := Color(0, 0, 0, 0)) -> Button:
+	var face := face_color(variant) if face_override.a == 0.0 else face_override
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(ICON_BTN, ICON_BTN)
@@ -367,27 +367,27 @@ static func icon_button(kind: String, on_press: Callable, variant: Variant = Var
 	var art := Control.new()
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art.draw.connect(_draw_icon.bind(art, kind))
+	art.draw.connect(_draw_icon.bind(art, kind, face.darkened(0.2)))
 	b.add_child(art)
 	b.pressed.connect(on_press)
 	return b
 
 
-static func _draw_icon(c: Control, kind: String) -> void:
+static func _draw_icon(c: Control, kind: String, hole: Color) -> void:
 	var ctr := c.size / 2.0 - Vector2(0, 3)
 	var u := ICON_BTN / 100.0
 	if kind == "home":
 		var roof := PackedVector2Array([ctr + Vector2(0, -34) * u, ctr + Vector2(-38, -2) * u, ctr + Vector2(38, -2) * u])
 		c.draw_colored_polygon(roof, TEXT)
 		c.draw_rect(Rect2(ctr + Vector2(-26, -4) * u, Vector2(52, 38) * u), TEXT)
-		c.draw_rect(Rect2(ctr + Vector2(-8, 12) * u, Vector2(16, 22) * u), EMERALD.darkened(0.2))
+		c.draw_rect(Rect2(ctr + Vector2(-8, 12) * u, Vector2(16, 22) * u), hole)
 	else:
 		for i in 8:
 			var a := TAU * i / 8.0
 			var d := Vector2.from_angle(a)
 			c.draw_line(ctr + d * 22.0 * u, ctr + d * 34.0 * u, TEXT, 13.0 * u)
 		c.draw_circle(ctr, 27.0 * u, TEXT)
-		c.draw_circle(ctr, 12.0 * u, EMERALD.darkened(0.2))
+		c.draw_circle(ctr, 12.0 * u, hole)
 
 
 ## Small round-ish +/- button.

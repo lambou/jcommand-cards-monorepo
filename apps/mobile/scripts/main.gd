@@ -32,6 +32,8 @@ func _ready() -> void:
 			shot = a.substr(7)
 		elif a.begins_with("--bots="):
 			bots = int(a.substr(7))
+		elif a.begins_with("--table="):
+			Settings.table_style = int(a.substr(8)) # this run only; not saved
 		elif a == "--reduce":
 			Settings.reduce_motion = true # this run only; not saved
 		elif a.begins_with("--settingsshot="):
