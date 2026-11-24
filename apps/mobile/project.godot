@@ -37,3 +37,4 @@ theme/custom_font="res://assets/fonts/LilitaOne-Regular.ttf"
 [rendering]
 
 anti_aliasing/quality/msaa_2d=3
+textures/vram_compression/import_etc2_astc=true

@@ -26,3 +26,4 @@ sounds-preview/
 
 # Preview GIF of the crown loop (the game only loads crown.png + crown.json)
 apps/mobile/assets/crown/crown.gif
+tools/blender/_logo_out/
