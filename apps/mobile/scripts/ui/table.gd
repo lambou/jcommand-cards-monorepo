@@ -1054,7 +1054,7 @@ func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) ->
 			var to_c := _center(hv)
 			var flight := _fly_flip(card, bank_c, bank_w, to_c, hv.size.x, lead + STAGGER * i, func():
 				_unhide(cid)
-				Sfx.play("draw", 0.7), grab and i == 0)
+				Sfx.play("draw", 0.7), grab and i == 0, hv)
 			if i == 0:
 				first = flight
 				first_c = to_c
@@ -1082,7 +1082,7 @@ func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) ->
 ## A drawn card of yours: the top card of the bank is peeled off, turned over from left to right in the air
 ## (see card_flip.gd) and lands in its slot in your hand. `early_show` shows it while the glove still reaches.
 func _fly_flip(card: Dictionary, from_c: Vector2, from_w: float, to_c: Vector2, to_w: float, delay: float,
-		on_land: Callable, early_show: bool = false) -> Control:
+		on_land: Callable, early_show: bool = false, slot: Control = null) -> Control:
 	var v := CardView.new()
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.set_card(card, false)
@@ -1099,13 +1099,46 @@ func _fly_flip(card: Dictionary, from_c: Vector2, from_w: float, to_c: Vector2, 
 	tw.tween_callback(func():
 		v.visible = true
 		_lift_from_bank()
-		CardFlip.run(self, v, card, FLIP_FLY, from_scale, from_c, to_c, Settings.reduce()))
+		CardFlip.run(self, v, card, FLIP_FLY, from_scale, from_c, to_c, Settings.reduce())
+		if slot != null:
+			_tuck_under_neighbours(v, slot))
 	tw.tween_interval(FLIP_FLY)
 	tw.tween_callback(func():
 		if on_land.is_valid():
 			on_land.call()
 		v.queue_free())
 	return v
+
+
+## A flying card travels above everything, but in the hand each card sits under its right neighbour. Just before
+## the flyer touches any other hand card it takes its slot's stacking, so it slides in underneath them (and over
+## those to its left) and the landing is not a swap from "on top" to "half under".
+func _tuck_under_neighbours(v: Control, slot: Control) -> void:
+	var tw := v.create_tween()
+	tw.tween_method(func(_t: float):
+		if not is_instance_valid(v) or not is_instance_valid(slot):
+			return
+		var c := v.get_global_rect().get_center()
+		var half := v.size * v.scale.abs() * 0.5 + Vector2(40.0, 40.0)
+		var box := Rect2(c - half, half * 2.0)
+		for hv in hand_views:
+			if hv != slot and is_instance_valid(hv) and hv.visible and box.intersects(hv.get_global_rect()):
+				v.z_as_relative = false
+				v.z_index = _effective_z(slot)
+				tw.kill()
+				break, 0.0, 1.0, FLIP_FLY)
+
+
+func _effective_z(n: CanvasItem) -> int:
+	var z := 0
+	var cur: Node = n
+	while cur is CanvasItem:
+		var ci := cur as CanvasItem
+		z += ci.z_index
+		if not ci.z_as_relative:
+			break
+		cur = cur.get_parent()
+	return z
 
 
 ## The bank reacts as a card leaves it: the pile gives a small bump and the count swells.
