@@ -3,3 +3,6 @@ dist/
 .godot/
 *.import
 .env
+
+# Debug screenshots from the --*shot flags
+shots/
