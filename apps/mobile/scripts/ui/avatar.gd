@@ -33,13 +33,28 @@ static func _half_disc(ci: CanvasItem, c: Vector2, rad: float, col: Color) -> vo
 	ci.draw_colored_polygon(pts, col)
 
 
+## The darker shoulders blob, clipped to the avatar disc (an unclipped disc pokes out below it).
+static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
+	var sc := c + Vector2(0, r * 0.55)
+	var sr := r * 0.62
+	var pts := PackedVector2Array()
+	var n := 64
+	for k in n:
+		var p := sc + _dir(TAU * float(k) / float(n)) * sr
+		var off := p - c
+		if off.length() > r:
+			p = c + off.normalized() * r
+		pts.append(p)
+	ci.draw_colored_polygon(pts, col)
+
+
 ## Draws the avatar centred on `c` with radius `r`. `ring_w` > 0 adds a border ring.
 static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false) -> void:
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
 	var hair: Color = st["hair"]
 	ci.draw_circle(c, r, st["bg"])
-	ci.draw_circle(c + Vector2(0, r * 0.55), r * 0.62, (st["bg"] as Color).darkened(0.18)) # shoulders glow
+	_shoulders(ci, c, r, (st["bg"] as Color).darkened(0.18))
 
 	var hc := c + Vector2(0, r * 0.1)
 	var hr := r * 0.5
@@ -63,8 +78,8 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 		"cap":
 			_half_disc(ci, hc + Vector2(0, -hr * 0.08), hr * 1.04, st["accent"])
 			ci.draw_colored_polygon(PackedVector2Array([
-				hc + Vector2(-hr * 0.2, -hr * 0.12), hc + Vector2(hr * 1.35, -hr * 0.12),
-				hc + Vector2(hr * 1.35, hr * 0.08), hc + Vector2(-hr * 0.2, hr * 0.08)]), (st["accent"] as Color).darkened(0.2))
+				hc + Vector2(-hr * 0.2, -hr * 0.22), hc + Vector2(hr * 1.35, -hr * 0.22),
+				hc + Vector2(hr * 1.35, hr * 0.0), hc + Vector2(-hr * 0.2, hr * 0.0)]), (st["accent"] as Color).darkened(0.2))
 			ci.draw_circle(hc + Vector2(0, -hr * 0.95), hr * 0.1, Color.WHITE)
 		"spiky":
 			for i in 5:
@@ -76,7 +91,7 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 			_half_disc(ci, hc + Vector2(0, -hr * 0.05), hr * 1.03, hair)
 
 	# Face.
-	var eye_y := -hr * 0.02
+	var eye_y := hr * 0.14
 	for sx in [-1.0, 1.0]:
 		var ec: Vector2 = hc + Vector2(sx * hr * 0.4, eye_y)
 		ci.draw_circle(ec, hr * 0.13, DARK)

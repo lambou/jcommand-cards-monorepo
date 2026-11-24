@@ -1,6 +1,6 @@
 """Pack the frames from make_suits.py into one spritesheet per suit.
 
-    python tools/blender/pack_suits.py <frames_dir> <out_dir> [frame_px=256] [cols=6]
+    python tools/blender/pack_suits.py <frames_dir> <out_dir> [frame_px=192] [cols=12]
 
 Writes <out_dir>/suit_H.png etc. Needs Pillow.
 """
@@ -16,8 +16,8 @@ def main():
     if len(sys.argv) < 3:
         raise SystemExit(__doc__)
     frames_dir, out_dir = sys.argv[1], sys.argv[2]
-    px = int(sys.argv[3]) if len(sys.argv) > 3 else 256
-    cols = int(sys.argv[4]) if len(sys.argv) > 4 else 6
+    px = int(sys.argv[3]) if len(sys.argv) > 3 else 192
+    cols = int(sys.argv[4]) if len(sys.argv) > 4 else 12
     os.makedirs(out_dir, exist_ok=True)
     for suit in SUITS:
         d = os.path.join(frames_dir, suit)

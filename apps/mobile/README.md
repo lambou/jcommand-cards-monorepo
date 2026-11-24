@@ -27,3 +27,12 @@ You play against 1-3 bots, fully offline.
     godot --path apps/mobile -- --settingsshot=out.png                              # screenshot of the settings screen
     godot --headless --path apps/mobile -s res://scripts/tests/sim_tune.gd -- 300 2     # tune the experimental 'hard' bot vs 'normal'
     godot --headless --path apps/mobile -s res://scripts/tests/sim_choices.gd -- 100   # how often a turn offers a real choice
+
+## 3D suits
+The suit icons (J picker, PLAY pill) are Blender renders, shown by `scripts/ui/suit3d.gd`. Regenerate with:
+
+    blender -b -P tools/blender/make_suits.py -- --out <tmp_frames_dir>     # 96-frame turntable per suit (EEVEE, ~30 min)
+    python tools/blender/pack_suits.py <tmp_frames_dir> apps/mobile/assets/suits
+
+Tweak look/shape in `make_suits.py` (`MAX_R`/`MAX_T` = plumpness, colours at the top). Missing sheets fall back to the flat vector art.
+    godot --path apps/mobile -- --suitshot=out.png    # picker + PLAY-pill spin screenshots

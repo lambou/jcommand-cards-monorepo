@@ -5,16 +5,29 @@ const TextFx := preload("res://scripts/ui/text_fx.gd")
 const CardArt := preload("res://scripts/ui/card_art.gd")
 const Suit3D := preload("res://scripts/ui/suit3d.gd")
 const Settings := preload("res://scripts/game/settings.gd")
+const SdfCircle := preload("res://scripts/ui/sdf_circle.gd")
 
 var required: Dictionary = {"kind": "free"}
 var _angle := 0.0     # extra spin (360 -> 0) added to the idle turn when the requirement changes
 var _time := 0.0
+var _discs: Array = []        # SdfCircle children: the crisp (shader) plates behind the suits
+var _suit_layer: Control      # drawn after the discs so the suits sit on top of them
 
 
 func _init() -> void:
 	custom_minimum_size = Vector2(400, 92)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i in 2:
+		var d := SdfCircle.new()
+		d.visible = false
+		add_child(d)
+		_discs.append(d)
+	_suit_layer = Control.new()
+	_suit_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_suit_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_suit_layer.draw.connect(_draw_suits)
+	add_child(_suit_layer)
 
 
 func set_required(r: Dictionary) -> void:
@@ -51,27 +64,43 @@ func _draw() -> void:
 	box.set_border_width_all(5)
 	box.border_color = Color(1.0, 0.82, 0.2)
 	draw_style_box(box, Rect2(Vector2.ZERO, size))
-	var mid := Vector2(size.x * 0.62, size.y / 2.0)
+	_sync_discs()
+	_suit_layer.queue_redraw()
+	TextFx.draw(self, font, Vector2(28, size.y / 2.0 + 14), "PLAY", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color.WHITE)
+	if required["kind"] == "free":
+		TextFx.draw(self, font, Vector2(size.x * 0.46, size.y / 2.0 + 14), "ANY CARD", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color.WHITE)
+
+
+func _mid() -> Vector2:
+	return Vector2(size.x * 0.62, size.y / 2.0)
+
+
+func _sync_discs() -> void:
+	var mid := _mid()
 	# Flat fallback suits need a light plate to be readable; the 3D suits never get one (a light
 	# disc would show as a white spot whenever the suit turns edge-on).
 	var flat := not Suit3D.available()
 	var plate := Color(0.98, 0.97, 0.94) if flat else Color(0.11, 0.25, 0.42)
 	var rim := Color(0.1, 0.05, 0.0) if flat else Color(1.0, 0.82, 0.2, 0.55)
+	for d in _discs:
+		d.visible = false
 	match required["kind"]:
 		"suit":
-			draw_circle(mid, 34, rim)
-			draw_circle(mid, 31 if not flat else 30, plate)
+			_discs[0].setup(mid, 34.0, plate, 3.0 if not flat else 4.0, rim)
+			_discs[0].visible = true
 		"color":
-			for dx in [-34, 34]:
-				draw_circle(mid + Vector2(dx, 0), 31, rim)
-				draw_circle(mid + Vector2(dx, 0), 28 if not flat else 27, plate)
-	TextFx.draw(self, font, Vector2(28, size.y / 2.0 + 14), "PLAY", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color.WHITE)
+			for i in 2:
+				var dx := -34.0 if i == 0 else 34.0
+				_discs[i].setup(mid + Vector2(dx, 0), 31.0, plate, 3.0 if not flat else 4.0, rim)
+				_discs[i].visible = true
+
+
+func _draw_suits() -> void:
+	var mid := _mid()
 	match required["kind"]:
 		"suit":
-			Suit3D.draw(self, required["suit"], mid, 28, _suit_angle(0.0))
+			Suit3D.draw(_suit_layer, required["suit"], mid, 28, _suit_angle(0.0))
 		"color":
 			var red: bool = required["color"] == "red"
-			Suit3D.draw(self, "H" if red else "S", mid + Vector2(-34, 0), 24, _suit_angle(0.0))
-			Suit3D.draw(self, "D" if red else "C", mid + Vector2(34, 0), 24, _suit_angle(1.7))
-		_:
-			TextFx.draw(self, font, Vector2(size.x * 0.46, size.y / 2.0 + 14), "ANY CARD", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color.WHITE)
+			Suit3D.draw(_suit_layer, "H" if red else "S", mid + Vector2(-34, 0), 24, _suit_angle(0.0))
+			Suit3D.draw(_suit_layer, "D" if red else "C", mid + Vector2(34, 0), 24, _suit_angle(1.7))
