@@ -17,7 +17,11 @@ var bot_delay := 0.9
 var rng := RandomNumberGenerator.new()
 
 var human_draws := 0 # voluntary bank draws by the human this game (for the Clean Finish bonus)
+var human_chains: Array = [] # [{len, aces}] runs of consecutive plays by the human (combo bonus)
 var memory: Dictionary = {} # bot notebook (see Bot.update_memory)
+var human_finish_rank := "" # rank of the card that got the human out ("" until they finish)
+var _human_last_rank := ""
+var _chain_player := ""
 var _serial := 0
 var _passes := 0
 
@@ -35,6 +39,10 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 	rng.seed = seed_value
 	_passes = 0
 	human_draws = 0
+	human_chains = []
+	human_finish_rank = ""
+	_human_last_rank = ""
+	_chain_player = ""
 	memory = {}
 	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value})
 	updated.emit([])
@@ -82,6 +90,7 @@ func _apply(action: Dictionary) -> bool:
 	state = res["state"]
 	# Safety valve: if everybody keeps passing with an exhausted bank, end the game.
 	for e in res["events"]:
+		_track_chain(e)
 		if e["type"] == "draw":
 			if e["playerId"] == HUMAN_ID and int(e["count"]) > 0:
 				human_draws += 1
@@ -92,6 +101,32 @@ func _apply(action: Dictionary) -> bool:
 		_force_end(res["events"])
 	updated.emit(res["events"])
 	return true
+
+
+## A chain is consecutive plays by one player with nobody else acting in between
+## (in practice: Aces skipping the opponent in 1v1). Only the human's chains score.
+func _track_chain(e: Dictionary) -> void:
+	var t: String = e["type"]
+	if t == "play" and e["playerId"] == HUMAN_ID:
+		_human_last_rank = e["card"]["rank"]
+	elif t == "finish" and e["playerId"] == HUMAN_ID:
+		human_finish_rank = _human_last_rank   # confirmed exit: the card that emptied the hand
+	if t != "play" and t != "draw" and t != "penaltyTaken":
+		return
+	var pid: String = e["playerId"]
+	if t != "play":
+		_chain_player = ""
+		return
+	var is_ace: bool = e["card"]["rank"] == "A"
+	if pid == _chain_player:
+		if pid == HUMAN_ID:
+			var c: Dictionary = human_chains[human_chains.size() - 1]
+			c["len"] += 1
+			c["aces"] += 1 if is_ace else 0
+	else:
+		_chain_player = pid
+		if pid == HUMAN_ID:
+			human_chains.append({"len": 1, "aces": 1 if is_ace else 0})
 
 
 ## Ranks the remaining players by fewest cards when nobody can move any more.
