@@ -1,6 +1,6 @@
 [
   {
-    "name": "1v1-cannot-finish-on-ace",
+    "name": "1v1-ace-last-card-is-played-but-does-not-finish",
     "setup": {
       "players": ["A", "B"],
       "hands": { "A": ["AH"], "B": ["3H", "4H"] },
@@ -8,8 +8,8 @@
       "stack": ["9H"]
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "AH", "expectError": true },
-      { "player": "A", "action": "draw", "expect": { "handSizes": { "A": 2 }, "current": "B", "over": false } }
+      { "player": "A", "action": "play", "card": "AH", "expect": { "handSizes": { "A": 0 }, "current": "A", "over": false } },
+      { "player": "A", "action": "draw", "expect": { "handSizes": { "A": 1 }, "current": "B", "over": false } }
     ]
   },
   {

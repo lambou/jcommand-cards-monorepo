@@ -89,9 +89,6 @@ function unfinishedCount(s: GameState): number {
 export function isPlayable(s: GameState, hand: Card[], card: Card): boolean {
   if (s.pending > 0) return penaltyOf(card.rank) > 0;
   const rule = ruleOf(card.rank);
-  if (rule.cannotFinishWhenTwoPlayersLeft && hand.length === 1 && unfinishedCount(s) === 2) {
-    return false;
-  }
   const floor = s.stack[s.stack.length - 1]!;
   if (rule.playOnLion && floor.rank === 'LION') return true;
   if (rule.playOnSeven && floor.rank === '7') return true;
@@ -219,7 +216,10 @@ function doPlay(
   s.pending += penalty;
   events.push({ type: 'play', playerId: cur.id, card, chosenSuit: action.chosenSuit });
 
-  if (cur.hand.length === 0) {
+  // A Stop can be played as the last card in a 1v1, but it does not take you out: you hold no cards,
+  // keep the turn (the opponent is skipped) and must draw.
+  const cannotFinish = !!rule.cannotFinishWhenTwoPlayersLeft && unfinishedCount(s) <= 2;
+  if (cur.hand.length === 0 && !cannotFinish) {
     if (penalty > 0) {
       cur.status = 'provisional';
       s.provisionalOrder.push(cur.id);
