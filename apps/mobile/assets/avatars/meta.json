@@ -1,0 +1,46 @@
+{
+  "fps": 24,
+  "avatars": {
+    "luna": {
+      "idle": {
+        "frames": 64,
+        "cols": 8
+      },
+      "happy": {
+        "frames": 24,
+        "cols": 6
+      }
+    },
+    "rex": {
+      "idle": {
+        "frames": 64,
+        "cols": 8
+      },
+      "happy": {
+        "frames": 24,
+        "cols": 6
+      }
+    },
+    "you": {
+      "idle": {
+        "frames": 64,
+        "cols": 8
+      },
+      "happy": {
+        "frames": 24,
+        "cols": 6
+      }
+    },
+    "zed": {
+      "idle": {
+        "frames": 64,
+        "cols": 8
+      },
+      "happy": {
+        "frames": 24,
+        "cols": 6
+      }
+    }
+  },
+  "size": 192
+}

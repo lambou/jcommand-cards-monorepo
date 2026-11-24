@@ -6,7 +6,7 @@ const STYLES := [
 	{"name": "You", "bg": Color(0.96, 0.76, 0.22), "skin": Color(0.97, 0.80, 0.66), "hair": Color(0.28, 0.17, 0.08), "kind": "cap", "accent": Color(0.85, 0.15, 0.18)},
 	{"name": "Rex", "bg": Color(0.27, 0.55, 0.86), "skin": Color(0.86, 0.63, 0.46), "hair": Color(0.10, 0.10, 0.12), "kind": "spiky", "accent": Color(0.1, 0.1, 0.12)},
 	{"name": "Luna", "bg": Color(0.86, 0.36, 0.58), "skin": Color(0.99, 0.86, 0.73), "hair": Color(0.74, 0.34, 0.14), "kind": "bob", "accent": Color(0.74, 0.34, 0.14)},
-	{"name": "Zed", "bg": Color(0.34, 0.70, 0.46), "skin": Color(0.55, 0.38, 0.27), "hair": Color(0.06, 0.06, 0.07), "kind": "afro", "accent": Color(0.06, 0.06, 0.07)},
+	{"name": "Zed", "bg": Color(0.34, 0.70, 0.46), "skin": Color(0.63, 0.44, 0.31), "hair": Color(0.06, 0.06, 0.07), "kind": "afro", "accent": Color(0.06, 0.06, 0.07)},
 ]
 
 const Settings := preload("res://scripts/game/settings.gd")
@@ -21,6 +21,43 @@ static func index_for(id: String) -> int:
 
 static func display_name(idx: int) -> String:
 	return STYLES[idx % STYLES.size()]["name"]
+
+
+## Pre-rendered 3D avatars (tools/avatars -> assets/avatars/<name>_<anim>.png spritesheets + meta.json).
+## Returns false when no sheet exists, so the vector drawing below stays as the fallback.
+static var _sheets := {}
+static var _meta := {}
+
+
+static func _sheet(name: String, anim: String) -> Texture2D:
+	var key := "%s_%s" % [name, anim]
+	if not _sheets.has(key):
+		var p := "res://assets/avatars/%s.png" % key
+		_sheets[key] = load(p) if ResourceLoader.exists(p) else null
+	return _sheets[key]
+
+
+static func _draw_sprite(ci: CanvasItem, idx: int, c: Vector2, r: float, happy: bool) -> bool:
+	if _meta.is_empty():
+		var f := FileAccess.open("res://assets/avatars/meta.json", FileAccess.READ)
+		_meta = JSON.parse_string(f.get_as_text()) if f != null else {"avatars": {}}
+	var name := str(STYLES[idx % STYLES.size()]["name"]).to_lower()
+	var info: Dictionary = _meta.get("avatars", {}).get(name, {})
+	var anim := "happy" if (happy and info.has("happy")) else "idle"
+	if not info.has(anim):
+		return false
+	var tex := _sheet(name, anim)
+	if tex == null:
+		return false
+	var n := int(info[anim]["frames"])
+	var cols := int(info[anim]["cols"])
+	var fs := float(_meta["size"])
+	var frame := 0
+	if not Settings.reduce():
+		frame = int(float(Time.get_ticks_msec()) / 1000.0 * float(_meta["fps"])) % n
+	ci.draw_texture_rect_region(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0),
+		Rect2(float(frame % cols) * fs, float(frame / cols) * fs, fs, fs))
+	return true
 
 
 static func _dir(a: float) -> Vector2:
@@ -51,6 +88,10 @@ static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void
 
 ## Draws the avatar centred on `c` with radius `r`. `ring_w` > 0 adds a border ring.
 static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false) -> void:
+	if _draw_sprite(ci, idx, c, r, happy):
+		if ring_w > 0.0:
+			ci.draw_arc(c, r, 0.0, TAU, 48, ring, ring_w, true)
+		return
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
 	var hair: Color = st["hair"]

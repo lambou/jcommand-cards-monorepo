@@ -1,0 +1,9 @@
+{
+  "_doc": "Avatar definitions. Keep in sync with STYLES in apps/mobile/scripts/ui/avatar.gd (index = player slot). kind = cap | spiky | bob | afro (add new kinds in render_avatars.py::build_hair). Also: shirt (body colour, must differ from bg), eye (size mult), gap (eye spacing), brow (tilt rad, + = raised outer ends), mouth = smile|smirk|wide, tilt (rest head roll).",
+  "avatars": [
+    {"name": "You", "bg": [0.96, 0.76, 0.22], "skin": [0.97, 0.8, 0.66], "hair": [0.28, 0.17, 0.08], "kind": "cap", "accent": [0.85, 0.15, 0.18], "shirt": [0.2, 0.36, 0.78], "eye": 1.0, "gap": 0.2, "brow": 0.0, "mouth": "smile", "tilt": 0.05},
+    {"name": "Rex", "bg": [0.27, 0.55, 0.86], "skin": [0.86, 0.63, 0.46], "hair": [0.1, 0.1, 0.12], "kind": "spiky", "accent": [0.1, 0.1, 0.12], "shirt": [0.96, 0.52, 0.14], "eye": 0.88, "gap": 0.21, "brow": -0.28, "mouth": "smirk", "tilt": -0.06},
+    {"name": "Luna", "bg": [0.86, 0.36, 0.58], "skin": [0.99, 0.86, 0.73], "hair": [0.74, 0.34, 0.14], "kind": "bob", "accent": [0.74, 0.34, 0.14], "shirt": [0.14, 0.6, 0.62], "eye": 1.2, "gap": 0.19, "brow": 0.12, "mouth": "smile", "tilt": 0.07},
+    {"name": "Zed", "bg": [0.34, 0.7, 0.46], "skin": [0.63, 0.44, 0.31], "hair": [0.06, 0.06, 0.07], "kind": "afro", "accent": [0.06, 0.06, 0.07], "shirt": [0.52, 0.3, 0.78], "eye": 0.95, "gap": 0.2, "brow": 0.18, "mouth": "wide", "tilt": -0.04}
+  ]
+}

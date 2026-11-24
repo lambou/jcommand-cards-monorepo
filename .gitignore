@@ -6,3 +6,6 @@ dist/
 
 # Debug screenshots from the --*shot flags
 shots/
+
+# Raw avatar render frames (tools/avatars/render_avatars.py); the packed sheets live in apps/mobile/assets/avatars
+tools/avatars/frames/
