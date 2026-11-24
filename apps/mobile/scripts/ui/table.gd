@@ -22,6 +22,9 @@ const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const Hand3D := preload("res://scripts/ui/hand3d.gd")
+const Reactions := preload("res://scripts/game/reactions.gd")
+const ReactionBubble := preload("res://scripts/ui/reaction_bubble.gd")
+const ReactionMenu := preload("res://scripts/ui/reaction_menu.gd")
 
 signal quit_to_menu
 
@@ -31,6 +34,8 @@ const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q"
 const FLY := 0.42 # seconds for a card to travel
 const STAGGER := 0.07 # delay between cards of one batch
 const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
+const HURRY_AFTER_MS := 14000 # a bot nudges you when your turn has taken this long
+const BOT_SAY_GAP_MS := 2200 # at most one bot sticker per this many ms, so the table stays calm
 const SLIDE_UNDER_TIME := 0.5 # lift 0.16 + slide 0.3, then the hand lets go as the pile lowers
 
 var game: Node
@@ -77,6 +82,16 @@ var _hand_scroll := 0.0 # px the hand fan is shifted by swiping (0 = centred)
 var _hand_max_scroll := 0.0
 var _hand_visible_frac := 1.0 # share of the whole hand that fits on screen
 var hand_bar: Control
+var react_menu: Control
+
+var _react_bubbles: Dictionary = {} # seat id -> the sticker currently showing there
+var _react_last_ms: Dictionary = {} # seat id -> when it last sent a reaction
+var _last_bot_say_ms := -100000
+var _react_epoch := 0 # bumped on every new game so late bot timers do nothing
+var _react_rng := RandomNumberGenerator.new() # separate from the game RNG on purpose
+var _react_human_turn := false
+var _react_turn_ms := 0
+var _hurried := false
 var _hold_layout := 0.0 # seconds the hand fan waits before closing a gap
 
 
@@ -113,6 +128,13 @@ func _build() -> void:
 	_shown_required = {}
 	_alerted.clear()
 	_last_alert_ms.clear()
+	_react_bubbles.clear()
+	_react_last_ms.clear()
+	_last_bot_say_ms = -100000
+	_react_epoch += 1
+	_react_rng.randomize()
+	_react_human_turn = false
+	_hurried = false
 	_was_human_turn = false
 	_pending_j = -1
 	over_panel = null
@@ -191,6 +213,10 @@ func _build() -> void:
 	hand_bar.z_index = 500
 	hand_bar.draw.connect(_draw_hand_bar)
 	add_child(hand_bar)
+
+	react_menu = ReactionMenu.new()
+	react_menu.picked.connect(_on_react_picked)
+	add_child(react_menu)
 
 	_build_picker()
 	_relayout()
@@ -388,6 +414,7 @@ func _relayout() -> void:
 	banner_label.position = Vector2(30, h - hs.y - 150)
 	you_avatar.size = Vector2(104, 104)
 	you_avatar.position = Vector2(24, h - hs.y - 215)
+	react_menu.place(Vector2(w - 24.0 - ReactionMenu.BTN, h - hs.y - 215.0), size)
 	_layout_hand()
 
 
@@ -497,6 +524,7 @@ func _on_updated(events: Array) -> void:
 	if first:
 		_animate_deal(st)
 		return
+	_react_to_events(events)
 	for e in events:
 		match e["type"]:
 			"play":
@@ -663,7 +691,7 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 		# Stop just outside the stack; the slide-under finishes the job.
 		to_c += Vector2(0, dir * stack_view.size.y * 0.9)
 		_sliding += 1
-	var grab := who == ME and old_rects.has(card["id"]) and _hand_ok()
+	var grab := (who == ME and old_rects.has(card["id"]) and _hand_ok(false)) or (who != ME and _hand_ok(true))
 	var flight := _fly(card, face_up, flip, from_c, from_w, to_c, stack_view.size.x, REACH if grab else 0.0, FLY, func():
 		_last_played[who] = card
 		if slide:
@@ -690,12 +718,19 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 			_maybe_check_alert(who), true, grab)
 	if grab:
 		# A sliding 2 keeps the hand on it past the landing (hand_over takes it from there).
-		hand3d.carry(flight, REACH, FLY + (6.0 if slide else 0.0))
+		hand3d.carry(flight, REACH, FLY + (6.0 if slide else 0.0), who != ME, _hand_style(who))
 
 
 ## The 3D hand is skipped when motion is reduced.
-func _hand_ok() -> bool:
-	return hand3d != null and not Settings.reduce()
+## Your hand uses the colour from settings; each bot gets the next ones along, so they all differ.
+func _hand_style(who: String) -> int:
+	if who == ME:
+		return Settings.hand_color
+	return Settings.hand_color + int(who.trim_prefix("bot"))
+
+
+func _hand_ok(bots: bool = false) -> bool:
+	return hand3d != null and Settings.hands(bots)
 
 
 ## The pile lifts, the 2 slides in beneath it, and the pile settles back down.
@@ -852,6 +887,7 @@ func _maybe_check_alert(who: String) -> void:
 	var repeat: bool = now - int(_last_alert_ms.get(who, -100000)) < 10000
 	_last_alert_ms[who] = now
 	Sfx.play("check") # the chime plays even on a quick re-fire
+	_bot_react("saw_check", "", 1.0, who)
 
 	var c := _seat_center(who)
 	if who == ME:
@@ -973,6 +1009,10 @@ func _refresh() -> void:
 	message_label.text = "\n".join(_log.slice(maxi(_log.size() - 2, 0)))
 	_rebuild_hand(st, human_turn)
 	_update_banner(st, human_turn)
+	var can_react: bool = Settings.show_reactions and not st["over"]
+	react_menu.visible = can_react
+	if not can_react:
+		react_menu.close()
 	if st["over"] and not _shown_over:
 		_shown_over = true
 		_show_over(st)
@@ -980,6 +1020,7 @@ func _refresh() -> void:
 
 ## Cards glide to their slots instead of snapping when the hand changes or is swiped.
 func _process(delta: float) -> void:
+	_watch_human_turn()
 	var k := 1.0 - exp(-delta * 14.0)
 	for v in hand_views:
 		if not v.has_meta("tp"):
@@ -991,6 +1032,124 @@ func _process(delta: float) -> void:
 		if v.position.distance_squared_to(tp) < 0.04:
 			v.position = tp
 			v.rotation = tr
+
+
+# ---------------------------------------------------------------- reactions
+
+## Where a seat's sticker appears: the free top-right corner of an opponent's seat (so their
+## avatar and name stay readable), or just above-right of your avatar.
+func _reaction_anchor(who: String) -> Vector2:
+	if who == ME:
+		return you_avatar.position + you_avatar.size / 2.0 + Vector2(78.0, -78.0)
+	var v: Control = opp_views[who]
+	return v.position + Vector2(v.size.x - 64.0, 38.0)
+
+
+## Shows a reaction sticker for a seat. Returns false when it is ignored (unknown id or the
+## seat is still cooling down). Online play will call this for reactions received from others.
+func show_reaction(who: String, id: String) -> bool:
+	if fx == null or not Reactions.is_valid(id) or (who != ME and not opp_views.has(who)):
+		return false
+	var now := Time.get_ticks_msec()
+	if now - int(_react_last_ms.get(who, -100000)) < int(Reactions.COOLDOWN * 1000.0):
+		return false
+	_react_last_ms[who] = now
+	var old = _react_bubbles.get(who)
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+	var c := _reaction_anchor(who)
+	_react_bubbles[who] = ReactionBubble.spawn(fx, id, c, 62.0 if who == ME else 52.0)
+	Sfx.play(str(Reactions.info(id)["sound"]), 0.85 if who == ME else 0.6)
+	return true
+
+
+func _on_react_picked(id: String) -> void:
+	if not show_reaction(ME, id):
+		return
+	react_menu.start_cooldown(Reactions.COOLDOWN)
+	# Now and then a bot answers.
+	var reply := Reactions.bot_reply(id, _react_rng)
+	var who := _random_bot("")
+	if reply != "" and who != "":
+		_bot_say(reply, who, 0.9)
+
+
+func _random_bot(exclude: String) -> String:
+	var ids: Array = []
+	for id in opp_views:
+		if id != exclude:
+			ids.append(id)
+	if ids.is_empty():
+		return ""
+	return ids[_react_rng.randi() % ids.size()]
+
+
+## A bot reacts to `situation` (see Reactions.SITUATIONS) if it feels like it. `bot_id` "" picks
+## any bot except `exclude`.
+func _bot_react(situation: String, bot_id: String = "", delay: float = 0.8, exclude: String = "") -> void:
+	if not Settings.show_reactions:
+		return
+	var who := bot_id if bot_id != "" else _random_bot(exclude)
+	if who == "" or not opp_views.has(who):
+		return
+	_bot_say(Reactions.bot_pick(situation, who, _react_rng), who, delay)
+
+
+func _bot_say(id: String, bot_id: String, delay: float) -> void:
+	if id == "" or not Settings.show_reactions:
+		return
+	var epoch := _react_epoch
+	await get_tree().create_timer(delay + _react_rng.randf() * 0.5).timeout
+	if epoch != _react_epoch or not is_inside_tree() or over_panel != null or not Settings.show_reactions:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _last_bot_say_ms < BOT_SAY_GAP_MS:
+		return
+	if show_reaction(bot_id, id):
+		_last_bot_say_ms = now
+
+
+## Bots comment on what just happened. Timings leave room for the cards to land first.
+func _react_to_events(events: Array) -> void:
+	for e in events:
+		match e["type"]:
+			"penaltyTaken":
+				if e["playerId"] == ME:
+					_bot_react("human_penalty", "", 1.5)
+				else:
+					_bot_react("took_penalty", e["playerId"], 1.5)
+			"play":
+				var rank: String = e["card"]["rank"]
+				if rank == "7" or rank == "LION":
+					if e["playerId"] != ME:
+						_bot_react("big_play", e["playerId"], 0.8)
+					var victim: String = game.current_id()
+					if victim != e["playerId"] and victim != ME and not game.state["over"]:
+						_bot_react("hit_by_attack", victim, 1.3)
+			"skip":
+				if e["playerId"] != ME:
+					_bot_react("hit_by_attack", e["playerId"], 1.0)
+			"finish":
+				if e["playerId"] == ME:
+					_bot_react("human_out", "", 1.0)
+				else:
+					_bot_react("went_out", e["playerId"], 0.9)
+
+
+## When it has been your turn for a long time, a bot politely tells you to hurry up.
+func _watch_human_turn() -> void:
+	if game == null or game.state.is_empty() or not _dealt:
+		return
+	var mine: bool = game.is_human_turn()
+	var now := Time.get_ticks_msec()
+	if mine != _react_human_turn:
+		_react_human_turn = mine
+		_react_turn_ms = now
+		_hurried = false
+	elif mine and not _hurried and over_panel == null and not picker.visible and now - _react_turn_ms > HURRY_AFTER_MS:
+		_hurried = true
+		_bot_react("slow_human", "", 0.0)
+
 
 
 func _rebuild_hand(st: Dictionary, human_turn: bool) -> void:

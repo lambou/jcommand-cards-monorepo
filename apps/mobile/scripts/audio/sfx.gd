@@ -135,6 +135,72 @@ func _build() -> void:
 		_tone(b, 0.2 * float(i), down[i], 0.55, 0.32, 5.0, [1.0, 0.25])
 	_streams["lose"] = _stream(b)
 
+	_build_reactions()
+
+
+## Short, friendly sounds for the emoji reactions (see reactions.gd).
+func _build_reactions() -> void:
+	# Generic pop (cool).
+	var b := _buf(0.2)
+	_sweep(b, 0.0, 380.0, 900.0, 0.1, 0.4, 14.0)
+	_tone(b, 0.07, 1180.0, 0.1, 0.22, 20.0)
+	_streams["react_pop"] = _stream(b)
+
+	# Cheer (gg, clap): a bright two-note "ta-da" with a little sparkle.
+	b = _buf(0.6)
+	_tone(b, 0.0, 659.25, 0.16, 0.34, 9.0, [1.0, 0.3])
+	_tone(b, 0.11, 987.77, 0.4, 0.34, 6.0, [1.0, 0.3, 0.1])
+	_noise(b, 0.12, 0.2, 0.08, 14.0, 0.7)
+	_streams["react_cheer"] = _stream(b)
+
+	# Laugh: a bouncy "ha-ha-ha".
+	b = _buf(0.7)
+	for i in 4:
+		var f := 540.0 - 40.0 * float(i)
+		_sweep(b, 0.14 * float(i), f * 1.15, f * 0.9, 0.1, 0.34, 12.0)
+		_noise(b, 0.14 * float(i), 0.05, 0.1, 30.0, 0.35)
+	_streams["react_laugh"] = _stream(b)
+
+	# Wow: a quick rising whistle.
+	b = _buf(0.5)
+	_sweep(b, 0.0, 420.0, 1250.0, 0.32, 0.36, 3.5)
+	_tone(b, 0.3, 1250.0, 0.18, 0.2, 10.0, [1.0, 0.2])
+	_streams["react_wow"] = _stream(b)
+
+	# Hmm: two soft thinking blips.
+	b = _buf(0.5)
+	_tone(b, 0.0, 330.0, 0.14, 0.3, 14.0, [1.0, 0.25])
+	_tone(b, 0.22, 392.0, 0.2, 0.3, 11.0, [1.0, 0.25])
+	_streams["react_think"] = _stream(b)
+
+	# Oops: a wobbly slide down and back up.
+	b = _buf(0.55)
+	_sweep(b, 0.0, 620.0, 300.0, 0.25, 0.36, 5.0)
+	_sweep(b, 0.22, 300.0, 460.0, 0.22, 0.3, 6.0)
+	_streams["react_oops"] = _stream(b)
+
+	# Sad: the classic falling "wah-wah".
+	b = _buf(1.0)
+	_sweep(b, 0.0, 400.0, 330.0, 0.35, 0.36, 3.5)
+	_sweep(b, 0.35, 340.0, 230.0, 0.55, 0.36, 3.0)
+	_streams["react_sad"] = _stream(b)
+
+	# Angry: a low buzzing growl.
+	b = _buf(0.55)
+	_sweep(b, 0.0, 150.0, 110.0, 0.45, 0.4, 3.0)
+	_sweep(b, 0.0, 300.0, 215.0, 0.45, 0.2, 3.5)
+	_noise(b, 0.0, 0.35, 0.12, 6.0, 0.2)
+	_streams["react_angry"] = _stream(b)
+
+	# Hurry up: ticking, then an alarm-clock ring.
+	b = _buf(1.0)
+	for i in 4:
+		_noise(b, 0.12 * float(i), 0.03, 0.4, 70.0, 0.6)
+		_tone(b, 0.12 * float(i), 1500.0, 0.03, 0.18, 70.0)
+	for i in 6:
+		_tone(b, 0.5 + 0.075 * float(i), 1760.0 if i % 2 == 0 else 1480.0, 0.07, 0.28, 18.0, [1.0, 0.4])
+	_streams["react_hurry"] = _stream(b)
+
 
 # ---------------------------------------------------------------- synthesis helpers
 
