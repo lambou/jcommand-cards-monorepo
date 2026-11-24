@@ -1408,11 +1408,12 @@ func _show_over(st: Dictionary) -> void:
 	over_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	over_panel.z_index = 2000
 	over_panel.add_child(UI.background())
-	var box := UI.column(26)
-	over_panel.add_child(box)
-
 	var my_place := int(_find(st, ME)["place"])
-	box.add_child(UI.title("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place)))
+	var page := UI.scroll_page("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place), "", Callable())
+	over_panel.add_child(page["scroll"])
+	over_panel.add_child(page["header"])
+	over_panel.add_child(page["footer"])
+	var box: VBoxContainer = page["content"]
 
 	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws, game.human_chains, game.human_finish_rank, game.human_penalty_chains)
 	var rank := Leaderboard.add(int(result["total"]), my_place, st["players"].size(), difficulty, bool(result["clean"]))
@@ -1424,11 +1425,16 @@ func _show_over(st: Dictionary) -> void:
 		Sfx.play("win" if my_place == 1 else "lose")
 		if my_place == 1:
 			Fx.confetti(over_panel, size.x))
+	pod.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(pod)
 
 	box.add_child(_score_panel(result, rank))
-	box.add_child(UI.button("Play again", UI.Variant.PRIMARY, func(): start(bots, difficulty)))
-	box.add_child(UI.button("Menu", UI.Variant.SECONDARY, func(): quit_to_menu.emit()))
+	var footer_box: VBoxContainer = page["footer_box"]
+	for b in [UI.button("Play again", UI.Variant.PRIMARY, func(): start(bots, difficulty)),
+			UI.button("Menu", UI.Variant.SECONDARY, func(): quit_to_menu.emit())]:
+		var c := CenterContainer.new()
+		c.add_child(b)
+		footer_box.add_child(c)
 	add_child(over_panel)
 	pod.play()
 
@@ -1436,7 +1442,7 @@ func _show_over(st: Dictionary) -> void:
 ## Score breakdown card shown under the podium on the results screen.
 func _score_panel(result: Dictionary, rank: int) -> Control:
 	var card := UI.panel(UI.SPACE_S)
-	card[0].custom_minimum_size.x = minf(size.x * 0.94, 1000.0)
+	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL   # fills the page content width
 	var inner: VBoxContainer = card[1]
 	for line in result["lines"]:
 		var row := HBoxContainer.new()

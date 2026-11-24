@@ -11,37 +11,22 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	z_index = 3000
 	add_child(UI.background())
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, UI.MARGIN_SCREEN)
-	add_child(margin)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", UI.SPACE_M)
-	margin.add_child(col)
-	var t := UI.title("Leaderboard")
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(t)
+	var page := UI.scroll_page("Leaderboard", "Close", func(): closed.emit())
+	add_child(page["scroll"])
+	add_child(page["header"])
+	add_child(page["footer"])
+	var col: VBoxContainer = page["content"]
 
 	var st := Leaderboard.stats()
 	col.add_child(UI.tagline("%d games  -  %d wins  -  %d clean finishes" % [st["games"], st["wins"], st["cleans"]]))
 
-	var scroll := UI.scroll_area()
-	col.add_child(scroll)
-	var card := UI.panel()
-	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(card[0])
 	var list: Array = Leaderboard.entries()
 	if list.is_empty():
-		card[1].add_child(UI.body("No games yet. Finish a game to set a score.
+		col.add_child(UI.body("No games yet. Finish a game to set a score.
 
 Finish without ever drawing from the bank for a CLEAN FINISH: 3000 bonus points.", 900))
 	for i in list.size():
-		card[1].add_child(_row(i + 1, list[i]))
-
-	var close := UI.button("Close", UI.Variant.SECONDARY, func(): closed.emit())
-	close.custom_minimum_size.x = 0
-	col.add_child(close)
+		col.add_child(_row(i + 1, list[i]))
 
 
 func _row(rank: int, e: Dictionary) -> Control:

@@ -106,7 +106,7 @@ static func background() -> TextureRect:
 
 ## Vertical scroll area with an invisible scroll bar (drag or wheel to scroll).
 static func scroll_area() -> ScrollContainer:
-	var s := ScrollContainer.new()
+	var s := preload("res://scripts/ui/drag_scroll.gd").new()
 	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	# The bar is invisible: touch-dragging is the interaction, a bar is just noise.
@@ -117,6 +117,73 @@ static func scroll_area() -> ScrollContainer:
 	for style in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
 		bar.add_theme_stylebox_override(style, StyleBoxEmpty.new())
 	return s
+
+
+## Full-screen scrolling page: a pinned header (title) and footer (Close) with the
+## content running full width underneath them. Header and footer are solid bars with
+## a border on the edge facing the content and a soft shadow, so content slides under
+## them with depth. Returns {scroll, content, header, footer}; add blocks to content.
+static func scroll_page(title_text: String, close_text: String, on_close: Callable) -> Dictionary:
+	var scroll := scroll_area()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var pad := MarginContainer.new()
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_left", MARGIN_SCREEN)
+	pad.add_theme_constant_override("margin_right", MARGIN_SCREEN)
+	scroll.add_child(pad)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", SPACE_M)
+	pad.add_child(content)
+
+	var header := _bar(true)
+	var t := title(title_text)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.get_child(0).add_child(t)
+	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	header.grow_vertical = Control.GROW_DIRECTION_END
+
+	var footer := _bar(false)
+	var footer_box: VBoxContainer = footer.get_child(0)
+	footer_box.add_theme_constant_override("separation", SPACE_S)
+	if close_text != "":   # "" = caller fills footer_box with its own buttons
+		var center := CenterContainer.new()
+		center.add_child(button(close_text, Variant.SECONDARY, on_close))
+		footer_box.add_child(center)
+	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	footer.grow_vertical = Control.GROW_DIRECTION_BEGIN
+
+	scroll.blockers = [header, footer]
+
+	# Keep the first/last block clear of the bars at rest; they only overlap while scrolling.
+	var sync := func():
+		pad.add_theme_constant_override("margin_top", int(header.size.y) + SPACE_M)
+		pad.add_theme_constant_override("margin_bottom", int(footer.size.y) + SPACE_M)
+	header.resized.connect(sync)
+	footer.resized.connect(sync)
+	return {"scroll": scroll, "content": content, "header": header, "footer": footer, "footer_box": footer_box}
+
+
+static func _bar(is_header: bool) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = SURFACE_SOLID
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 14
+	sb.shadow_offset = Vector2(0, 4 if is_header else -4)
+	sb.border_color = SURFACE_BORDER
+	sb.set_content_margin_all(0)
+	if is_header:
+		sb.border_width_bottom = 4
+		sb.content_margin_top = MARGIN_SCREEN
+		sb.content_margin_bottom = SPACE_M
+	else:
+		sb.border_width_top = 4
+		sb.content_margin_top = SPACE_M
+		sb.content_margin_bottom = MARGIN_SCREEN
+	p.add_theme_stylebox_override("panel", sb)
+	var inner := VBoxContainer.new()
+	p.add_child(inner)
+	return p
 
 
 ## Centered vertical column; add your blocks to it.

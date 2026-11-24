@@ -60,24 +60,11 @@ func _show_rules() -> void:
 	var overlay := Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(UI.background())
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, UI.MARGIN_SCREEN)
-	overlay.add_child(margin)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", UI.SPACE_M)
-	margin.add_child(col)
-	col.add_child(UI.title("How to play"))
-	var scroll := UI.scroll_area()
-	col.add_child(scroll)
-	var card := UI.panel()
-	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(card[0])
-	card[1].add_child(UI.body(RULES_TEXT, 900))
-	var close := UI.button("Close", UI.Variant.SECONDARY, overlay.queue_free)
-	close.custom_minimum_size.x = 0
-	col.add_child(close)
+	var page := UI.scroll_page("How to play", "Close", overlay.queue_free)
+	overlay.add_child(page["scroll"])
+	overlay.add_child(page["header"])
+	overlay.add_child(page["footer"])
+	page["content"].add_child(UI.body(RULES_TEXT, 900))
 	add_child(overlay)
 
 

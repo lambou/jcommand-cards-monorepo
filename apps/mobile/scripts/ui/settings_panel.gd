@@ -15,12 +15,6 @@ var _hand_you_btn: Button
 var _hand_bots_btn: Button
 var _hand_color_btn: Button
 var _volume_label: Label
-var _scroll: ScrollContainer
-var _pressing := false
-var _dragging := false
-var _press_y := 0.0
-var _press_scroll := 0
-const DRAG_DEADZONE := 14.0
 
 
 func _ready() -> void:
@@ -29,28 +23,12 @@ func _ready() -> void:
 	z_index = 3000
 	add_child(UI.background())
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, UI.MARGIN_SCREEN)
-	add_child(margin)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", UI.SPACE_M)
-	margin.add_child(box)
-	var t := UI.title("Settings")
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
-
-	# Content scrolls only when it overflows. Dragging is handled in _input so a
-	# finger that starts on a button still scrolls without toggling it.
-	_scroll = UI.scroll_area()
-	_scroll.scroll_deadzone = 1000000   # disable built-in drag; we do it ourselves
-	box.add_child(_scroll)
-
-	var card := UI.panel(UI.SPACE_M)
-	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(card[0])
-	var inner: VBoxContainer = card[1]
+	# Pinned header/footer with the content scrolling full width underneath.
+	var page := UI.scroll_page("Settings", "Close", func(): closed.emit())
+	add_child(page["scroll"])
+	add_child(page["header"])
+	add_child(page["footer"])
+	var inner: VBoxContainer = page["content"]
 
 	_sound_btn = UI.toggle("", Settings.sound_enabled, _on_sound)
 	inner.add_child(_sound_btn)
@@ -81,39 +59,8 @@ func _ready() -> void:
 	inner.add_child(_motion_btn)
 	inner.add_child(UI.hint("Reduce motion turns off shaking, flashes, sparks, confetti, pulsing and bounces. Cards still move, and messages still show."))
 
-	box.add_child(UI.button("Close", UI.Variant.SECONDARY, func(): closed.emit()))
 	_refresh()
 
-
-func _input(event: InputEvent) -> void:
-	if _scroll == null:
-		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			_press_y = event.position.y
-			_press_scroll = _scroll.scroll_vertical
-			_pressing = _scroll.get_global_rect().has_point(event.position)
-			_dragging = false
-		else:
-			var was := _dragging
-			_pressing = false
-			_dragging = false
-			if was:
-				get_viewport().set_input_as_handled()
-				_set_buttons_ignore(false)
-	elif event is InputEventMouseMotion and _pressing:
-		var dy: float = event.position.y - _press_y
-		if not _dragging and absf(dy) > DRAG_DEADZONE:
-			_dragging = true
-			_set_buttons_ignore(true)   # cancels the press so the release won't click
-		if _dragging:
-			_scroll.scroll_vertical = int(_press_scroll - dy)
-			get_viewport().set_input_as_handled()
-
-
-func _set_buttons_ignore(on: bool) -> void:
-	for n in _scroll.find_children("*", "BaseButton", true, false):
-		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE if on else Control.MOUSE_FILTER_STOP
 
 
 func _step(delta: float) -> void:
