@@ -20,6 +20,7 @@ var state: Dictionary = {}
 var names: Dictionary = {}
 var difficulty := "normal"
 var bot_delay := 0.9
+var bot_delay_max := -1.0 # when above bot_delay, each bot turn waits a random time in [bot_delay, bot_delay_max]
 var rng := RandomNumberGenerator.new()
 
 ## Score stats for EVERY player (points decide the final ranking, so bots need them too):
@@ -398,7 +399,7 @@ func _bot_loop() -> void:
 	_serial += 1
 	var mine := _serial
 	while not state["over"] and current_id() != HUMAN_ID:
-		await get_tree().create_timer(bot_delay).timeout
+		await get_tree().create_timer(randf_range(bot_delay, bot_delay_max) if bot_delay_max > bot_delay else bot_delay).timeout
 		if mine != _serial or state["over"]:
 			return
 		var id := current_id()

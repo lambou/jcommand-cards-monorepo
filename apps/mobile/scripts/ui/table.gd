@@ -119,7 +119,8 @@ func start(p_bots: int, p_difficulty: String) -> void:
 	bots = p_bots
 	difficulty = p_difficulty
 	_build()
-	game.bot_delay = 1.15
+	game.bot_delay = 2.0
+	game.bot_delay_max = 5.0
 	game.start(bots, difficulty)
 
 
@@ -128,7 +129,8 @@ func resume(rec: Dictionary) -> Dictionary:
 	bots = (rec["header"]["player_ids"] as Array).size() - 1
 	difficulty = str(rec["header"]["difficulty"])
 	_build()
-	game.bot_delay = 1.15
+	game.bot_delay = 2.0
+	game.bot_delay_max = 5.0
 	return game.resume(rec)
 
 
