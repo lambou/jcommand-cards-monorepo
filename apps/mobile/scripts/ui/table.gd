@@ -550,6 +550,8 @@ func _on_updated(events: Array) -> void:
 				_stop_sign_later(e["playerId"])
 			"combo":
 				_combo_effect(e)
+			"bonus":
+				_bonus_effect(e)
 
 
 func _who(id: String) -> String:
@@ -873,6 +875,38 @@ func _penalty_effect(who: String, count: int, lead: float = 0.0) -> void:
 	else:
 		_flash_seat(who)
 	Fx.popup_text(fx, "+%d cards" % count, c, Color(1.0, 0.4, 0.35), 80)
+
+
+## Feedback for the non-combo score bonuses (see the "bonus" events in offline_game.gd).
+func _bonus_effect(e: Dictionary) -> void:
+	var gold := Color(1.0, 0.85, 0.2)
+	var pts := "+%d" % int(e["points"])
+	match e["kind"]:
+		"pass_on":
+			# After the victim's cards have landed, a gold tag floats above their red "+N cards".
+			var victim: String = e["victim"]
+			await get_tree().create_timer(REACH + FLY + STAGGER * float(mini(int(e["pile"]), 10)) + 0.35).timeout
+			if not is_inside_tree() or fx == null:
+				return
+			Sfx.play("bonus_pass")
+			var c := _seat_center(victim)
+			c.y += -260.0 if victim == ME else 135.0 # clear of their red "+N cards"
+			Fx.burst(fx, c, gold, 18, 360.0, 0.6)
+			Fx.popup_text(fx, "%s PASSED ON" % pts, c, gold, 60, 40.0, 1.5)
+		"penalty_finish", "winning_card":
+			await get_tree().create_timer(0.3).timeout
+			if not is_inside_tree() or fx == null:
+				return
+			var c := Vector2(size.x * 0.30, size.y * 0.69) # same spot as the combo popups
+			if e["kind"] == "penalty_finish":
+				Sfx.play("bonus_out")
+				Fx.flash(fx, Color(1.0, 0.97, 0.78), 0.3, 0.6)
+				var what := "A 7" if e["rank"] == "7" else "A LION"
+				_combo_labels.append(Fx.popup_text(fx, "%s WENT OUT ON %s" % [pts, what], c, gold, 52, 100.0, 1.6))
+			else:
+				c.y += 90.0
+				Fx.burst(fx, c, gold, 20, 400.0, 0.6)
+				_combo_labels.append(Fx.popup_text(fx, "%s WINNING CARD" % pts, c, Color(1.0, 0.95, 0.7), 56, 100.0, 1.6))
 
 
 var _combo_labels: Array = [] # popups of the latest combo, replaced by the next one

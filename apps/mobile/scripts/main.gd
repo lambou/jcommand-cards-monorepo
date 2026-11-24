@@ -7,6 +7,7 @@ extends Control
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
+##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
@@ -61,6 +62,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--comboshot="):
 			_comboshot(a.substr(12))
+			return
+		elif a.begins_with("--bonusshot="):
+			_bonusshot(a.substr(12))
 			return
 		elif a.begins_with("--reactshot="):
 			_reactshot(a.substr(12))
@@ -331,6 +335,34 @@ func _comboshot(path: String) -> void:
 	t.game.human_play(id)
 	await get_tree().create_timer(0.95).timeout
 	_save(path, names[4])
+	get_tree().quit()
+
+
+## Rigged 1v1 hands: first a 7 the bot has to take (pass-on), then a lone 7 to go out and win.
+func _bonusshot(path: String) -> void:
+	for scene in ["pass", "out"]:
+		var t := _start_game(1, "normal")
+		t.game.bot_delay = 99.0
+		while t._locked() or not t.game.is_human_turn():
+			await get_tree().create_timer(0.05).timeout
+		await get_tree().create_timer(0.8).timeout
+		var st: Dictionary = t.game.state
+		st["required"] = {"kind": "suit", "suit": "H"}
+		st["pending"] = 0
+		var hand: Array = st["players"][0]["hand"]
+		hand.clear()
+		hand.append({"id": 9001, "rank": "7", "suit": "H", "color": "red"})
+		if scene == "pass":
+			hand.append({"id": 9002, "rank": "5", "suit": "H", "color": "red"})
+			hand.append({"id": 9003, "rank": "9", "suit": "S", "color": "black"})
+		st["current"] = 0
+		t.game.updated.emit([])
+		await get_tree().create_timer(0.6).timeout
+		t.game.human_play(9001)
+		await get_tree().create_timer(0.8).timeout
+		t.game._apply({"type": "takePenalty", "playerId": "bot1"})
+		await get_tree().create_timer(1.35 if scene == "pass" else 0.75).timeout
+		_save(path, "_" + scene)
 	get_tree().quit()
 
 

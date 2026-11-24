@@ -149,6 +149,18 @@ func _build_combos() -> void:
 		_tone(b, 0.07 * float(n - 1), scale[n - 1] * 2.0, 0.3, 0.1, 10.0)
 		_streams["combo_%d" % n] = _stream(b)
 
+	# Pass-on: a quick coin-like double ping. Went out on a penalty / winning card: a bright fanfare.
+	var b := _buf(0.6)
+	_tone(b, 0.0, 1318.5, 0.18, 0.28, 14.0, [1.0, 0.3])
+	_tone(b, 0.09, 1760.0, 0.4, 0.28, 8.0, [1.0, 0.3, 0.1])
+	_streams["bonus_pass"] = _stream(b)
+	b = _buf(1.1)
+	for i in 3:
+		_tone(b, 0.1 * float(i), [659.25, 783.99, 1046.5][i], 0.45, 0.3, 6.0, [1.0, 0.35, 0.12])
+	for f in [523.25, 783.99, 1046.5]:
+		_tone(b, 0.3, f, 0.8, 0.15, 3.0, [1.0, 0.3])
+	_streams["bonus_out"] = _stream(b)
+
 	# Jackpot: rising run, big held chord, glittering sparkle on top.
 	var j := _buf(2.6)
 	var run := [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568.0]

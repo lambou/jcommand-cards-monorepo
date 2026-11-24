@@ -5,6 +5,7 @@ extends Node
 const CardEngine := preload("res://scripts/engine/engine.gd")
 const Bot := preload("res://scripts/ai/bot.gd")
 const Rules := preload("res://scripts/engine/rules.gd")
+const Scoring := preload("res://scripts/game/scoring.gd")
 
 signal updated(events: Array)
 
@@ -25,6 +26,7 @@ var _pile_mine := 0 # penalty cards the human added to the pile currently pendin
 var human_finish_rank := "" # rank of the card that got the human out ("" until they finish)
 var _human_last_rank := ""
 var _chain_player := ""
+var _bonus_events: Array = [] # "bonus" events queued by _track_chain, appended to the turn's events
 var _serial := 0
 var _passes := 0
 
@@ -45,6 +47,7 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 	human_chains = []
 	human_finish_rank = ""
 	human_penalty_chains = []
+	_bonus_events = []
 	_pile_mine = 0
 	_human_last_rank = ""
 	_chain_player = ""
@@ -105,6 +108,8 @@ func _apply(action: Dictionary) -> bool:
 			_passes = _passes + 1 if int(e["count"]) == 0 else 0
 		elif e["type"] == "play":
 			_passes = 0
+	extra.append_array(_bonus_events)
+	_bonus_events.clear()
 	res["events"].append_array(extra)
 	if _passes >= state["players"].size() * 2 and not state["over"]:
 		_force_end(res["events"])
@@ -125,9 +130,18 @@ func _track_chain(e: Dictionary) -> Dictionary:
 		# Whoever takes the pile ends the chain; it only pays if that was not the human.
 		if e["playerId"] != HUMAN_ID and _pile_mine > 0:
 			human_penalty_chains.append({"cards": _pile_mine, "pile": int(e["count"])})
+			_bonus_events.append({"type": "bonus", "kind": "pass_on", "victim": e["playerId"], "cards": _pile_mine,
+				"pile": int(e["count"]),
+				"points": Scoring.PASS_ON_PER_CARD * _pile_mine + Scoring.PASS_ON_PER_PILE_CARD * int(e["count"])})
 		_pile_mine = 0
 	elif t == "finish" and e["playerId"] == HUMAN_ID:
 		human_finish_rank = _human_last_rank   # confirmed exit: the card that emptied the hand
+		var pen := Rules.penalty_of(human_finish_rank)
+		if pen > 0:
+			_bonus_events.append({"type": "bonus", "kind": "penalty_finish", "rank": human_finish_rank, "pen": pen,
+				"points": Scoring.PENALTY_FINISH_PER_CARD * pen})
+		if int(e["place"]) == 1:
+			_bonus_events.append({"type": "bonus", "kind": "winning_card", "points": Scoring.WINNING_CARD})
 	if t != "play" and t != "draw" and t != "penaltyTaken":
 		return {}
 	var pid: String = e["playerId"]
