@@ -122,7 +122,7 @@ func _draw() -> void:
 	var ring := Color(1.0, 0.82, 0.2) if active else Color(1, 1, 1, 0.55)
 	if check:
 		ring = Color(1.0, 0.25, 0.2)
-	Avatar.draw_avatar(self, avatar_index, Vector2(54, 44), 32.0, ring, 5.0 if (active or check) else 2.5)
+	Avatar.draw_avatar(self, avatar_index, Vector2(54, 44), 32.0, ring, 5.0 if (active or check) else 2.5, false, false, active)
 	TextFx.draw(self, font, Vector2(100, 56), player_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 114.0, 42, Color.WHITE)
 	if active:
 		_draw_thinking(font)

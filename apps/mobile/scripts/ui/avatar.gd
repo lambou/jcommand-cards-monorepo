@@ -73,8 +73,10 @@ static func _draw_sprite(ci: CanvasItem, idx: int, c: Vector2, r: float, happy: 
 static var _frames := {}
 
 
-static func _draw_frame(ci: CanvasItem, c: Vector2, r: float, ring: Color, ring_w: float) -> void:
+static func _draw_frame(ci: CanvasItem, c: Vector2, r: float, ring: Color, ring_w: float, glow: bool = false) -> void:
 	var kind := "thick" if ring_w / r >= 0.1 else "thin"
+	if glow:
+		_draw_glow(ci, c, r, ring)
 	if not _frames.has(kind):
 		var p := "res://assets/avatars/frame_%s.png" % kind
 		_frames[kind] = load(p) if ResourceLoader.exists(p) else null
@@ -87,6 +89,21 @@ static func _draw_frame(ci: CanvasItem, c: Vector2, r: float, ring: Color, ring_
 		ci.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	var half := r * 1.1   # the art spans +-1.1 avatar radii
 	ci.draw_texture_rect(tex, Rect2(c - Vector2(half, half), Vector2(half, half) * 2.0), false, ring)
+
+
+## Soft halo outside the active ring: stacked arcs fading outwards, breathing slowly (steady with reduced motion).
+static func _draw_glow(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
+	var pulse := 1.0
+	if not Settings.reduce():
+		pulse = 0.9 + 0.1 * sin(float(Time.get_ticks_msec()) / 1000.0 * 3.0)
+	var layers := 28
+	var reach := r * 0.25
+	var step := reach / float(layers)
+	for k in layers:
+		var t := float(k) / float(layers)            # 0 at the ring, 1 at the outer edge
+		var a := 0.1 * pow(1.0 - t, 2.4) * pulse * col.a
+		ci.draw_arc(c, r * 1.05 + step * (float(k) + 0.5), 0.0, TAU, 128,
+			Color(col.r, col.g, col.b, a), step + 0.6, true)
 
 
 static func _dir(a: float) -> Vector2:
@@ -116,11 +133,11 @@ static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void
 
 
 ## Draws the avatar centred on `c` with radius `r`. `ring_w` > 0 adds a border ring.
-## `talk` is for a speaking avatar (Rex in the tutorial): a lively head and a mouth that opens and closes.
-static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false, talk: bool = false) -> void:
+## `glow` adds a soft halo outside the ring (the active player). `talk` is for a speaking avatar (Rex in the tutorial): a lively head and a mouth that opens and closes.
+static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false, talk: bool = false, glow: bool = false) -> void:
 	if _draw_sprite(ci, idx, c, r, happy or talk):
 		if ring_w > 0.0:
-			_draw_frame(ci, c, r, ring, ring_w)
+			_draw_frame(ci, c, r, ring, ring_w, glow)
 		return
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
