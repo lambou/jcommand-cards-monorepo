@@ -95,8 +95,9 @@ static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void
 
 
 ## Draws the avatar centred on `c` with radius `r`. `ring_w` > 0 adds a border ring.
-static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false) -> void:
-	if _draw_sprite(ci, idx, c, r, happy):
+## `talk` is for a speaking avatar (Rex in the tutorial): a lively head and a mouth that opens and closes.
+static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false, talk: bool = false) -> void:
+	if _draw_sprite(ci, idx, c, r, happy or talk):
 		if ring_w > 0.0:
 			ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size
 		return
@@ -118,6 +119,9 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 		breathe = sin(t * 2.2 + ph - 0.6) * r * 0.02
 		if happy:
 			bob -= absf(sin(t * 6.0 + ph)) * r * 0.07
+		if talk:
+			bob -= absf(sin(t * 9.0 + ph)) * r * 0.035
+			sway += sin(t * 5.0 + ph) * r * 0.03
 		var cyc := fmod(t + ph, 3.4 + float(idx % 3) * 0.6)
 		if cyc < 0.14:
 			blink = absf(cyc - 0.07) / 0.07 # 1 -> 0 -> 1
@@ -171,8 +175,20 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 			ci.draw_circle(ec, hr * 0.13, DARK)
 			ci.draw_circle(ec + Vector2(hr * 0.04, -hr * 0.05), hr * 0.045, Color.WHITE)
 		ci.draw_circle(hc + Vector2(sx * hr * 0.62, hr * 0.3), hr * 0.14, Color(1.0, 0.45, 0.5, 0.35))
-	var smile := hr * (0.42 if happy else 0.3)
-	ci.draw_arc(hc + Vector2(0, hr * (0.22 if happy else 0.3)), smile, 0.12 * PI, 0.88 * PI, 14, DARK, maxf(2.0, hr * 0.07), true)
+	if talk and not Settings.reduce():
+		# Mouth opening and closing at a speaking rhythm (two beats added so it never looks mechanical).
+		var tt := float(Time.get_ticks_msec()) / 1000.0
+		var open := clampf(0.5 + 0.5 * sin(tt * 17.0) * (0.6 + 0.4 * sin(tt * 5.3)), 0.12, 1.0)
+		var mc := hc + Vector2(0, hr * 0.5)
+		var pts := PackedVector2Array()
+		for k in 20:
+			var a := TAU * float(k) / 20.0
+			pts.append(mc + Vector2(cos(a) * hr * 0.3, sin(a) * hr * (0.07 + 0.2 * open)))
+		ci.draw_colored_polygon(pts, DARK)
+		ci.draw_circle(mc + Vector2(0, hr * (0.07 + 0.2 * open) * 0.45), hr * 0.1, Color(0.9, 0.35, 0.4))
+	else:
+		var smile := hr * (0.42 if happy else 0.3)
+		ci.draw_arc(hc + Vector2(0, hr * (0.22 if happy else 0.3)), smile, 0.12 * PI, 0.88 * PI, 14, DARK, maxf(2.0, hr * 0.07), true)
 
 	if ring_w > 0.0:
 		ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size

@@ -14,6 +14,9 @@ static var hand_color := 0 # index into Hand3D.STYLES; opponents get the followi
 static var table_style := 0 # index into TableBg.STYLES
 static var avatar := 0 # index into Avatar.STYLES; the bots get the other three
 
+static var tutorial_seen := false # the one-time "learn with Rex" prompt has been shown
+static var tutorial_done: Array = [] # ids of the finished tutorial chapters
+
 static var _loaded := false
 
 
@@ -33,6 +36,8 @@ static func load_settings() -> void:
 	hand_color = maxi(int(cfg.get_value("game", "hand_color", 0)), 0)
 	table_style = maxi(int(cfg.get_value("game", "table_style", 0)), 0)
 	avatar = maxi(int(cfg.get_value("game", "avatar", 0)), 0)
+	tutorial_seen = bool(cfg.get_value("tutorial", "seen", false))
+	tutorial_done = Array(cfg.get_value("tutorial", "done", []))
 
 
 ## Whether a 3D hand should play the cards of you (`bots` false) or of the opponents; off with reduce motion.
@@ -58,4 +63,20 @@ static func save() -> void:
 	cfg.set_value("game", "hand_color", hand_color)
 	cfg.set_value("game", "table_style", table_style)
 	cfg.set_value("game", "avatar", avatar)
+	cfg.set_value("tutorial", "seen", tutorial_seen)
+	cfg.set_value("tutorial", "done", tutorial_done)
 	cfg.save(PATH)
+
+
+static func tutorial_chapter_done(id: String) -> bool:
+	load_settings()
+	return tutorial_done.has(id)
+
+
+## Remembers a finished chapter. Debug runs (screenshots, tests) never write the player's settings.
+static func mark_tutorial_done(id: String) -> void:
+	load_settings()
+	if not tutorial_done.has(id):
+		tutorial_done.append(id)
+		if OS.get_cmdline_user_args().is_empty():
+			save()

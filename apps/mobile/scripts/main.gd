@@ -3,6 +3,9 @@ extends Control
 ## Debug flags (after `--`):
 ##   --selftest              play full games through the real UI handlers; exit code 0 = pass
 ##   --shot=<file.png> [--bots=N]   save <file>_a/_b/_c.png: mid-deal, a card mid-flight, settled
+##   --tutorialtest          plays every tutorial chapter through the real UI handlers; exit code 0 = pass
+##   --tutorialshot=<file.png>   the same, saving <file>_c<chapter>_s<step>[_nudge|_picker] / _outro screenshots
+##   --howtoshot=<file.png> / --welcomeshot=<file.png>   the "How to play" chooser / the first-launch invitation
 ##   --menushot=<file.png>   screenshot of the menu
 ##   --bootshot=<file.png>   <file>_splash.png / _loading.png of the start-up sequence
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
@@ -21,6 +24,7 @@ const Table := preload("res://scripts/ui/table.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const Recorder := preload("res://scripts/game/recorder.gd")
+const Tutorial := preload("res://scripts/game/tutorial.gd")
 
 var _current: Control
 
@@ -83,6 +87,22 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--reactshot="):
 			_reactshot(a.substr(12))
+			return
+		elif a.begins_with("--howtoshot=") or a.begins_with("--welcomeshot="):
+			_show_menu()
+			if a.begins_with("--howtoshot="):
+				_current._show_howto()
+			else:
+				_current._show_welcome()
+			await get_tree().create_timer(0.6).timeout
+			get_viewport().get_texture().get_image().save_png(a.substr(a.find("=") + 1))
+			get_tree().quit()
+			return
+		elif a == "--tutorialtest":
+			_tutorialtest("")
+			return
+		elif a.begins_with("--tutorialshot="):
+			_tutorialtest(a.substr(15))
 			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
@@ -148,6 +168,7 @@ func _show_menu(notice: String = "") -> void:
 	m.start_requested.connect(_start_game)
 	m.resume_requested.connect(_resume_game)
 	m.replay_requested.connect(_replay_game)
+	m.tutorial_requested.connect(_start_tutorial)
 	_swap(m)
 
 
@@ -184,6 +205,95 @@ func _start_game(bots: int, difficulty: String) -> Table:
 	_swap(t)
 	t.start(bots, difficulty)
 	return t
+
+
+## Tutorial chapter `chapter` (0-based) with Rex. Its chapter-end buttons come back here.
+func _start_tutorial(chapter: int) -> Table:
+	var t := Table.new()
+	t.quit_to_menu.connect(_show_menu)
+	t.tutorial_chapter_requested.connect(_start_tutorial)
+	t.tutorial_play_requested.connect(_start_game.bind(1, "easy"))
+	_swap(t)
+	t.start_tutorial(chapter)
+	return t
+
+
+## Plays every tutorial chapter through the real UI handlers (taps, Next, suit picker), also trying wrong taps
+## that must be refused. With a path it saves a screenshot of every step. Exit code 0 = pass.
+func _tutorialtest(path: String) -> void:
+	var ok := true
+	for chapter in Tutorial.count():
+		var t := _start_tutorial(chapter)
+		t.game.bot_delay = 0.3
+		var finished := await _drive_tutorial(t, path, chapter)
+		print("tutorial chapter %d: %s" % [chapter + 1, "ok" if finished else "FAILED at step %d" % t.tutorial.index])
+		if not finished:
+			ok = false
+		if path != "":
+			await get_tree().create_timer(0.8).timeout # outro pops in
+			_save(path, "_c%d_outro" % chapter)
+	print("TUTORIAL ", "PASS" if ok else "FAIL")
+	get_tree().quit(0 if ok else 1)
+
+
+func _drive_tutorial(t: Table, path: String, chapter: int) -> bool:
+	var started := Time.get_ticks_msec()
+	var shot_step := -1
+	var wrong_tried := -1
+	while Time.get_ticks_msec() - started < 60000:
+		await get_tree().process_frame
+		if t.coach.outro_visible():
+			return true
+		if not t.coach.active or t.tutorial.done():
+			continue
+		await get_tree().create_timer(0.7).timeout # the bubble pops in and Rex finishes the line
+		if not t.coach.active or t.tutorial.done():
+			continue
+		var idx: int = t.tutorial.index
+		var s: Dictionary = t.tutorial.step()
+		if path != "" and shot_step != idx:
+			shot_step = idx
+			_save(path, "_c%d_s%d" % [chapter, idx])
+		if s["expect"] == null:
+			t._on_coach_next()
+			continue
+		var ex: Dictionary = s["expect"]
+		# A wrong tap must change nothing (and Rex nudges).
+		if wrong_tried != idx:
+			wrong_tried = idx
+			var before := JSON.stringify(t.game.state)
+			if ex["type"] == "play":
+				t._on_bank_pressed(-1)
+			elif not t.hand_views.is_empty():
+				t._on_card_pressed(t.hand_views[0].card["id"])
+			if JSON.stringify(t.game.state) != before or t.tutorial.index != idx:
+				push_error("a wrong tap changed the game at step %d" % idx)
+				return false
+			if path != "":
+				await get_tree().create_timer(0.3).timeout
+				_save(path, "_c%d_s%d_nudge" % [chapter, idx])
+		if ex["type"] == "play":
+			var id := -1
+			for v in t.hand_views:
+				if t.Cards.card_code(v.card) == str(ex["card"]):
+					id = v.card["id"]
+			if id < 0:
+				push_error("expected card %s is not in the hand" % ex["card"])
+				return false
+			t._on_card_pressed(id)
+			if t.picker.visible:
+				var wrong := "H" if str(ex["suit"]) != "H" else "S"
+				t._on_suit_chosen(wrong)
+				if not t.picker.visible or t.tutorial.index != idx:
+					push_error("a wrong suit was accepted at step %d" % idx)
+					return false
+				await get_tree().create_timer(0.3).timeout
+				if path != "":
+					_save(path, "_c%d_s%d_picker" % [chapter, idx])
+				t._on_suit_chosen(str(ex["suit"]))
+		else:
+			t._on_bank_pressed(-1)
+	return false
 
 
 ## Plays full games through the real UI handlers (card taps, bank taps, suit picker).

@@ -7,6 +7,7 @@ const Bot := preload("res://scripts/ai/bot.gd")
 const Rules := preload("res://scripts/engine/rules.gd")
 const Scoring := preload("res://scripts/game/scoring.gd")
 const Recorder := preload("res://scripts/game/recorder.gd")
+const Tutorial := preload("res://scripts/game/tutorial.gd")
 
 ## Bump when bot behaviour changes: a resumed game then plays on with different bots (replays are unaffected).
 const BOT_VERSION := 1
@@ -30,6 +31,7 @@ var stats: Dictionary = {}
 var points: Dictionary = {} # id -> ranking points, filled in when the game ends
 var is_draw := false # the top places were tied on points
 var memory: Dictionary = {} # bot notebook (see Bot.update_memory)
+var rex_script: Array = [] # tutorial only: Rex's scripted moves, in order (see game/tutorial.gd)
 var human_draws: int:
 	get: return int(stats[HUMAN_ID]["draws"])
 var human_chains: Array:
@@ -74,9 +76,21 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 	_bot_loop()
 
 
+## Starts a tutorial chapter (see game/tutorial.gd): a rigged deal, Rex follows his script, nothing is recorded.
+func start_tutorial(chapter: Dictionary, rex_name: String) -> void:
+	_setup([HUMAN_ID, Tutorial.REX], {HUMAN_ID: "You", Tutorial.REX: rex_name}, "easy", 1,
+		Tutorial.build_deck(chapter), int(chapter["hand_size"]))
+	rex_script = (chapter["rex_script"] as Array).duplicate(true)
+	_close_recorder()
+	updated.emit([])
+	_bot_loop()
+
+
 ## Resets every piece of session state for a fresh deal of `seed_value`.
-func _setup(ids: Array, nm: Dictionary, diff: String, seed_value: int) -> void:
+## A tutorial passes its own rigged `deck` and hand size.
+func _setup(ids: Array, nm: Dictionary, diff: String, seed_value: int, deck: Array = [], hand_size: int = 0) -> void:
 	_serial += 1
+	rex_script = []
 	difficulty = diff
 	names = nm
 	rng.seed = seed_value
@@ -92,7 +106,11 @@ func _setup(ids: Array, nm: Dictionary, diff: String, seed_value: int) -> void:
 	_chain_player = ""
 	memory = {}
 	replay_mode = false
-	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value, "settings": {"finalTurn": true}})
+	var opts := {"playerIds": ids, "seed": seed_value, "settings": {"finalTurn": true}}
+	if not deck.is_empty():
+		opts["deck"] = deck
+		opts["settings"]["handSize"] = hand_size
+	state = CardEngine.create_game(opts)
 
 
 ## Rebuilds the game from a record by feeding its first `upto` actions (all when -1) through the
@@ -403,5 +421,18 @@ func _bot_loop() -> void:
 		if mine != _serial or state["over"]:
 			return
 		var id := current_id()
-		var act := Bot.choose_action(state, id, difficulty, rng, memory)
+		var act := _scripted_action()
+		if act.is_empty():
+			act = Bot.choose_action(state, id, difficulty, rng, memory)
 		_apply(act)
+
+
+## Tutorial only: Rex's next scripted move, or {} when there is none left (or it no longer fits the table).
+func _scripted_action() -> Dictionary:
+	if rex_script.is_empty() or current_id() != Tutorial.REX:
+		return {}
+	var act := Tutorial.rex_action(rex_script[0], state)
+	if act.is_empty() or not CardEngine.apply_action(state, act)["ok"]:
+		return {}
+	rex_script.pop_front()
+	return act

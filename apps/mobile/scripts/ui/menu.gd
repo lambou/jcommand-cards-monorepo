@@ -4,7 +4,11 @@ extends Control
 signal start_requested(bots: int, difficulty: String)
 signal resume_requested(path: String)
 signal replay_requested(path: String)
+signal tutorial_requested(chapter: int)
 
+const Tutorial := preload("res://scripts/game/tutorial.gd")
+const Settings := preload("res://scripts/game/settings.gd")
+const Avatar := preload("res://scripts/ui/avatar.gd")
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const LeaderboardPanel := preload("res://scripts/ui/leaderboard_panel.gd")
@@ -64,8 +68,97 @@ func _ready() -> void:
 	box.add_child(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
 	box.add_child(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
 	box.add_child(UI.button("History", UI.Variant.SECONDARY, _show_history))
-	box.add_child(UI.button("How to play", UI.Variant.SECONDARY, _show_rules))
+	box.add_child(UI.button("How to play", UI.Variant.SECONDARY, _show_howto))
 	box.add_child(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
+	# First launch only (debug runs and screenshots skip it): offer the tutorial once, never force it.
+	if Recorder.enabled and not Settings.tutorial_seen:
+		Settings.tutorial_seen = true
+		Settings.save()
+		_show_welcome.call_deferred()
+
+
+## "How to play": learn by playing the tutorial chapters with Rex, or read the rules.
+func _show_howto() -> void:
+	var overlay := Control.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(UI.background())
+	var page := UI.scroll_page("How to play", "Close", overlay.queue_free)
+	overlay.add_child(page["scroll"])
+	overlay.add_child(page["header"])
+	overlay.add_child(page["footer"])
+	var content: VBoxContainer = page["content"]
+	content.add_child(UI.hint("Learn by playing, with Rex. Each chapter takes about a minute.", 900))
+	var card := UI.panel()
+	content.add_child(card[0])
+	var chapters := Tutorial.chapters()
+	for i in chapters.size():
+		var ch: Dictionary = chapters[i]
+		var done := Settings.tutorial_chapter_done(str(ch["id"]))
+		var b := UI.button("%s%d. %s" % ["✓ " if done else "", i + 1, ch["title"]], UI.Variant.PRIMARY if i == _next_chapter() else UI.Variant.SECONDARY,
+			func(): tutorial_requested.emit(i))
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card[1].add_child(b)
+		card[1].add_child(UI.hint(str(ch["blurb"])))
+	content.add_child(UI.spacer(UI.SPACE_S))
+	var rules := UI.button("Read the rules", UI.Variant.TERTIARY, _show_rules)
+	rules.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	content.add_child(rules)
+	add_child(overlay)
+
+
+## The first chapter that is not finished yet (the highlighted one in the chooser).
+func _next_chapter() -> int:
+	var chapters := Tutorial.chapters()
+	for i in chapters.size():
+		if not Settings.tutorial_chapter_done(str(chapters[i]["id"])):
+			return i
+	return 0
+
+
+## One-time invitation shown over the menu the first time the game is opened.
+func _show_welcome() -> void:
+	var overlay := Control.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var scrim := ColorRect.new()
+	scrim.color = UI.SCRIM
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(scrim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UI.popup_style())
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UI.SPACE_S)
+	panel.add_child(box)
+	var face := Control.new()
+	face.custom_minimum_size = Vector2(190, 190)
+	face.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.draw.connect(func():
+		Avatar.draw_avatar(face, 1, face.size / 2.0, 90.0, Color(1.0, 0.82, 0.2), 6.0, true))
+	face.set_process(true)
+	box.add_child(face)
+	box.add_child(UI.title("New here?", 80))
+	var text := UI.body("I'm Rex. Learn J-Command by playing a few quick hands with me - about 3 minutes.", 760)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(text)
+	box.add_child(UI.spacer(UI.SPACE_S))
+	var go := CenterContainer.new()
+	go.add_child(UI.button("Teach me!", UI.Variant.PRIMARY, func(): tutorial_requested.emit(0)))
+	box.add_child(go)
+	var later := CenterContainer.new()
+	later.add_child(UI.button("Maybe later", UI.Variant.TERTIARY, overlay.queue_free))
+	box.add_child(later)
+	add_child(overlay)
+	# The vector avatars animate, so keep redrawing while the invitation is up.
+	var timer := Timer.new()
+	timer.wait_time = 0.05
+	timer.autostart = true
+	timer.timeout.connect(face.queue_redraw)
+	overlay.add_child(timer)
 
 
 func _show_rules() -> void:

@@ -26,6 +26,9 @@ deterministic, so the log is enough to **resume** an unfinished game (menu: Resu
     godot --headless --path apps/mobile -s res://scripts/tests/run_conformance.gd   # shared scenarios vs TS engine
     godot --headless --path apps/mobile -s res://scripts/tests/test_record_replay.gd   # record / resume / replay determinism
     godot --path apps/mobile -- --replayshot=out.png                                # replay UI of the newest record the test left behind
+    godot --headless --path apps/mobile -s res://scripts/tests/test_tutorial.gd     # every tutorial chapter replays legally through the engine (fails if a rules change breaks a lesson)
+    godot --headless --path apps/mobile -- --tutorialtest                           # plays the tutorial chapters through the real UI handlers, wrong taps included
+    godot --path apps/mobile -- --tutorialshot=out.png                              # a screenshot of every tutorial step / nudge / chapter end
     godot --headless --path apps/mobile -- --selftest                               # plays full games through the real UI handlers
     godot --headless --path apps/mobile -s res://scripts/tests/sim_bots.gd -- 100   # bot-vs-bot win rates / game length
     godot --path apps/mobile -- --shot=out.png --bots=2                             # out_a/_b/_c.png: mid-deal, a card mid-flight, settled

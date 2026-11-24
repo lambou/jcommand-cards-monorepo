@@ -27,8 +27,12 @@ const Hand3D := preload("res://scripts/ui/hand3d.gd")
 const Reactions := preload("res://scripts/game/reactions.gd")
 const ReactionBubble := preload("res://scripts/ui/reaction_bubble.gd")
 const ReactionMenu := preload("res://scripts/ui/reaction_menu.gd")
+const Tutorial := preload("res://scripts/game/tutorial.gd")
+const Coach := preload("res://scripts/ui/coach.gd")
 
 signal quit_to_menu
+signal tutorial_chapter_requested(index: int) # chapter-end buttons: next chapter / replay this one
+signal tutorial_play_requested # after the last chapter: start a real game
 
 const ME := "you"
 const SUIT_ORDER := {"H": 0, "D": 1, "C": 2, "S": 3, "": 4}
@@ -95,6 +99,12 @@ var _hand_visible_frac := 1.0 # share of the whole hand that fits on screen
 var hand_bar: Control
 var react_menu: Control
 
+# Tutorial mode (see game/tutorial.gd): null in a normal game, so nothing below changes real play.
+var tutorial: Tutorial = null
+var coach: Control # Rex's overlay (ui/coach.gd)
+var picker_buttons: Dictionary = {} # suit -> its button in the J picker, so the coach can spotlight one
+var _outro_shown := false
+
 var _react_bubbles: Dictionary = {} # seat id -> the sticker currently showing there
 var _react_last_ms: Dictionary = {} # seat id -> when it last sent a reaction
 var _last_bot_say_ms := -100000
@@ -122,6 +132,7 @@ func _ready() -> void:
 
 
 func start(p_bots: int, p_difficulty: String) -> void:
+	tutorial = null
 	bots = p_bots
 	difficulty = p_difficulty
 	_build()
@@ -130,8 +141,32 @@ func start(p_bots: int, p_difficulty: String) -> void:
 	game.start(bots, difficulty)
 
 
+## Plays tutorial chapter `index` (0-based) against Rex, with Rex coaching. Nothing is recorded or scored.
+func start_tutorial(index: int) -> void:
+	tutorial = Tutorial.new(index)
+	bots = 1
+	difficulty = "easy"
+	_build()
+	game.bot_delay = 1.1
+	game.bot_delay_max = -1.0
+	opp_views[Tutorial.REX].avatar_index = Coach.REX_STYLE
+	coach = Coach.new()
+	coach.next_pressed.connect(_on_coach_next)
+	coach.outro_next.connect(func():
+		if tutorial.is_last_chapter():
+			tutorial_play_requested.emit()
+		else:
+			tutorial_chapter_requested.emit(tutorial.chapter_index + 1))
+	coach.outro_replay.connect(func(): tutorial_chapter_requested.emit(tutorial.chapter_index))
+	coach.outro_menu.connect(func(): quit_to_menu.emit())
+	add_child(coach)
+	_relayout()
+	game.start_tutorial(tutorial.chapter, "Rex")
+
+
 ## Continues a saved, unfinished game. Returns {ok} or {ok:false, error}.
 func resume(rec: Dictionary) -> Dictionary:
+	tutorial = null
 	bots = (rec["header"]["player_ids"] as Array).size() - 1
 	difficulty = str(rec["header"]["difficulty"])
 	_build()
@@ -142,6 +177,7 @@ func resume(rec: Dictionary) -> Dictionary:
 
 ## Watches a recorded game: no input, transport controls at the top.
 func replay(rec: Dictionary) -> Dictionary:
+	tutorial = null
 	bots = (rec["header"]["player_ids"] as Array).size() - 1
 	difficulty = str(rec["header"]["difficulty"])
 	_build()
@@ -157,6 +193,9 @@ func replay(rec: Dictionary) -> Dictionary:
 func _build() -> void:
 	for c in get_children():
 		c.queue_free()
+	coach = null
+	picker_buttons.clear()
+	_outro_shown = false
 	opp_views.clear()
 	hand_views.clear()
 	_log.clear()
@@ -399,6 +438,7 @@ func _build_picker() -> void:
 	for s in ["H", "D", "C", "S"]:
 		var b := SuitButton.new(s)
 		b.chosen.connect(_on_suit_chosen)
+		picker_buttons[s] = b
 		row.add_child(b)
 
 	var gap2 := Control.new()
@@ -518,6 +558,8 @@ func _relayout() -> void:
 	you_points.size = Vector2(190, 38)
 	you_points.position = Vector2(you_avatar.position.x + 52.0 - 95.0, you_avatar.position.y + 106.0)
 	react_menu.place(Vector2(w - 24.0 - ReactionMenu.BTN, h - hs.y - 215.0), size)
+	if coach != null:
+		coach.bottom_limit = h - hs.y - 235.0 # keeps Rex's bubble off your avatar, the banner and the hand
 	_layout_hand()
 
 
@@ -639,6 +681,7 @@ func _on_updated(events: Array) -> void:
 	var prev_req: Dictionary = _shown_required.duplicate()
 	_queue_turn(events, first or resumed)
 	_refresh()
+	_tutorial_on_events(events)
 	var human_turn_now: bool = game.is_human_turn()
 	if human_turn_now and not _was_human_turn and not first:
 		get_tree().create_timer(0.6).timeout.connect(func(): Sfx.play("turn", 0.6))
@@ -1310,7 +1353,7 @@ func _refresh() -> void:
 	message_label.text = "\n".join(_log.slice(maxi(_log.size() - 2, 0)))
 	_rebuild_hand(st, human_turn)
 	_update_banner(st, human_turn)
-	var can_react: bool = Settings.show_reactions and not st["over"] and not game.replay_mode
+	var can_react: bool = Settings.show_reactions and not st["over"] and not game.replay_mode and tutorial == null
 	react_menu.visible = can_react
 	if not can_react:
 		react_menu.close()
@@ -1318,13 +1361,14 @@ func _refresh() -> void:
 		_shown_over = true
 		if game.replay_mode:
 			_flash("Game over")
-		else:
+		elif tutorial == null: # a tutorial chapter ends with Rex's wrap-up instead of the results screen
 			_show_over(st)
 
 
 ## Cards glide to their slots instead of snapping when the hand changes or is swiped.
 func _process(delta: float) -> void:
 	_watch_human_turn()
+	_tutorial_tick()
 	if _replay_playing:
 		_replay_accum += delta * float(REPLAY_SPEEDS[_replay_speed])
 		if _replay_accum >= REPLAY_STEP:
@@ -1425,6 +1469,8 @@ func _bot_say(id: String, bot_id: String, delay: float) -> void:
 
 ## Bots comment on what just happened. Timings leave room for the cards to land first.
 func _react_to_events(events: Array) -> void:
+	if tutorial != null:
+		return # Rex is busy teaching: no stickers
 	for e in events:
 		match e["type"]:
 			"penaltyTaken":
@@ -1452,7 +1498,7 @@ func _react_to_events(events: Array) -> void:
 
 ## When it has been your turn for a long time, a bot politely tells you to hurry up.
 func _watch_human_turn() -> void:
-	if game == null or game.state.is_empty() or not _dealt:
+	if game == null or game.state.is_empty() or not _dealt or tutorial != null:
 		return
 	var mine: bool = game.is_human_turn()
 	var now := Time.get_ticks_msec()
@@ -1592,7 +1638,7 @@ func _on_hand_dragged(dx: float) -> void:
 
 
 func _on_card_pressed(card_id: int) -> void:
-	if picker.visible or not game.is_human_turn() or _locked():
+	if picker.visible or not game.is_human_turn() or _locked() or _tutorial_waiting():
 		return
 	var st: Dictionary = game.state
 	var can := false
@@ -1611,6 +1657,10 @@ func _on_card_pressed(card_id: int) -> void:
 	for c in _find(st, ME)["hand"]:
 		if c["id"] == card_id:
 			card = c
+	if tutorial != null and not tutorial.wants_card(Cards.card_code(card)):
+		Sfx.play("nope", 0.8)
+		coach.nudge(_tutorial_nudge())
+		return
 	if Rules.rule_of(card["rank"]).get("sets", "") == "chosen":
 		_pending_j = card_id
 		picker.visible = true
@@ -1619,6 +1669,15 @@ func _on_card_pressed(card_id: int) -> void:
 
 
 func _on_suit_chosen(suit: String) -> void:
+	if tutorial != null and _pending_j >= 0:
+		var pending_card: Dictionary = {}
+		for c in _find(game.state, ME)["hand"]:
+			if c["id"] == _pending_j:
+				pending_card = c
+		if pending_card.is_empty() or not tutorial.matches("play", Cards.card_code(pending_card), suit):
+			Sfx.play("nope", 0.8)
+			coach.nudge(_tutorial_nudge()) # the picker stays open
+			return
 	picker.visible = false
 	if _pending_j >= 0:
 		game.human_play(_pending_j, suit)
@@ -1626,15 +1685,128 @@ func _on_suit_chosen(suit: String) -> void:
 
 
 func _on_bank_pressed(_id: int) -> void:
-	if picker.visible or _locked():
+	if picker.visible or _locked() or _tutorial_waiting():
 		return
 	if not game.is_human_turn():
 		_flash("Wait for your turn")
+		return
+	if tutorial != null and not tutorial.matches("takePenalty" if int(game.state["pending"]) > 0 else "draw"):
+		Sfx.play("nope", 0.8)
+		coach.nudge(_tutorial_nudge())
 		return
 	if int(game.state["pending"]) > 0:
 		game.human_take_penalty()
 	else:
 		game.human_draw()
+
+
+# ---------------------------------------------------------------- tutorial
+
+## True while a tutorial is running but Rex has no step up for the player to act on (yet): input is ignored.
+func _tutorial_waiting() -> bool:
+	return tutorial != null and (coach == null or not coach.active)
+
+
+func _tutorial_nudge() -> String:
+	var s := tutorial.step()
+	if s.is_empty():
+		return ""
+	if not tutorial.expects_action():
+		return "Tap Next to keep going."
+	if picker.visible and str(s["picker_nudge"]) != "":
+		return str(s["picker_nudge"])
+	return str(s["nudge"]) if str(s["nudge"]) != "" else "Follow my lead!"
+
+
+## Nothing is flying, sliding or queued: the board is at rest, so Rex can talk without covering an animation.
+func _settled() -> bool:
+	return not _locked() and _turn_queue.is_empty() and _sliding == 0 and _hidden.is_empty() and _floor_held == -1
+
+
+## The player's own action moves the lesson on.
+func _tutorial_on_events(events: Array) -> void:
+	if tutorial == null or coach == null:
+		return
+	for e in events:
+		if str(e.get("playerId", "")) != ME:
+			continue
+		var done := false
+		match e["type"]:
+			"play": done = tutorial.matches("play", Cards.card_code(e["card"]), str(e.get("chosenSuit", "")))
+			"draw": done = tutorial.matches("draw")
+			"penaltyTaken": done = tutorial.matches("takePenalty")
+		if done:
+			tutorial.advance()
+			coach.hide_step()
+
+
+func _on_coach_next() -> void:
+	if tutorial == null or not coach.active or tutorial.expects_action():
+		return
+	tutorial.advance()
+	coach.hide_step()
+
+
+## Where Rex's spotlight goes for a step target (see game/tutorial.gd), in Table coordinates.
+func _tutorial_target(key: String) -> Rect2:
+	match key:
+		"pile": return Rect2(stack_view.position, stack_view.size)
+		"bank": return Rect2(bank_view.position, bank_view.size)
+		"required": return Rect2(required_view.position, required_view.size)
+		"rex": return Rect2(opp_views[Tutorial.REX].position, opp_views[Tutorial.REX].size)
+	if key.begins_with("card:"):
+		for v in hand_views:
+			if Cards.card_code(v.card) == key.substr(5):
+				return _bounds(v)
+	return Rect2()
+
+
+## The on-screen box of a control, including its rotation (hand cards are fanned).
+func _bounds(c: Control) -> Rect2:
+	var xf := c.get_global_transform()
+	var pts := [xf * Vector2.ZERO, xf * Vector2(c.size.x, 0.0), xf * c.size, xf * Vector2(0.0, c.size.y)]
+	var r := Rect2(pts[0], Vector2.ZERO)
+	for p in pts:
+		r = r.expand(p)
+	return Rect2(r.position - global_position, r.size)
+
+
+## Once per frame: show the next step when the board is at rest and it is your turn, keep the spotlight on its
+## target, and wrap the chapter up when the last step is done.
+func _tutorial_tick() -> void:
+	if tutorial == null or coach == null or game == null or game.state.is_empty() or not _dealt or coach.outro_visible():
+		return
+	if coach.active:
+		var s := tutorial.step()
+		if s.is_empty():
+			return
+		var key := str(s["target"])
+		if picker.visible and tutorial.expects_action() and (s["expect"] as Dictionary).has("suit"):
+			coach.set_say(str(s["picker_say"]))
+			var b: Control = picker_buttons[str((s["expect"] as Dictionary)["suit"])]
+			coach.target = Rect2(b.get_global_rect().position - global_position, b.size)
+		else:
+			coach.set_say(str(s["say"]))
+			coach.target = _tutorial_target(key)
+		return
+	if not _settled():
+		return
+	var st: Dictionary = game.state
+	var my_turn: bool = game.is_human_turn() and _shown_cur == ME
+	if tutorial.done():
+		if (my_turn or st["over"]) and not _outro_shown:
+			_tutorial_finish()
+	elif my_turn:
+		var step := tutorial.step()
+		coach.show_step(str(step["say"]), step["expect"] == null)
+
+
+func _tutorial_finish() -> void:
+	_outro_shown = true
+	game.stop() # Rex stops moving: the chapter is over
+	Settings.mark_tutorial_done(str(tutorial.chapter["id"]))
+	coach.show_outro("Chapter %d done!" % (tutorial.chapter_index + 1), str(tutorial.chapter["outro"]),
+		"Play a real game" if tutorial.is_last_chapter() else "Next chapter")
 
 
 # ---------------------------------------------------------------- game over
