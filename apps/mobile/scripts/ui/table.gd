@@ -75,6 +75,12 @@ var _flash_serial := 0
 var _shown_over := false
 var _dealt := false
 var _lock_until := 0
+# Turn indicator queue: the seat highlight / "X is thinking" banner follow the real current player
+# only once the animations of the previous move have finished. Entries are {cur, at (msec)}.
+var _shown_cur := ""
+var _turn_queue: Array = []
+var _turn_gate_ms := 0 # when the last queued turn change is due
+var _turn_serial := 0 # bumped on reset so stale timers do nothing
 var _hidden: Dictionary = {} # card id -> true: hand cards still "in flight"
 var _last_played: Dictionary = {} # player id -> card
 var _stack_note := ""
@@ -161,6 +167,10 @@ func _build() -> void:
 	_shown_over = false
 	_dealt = false
 	_lock_until = 0
+	_shown_cur = ""
+	_turn_queue.clear()
+	_turn_gate_ms = 0
+	_turn_serial += 1
 	_stack_note = ""
 	_sliding = 0
 	_shown_required = {}
@@ -627,6 +637,7 @@ func _on_updated(events: Array) -> void:
 				_hold_layout = REACH
 
 	var prev_req: Dictionary = _shown_required.duplicate()
+	_queue_turn(events, first or resumed)
 	_refresh()
 	var human_turn_now: bool = game.is_human_turn()
 	if human_turn_now and not _was_human_turn and not first:
@@ -653,6 +664,65 @@ func _on_updated(events: Array) -> void:
 				_combo_effect(e)
 			"bonus":
 				_bonus_effect(e)
+
+
+# ---------------------------------------------------------------- turn indicator queue
+
+## Rough time the animations for these events take; the longest one wins since they run together.
+func _events_anim_time(events: Array) -> float:
+	var t := 0.0
+	for e in events:
+		var d := 0.0
+		match e["type"]:
+			"play":
+				d = FLY + 0.1 + (REACH if _hand_ok(e["playerId"] != ME) else 0.0)
+				if Rules.rule_of(e["card"]["rank"]).get("slideUnder", false):
+					d += 0.7 # lift, slide, settle
+			"draw":
+				if int(e["count"]) > 0:
+					d = REACH + FLY + STAGGER * float(mini(int(e["count"]), 10))
+			"penaltyTaken":
+				d = REACH + FLY + STAGGER * float(mini(int(e["count"]), 10)) + 0.35 # + the red "+N cards"
+			"skip":
+				d = FLY + 0.35
+			"combo":
+				d = REACH + FLY + 0.3
+		t = maxf(t, d)
+	return t
+
+
+## Registers a turn change. The shown player switches once everything queued before it, plus this
+## move's own animations, is done. Safe for bursts of updates (e.g. over a network): changes apply in order.
+func _queue_turn(events: Array, instant: bool) -> void:
+	var cur: String = game.current_id()
+	var now := Time.get_ticks_msec()
+	if instant or game.bot_delay < 0.05 or game.replay_mode:
+		_turn_queue.clear()
+		_turn_serial += 1
+		_shown_cur = cur
+		_turn_gate_ms = now
+		return
+	var at := maxi(now, _turn_gate_ms) + int(_events_anim_time(events) * 1000.0)
+	_turn_gate_ms = at
+	if _turn_queue.is_empty() and at <= now:
+		_shown_cur = cur
+		return
+	_turn_queue.append({"cur": cur, "at": at})
+	var serial := _turn_serial
+	get_tree().create_timer(maxf(0.0, float(at - now) / 1000.0)).timeout.connect(func(): _advance_turn(serial))
+
+
+func _advance_turn(serial: int) -> void:
+	if serial != _turn_serial or game == null or not is_inside_tree() or game.state.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	var changed := false
+	while not _turn_queue.is_empty() and int(_turn_queue[0]["at"]) <= now + 5:
+		_shown_cur = _turn_queue.pop_front()["cur"]
+		changed = true
+	if changed:
+		_update_seats(game.state)
+		_update_banner(game.state, game.is_human_turn())
 
 
 func _who(id: String) -> String:
@@ -1164,7 +1234,7 @@ func _update_captions() -> void:
 
 
 func _update_seats(st: Dictionary) -> void:
-	var cur_id: String = game.current_id()
+	var cur_id: String = _shown_cur if _shown_cur != "" else game.current_id()
 	var pts: Dictionary = game.live_points()
 	var best := 0
 	for id in pts:
@@ -1469,7 +1539,7 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 	elif game.replay_mode:
 		banner_label.text = "%s to move" % _who(game.current_id())
 	else:
-		banner_label.text = "%s is thinking..." % _who(game.current_id())
+		banner_label.text = "%s is thinking..." % _who(_shown_cur if _shown_cur != "" else game.current_id())
 
 
 # ---------------------------------------------------------------- input
