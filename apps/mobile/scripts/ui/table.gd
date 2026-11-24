@@ -125,8 +125,8 @@ func start(p_bots: int, p_difficulty: String) -> void:
 	bots = p_bots
 	difficulty = p_difficulty
 	_build()
-	game.bot_delay = 2.0
-	game.bot_delay_max = 5.0
+	game.bot_delay = 1.0
+	game.bot_delay_max = 2.0
 	game.start(bots, difficulty)
 
 
@@ -135,8 +135,8 @@ func resume(rec: Dictionary) -> Dictionary:
 	bots = (rec["header"]["player_ids"] as Array).size() - 1
 	difficulty = str(rec["header"]["difficulty"])
 	_build()
-	game.bot_delay = 2.0
-	game.bot_delay_max = 5.0
+	game.bot_delay = 1.0
+	game.bot_delay_max = 2.0
 	return game.resume(rec)
 
 
@@ -723,6 +723,9 @@ func _advance_turn(serial: int) -> void:
 	if changed:
 		_update_seats(game.state)
 		_update_banner(game.state, game.is_human_turn())
+	if not _turn_queue.is_empty(): # woke up early (or the head isn't due yet): never leave entries stranded
+		var wait := maxf(0.02, float(int(_turn_queue[0]["at"]) - Time.get_ticks_msec()) / 1000.0)
+		get_tree().create_timer(wait).timeout.connect(func(): _advance_turn(serial))
 
 
 func _who(id: String) -> String:
