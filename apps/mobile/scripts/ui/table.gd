@@ -1349,7 +1349,7 @@ func _show_over(st: Dictionary) -> void:
 	var my_place := int(_find(st, ME)["place"])
 	box.add_child(UI.title("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place)))
 
-	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws, game.human_chains, game.human_finish_rank)
+	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws, game.human_chains, game.human_finish_rank, game.human_penalty_chains)
 	var rank := Leaderboard.add(int(result["total"]), my_place, st["players"].size(), difficulty, bool(result["clean"]))
 
 	var pod := Podium.new()

@@ -4,6 +4,7 @@ extends Node
 
 const CardEngine := preload("res://scripts/engine/engine.gd")
 const Bot := preload("res://scripts/ai/bot.gd")
+const Rules := preload("res://scripts/engine/rules.gd")
 
 signal updated(events: Array)
 
@@ -19,6 +20,8 @@ var rng := RandomNumberGenerator.new()
 var human_draws := 0 # voluntary bank draws by the human this game (for the Clean Finish bonus)
 var human_chains: Array = [] # [{len, aces}] runs of consecutive plays by the human (combo bonus)
 var memory: Dictionary = {} # bot notebook (see Bot.update_memory)
+var human_penalty_chains: Array = [] # [{cards, pile}] penalty piles the human fed but someone else took
+var _pile_mine := 0 # penalty cards the human added to the pile currently pending
 var human_finish_rank := "" # rank of the card that got the human out ("" until they finish)
 var _human_last_rank := ""
 var _chain_player := ""
@@ -41,6 +44,8 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 	human_draws = 0
 	human_chains = []
 	human_finish_rank = ""
+	human_penalty_chains = []
+	_pile_mine = 0
 	_human_last_rank = ""
 	_chain_player = ""
 	memory = {}
@@ -109,6 +114,13 @@ func _track_chain(e: Dictionary) -> void:
 	var t: String = e["type"]
 	if t == "play" and e["playerId"] == HUMAN_ID:
 		_human_last_rank = e["card"]["rank"]
+		if Rules.penalty_of(_human_last_rank) > 0:
+			_pile_mine += 1
+	elif t == "penaltyTaken":
+		# Whoever takes the pile ends the chain; it only pays if that was not the human.
+		if e["playerId"] != HUMAN_ID and _pile_mine > 0:
+			human_penalty_chains.append({"cards": _pile_mine, "pile": int(e["count"])})
+		_pile_mine = 0
 	elif t == "finish" and e["playerId"] == HUMAN_ID:
 		human_finish_rank = _human_last_rank   # confirmed exit: the card that emptied the hand
 	if t != "play" and t != "draw" and t != "penaltyTaken":

@@ -19,6 +19,8 @@ const JACKPOT_4_ACES := 3000                      # all four Aces in one chain
 const JACKPOT_FOLLOWUP := 2000                    # ...and another card played right after
 
 const PENALTY_FINISH_PER_CARD := 250   # going out on a 7 (2 cards) = 500, on a Lion (4) = 1000
+const PASS_ON_PER_CARD := 250          # per penalty card you added to a pile someone else took
+const PASS_ON_PER_PILE_CARD := 100     # per card the victim had to draw
 const WINNING_CARD := 500              # the last card of a 1st-place finish
 
 const FIELD_MULT := {1: 1.0, 2: 1.5, 3: 2.0}      # by number of bots
@@ -26,7 +28,7 @@ const DIFFICULTY_MULT := {"easy": 0.6, "normal": 1.0}
 
 
 ## Returns {total, mult, clean, lines: [[label, points], ...]}. `draws` = voluntary bank draws.
-static func compute(place: int, players: int, bots: int, difficulty: String, draws: int, chains: Array = [], finish_rank: String = "") -> Dictionary:
+static func compute(place: int, players: int, bots: int, difficulty: String, draws: int, chains: Array = [], finish_rank: String = "", penalty_chains: Array = []) -> Dictionary:
 	var lines: Array = []
 	var base := int(round(float(WIN_POINTS) * float(players - place) / float(players - 1)))
 	if place == 1:
@@ -52,6 +54,11 @@ static func compute(place: int, players: int, bots: int, difficulty: String, dra
 			var jp := JACKPOT_4_ACES + (JACKPOT_FOLLOWUP if n > 4 else 0)
 			bonus += jp
 			lines.append(["JACKPOT - four Aces%s" % (" + a follow-up card" if n > 4 else ""), jp])
+	# Penalty chains you fed that ended on someone else.
+	for pc in penalty_chains:
+		var pts: int = PASS_ON_PER_CARD * int(pc["cards"]) + PASS_ON_PER_PILE_CARD * int(pc["pile"])
+		bonus += pts
+		lines.append(["Passed on a penalty (%d card%s, %d drawn)" % [int(pc["cards"]), "" if int(pc["cards"]) == 1 else "s", int(pc["pile"])], pts])
 	# Finishing card: a penalty card (7 = +2, Lion = +4) as your last card, and the winning card.
 	if finish_rank != "":
 		var pen := Rules.penalty_of(finish_rank)
