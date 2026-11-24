@@ -166,6 +166,14 @@ func _rank_by_points() -> void:
 	is_draw = order.size() > 1 and int(_player(order[0])["place"]) == int(_player(order[1])["place"])
 
 
+## Running points for every player (see Scoring.live_points).
+func live_points() -> Dictionary:
+	var out := {}
+	for id in stats:
+		out[id] = Scoring.live_points(stats[id])
+	return out
+
+
 func _player(id: String) -> Dictionary:
 	for p in state["players"]:
 		if p["id"] == id:

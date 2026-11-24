@@ -16,6 +16,8 @@ var status := ""
 var has_last := false
 var last_is_top := false
 var check := false # exactly one card left
+var points := 0
+var leading := false # currently has the most points
 
 var mini: Control
 
@@ -69,6 +71,18 @@ func update_info(p_name: String, p_count: int, p_active: bool, p_status: String,
 	queue_redraw()
 
 
+func _pts_width(font: Font, text: String) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+
+
+## Tiny gold crown; `c` = bottom-left corner.
+func _mini_crown(c: Vector2) -> void:
+	var pts := PackedVector2Array([c, c + Vector2(0, -20), c + Vector2(6, -11), c + Vector2(12, -24),
+		c + Vector2(18, -11), c + Vector2(24, -20), c + Vector2(24, 0)])
+	draw_colored_polygon(pts, Color(1.0, 0.82, 0.2))
+	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[0]]), Color(0.42, 0.24, 0.02), 2.0)
+
+
 func _process(_delta: float) -> void:
 	queue_redraw() # drives the CHECK pulse
 
@@ -94,6 +108,23 @@ func _draw() -> void:
 		ring = Color(1.0, 0.25, 0.2)
 	Avatar.draw_avatar(self, avatar_index, Vector2(54, 44), 32.0, ring, 5.0 if (active or check) else 2.5)
 	TextFx.draw(self, font, Vector2(100, 56), player_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 114.0, 42, Color.WHITE)
+	# Running points: a badge on the top edge; the leader's is gold with a small crown.
+	var ptxt := "%d pts" % points
+	var tw := _pts_width(font, ptxt)
+	var bw := tw + 28.0 + (30.0 if leading else 0.0)
+	var pr := Rect2(100.0, -17.0, bw, 36.0)
+	var pb := StyleBoxFlat.new()
+	pb.bg_color = Color(0.25, 0.17, 0.02, 0.95) if leading else Color(0.08, 0.08, 0.1, 0.9)
+	pb.set_corner_radius_all(14)
+	pb.set_border_width_all(3)
+	pb.border_color = Color(1.0, 0.82, 0.2) if leading else Color(1, 1, 1, 0.45)
+	draw_style_box(pb, pr)
+	var tx := pr.position.x + 14.0
+	if leading:
+		_mini_crown(Vector2(tx, pr.position.y + 28.0))
+		tx += 30.0
+	TextFx.draw(self, font, Vector2(tx, pr.position.y + 28.0), ptxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 28,
+		Color(1.0, 0.85, 0.3) if leading else Color(1, 1, 1, 0.85))
 
 	var mr := mini_rect()
 	var fan_w := mr.position.x - 28.0

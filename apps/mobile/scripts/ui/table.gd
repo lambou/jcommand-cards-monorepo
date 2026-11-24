@@ -59,6 +59,7 @@ var you_avatar: Control
 var bank_caption: Label
 var stack_caption: Label
 var you_caption: Label
+var you_points: Label # your running points, under your avatar
 var message_label: Label
 var banner_label: Label
 var fx: Control
@@ -187,6 +188,7 @@ func _build() -> void:
 	bank_caption = _label(30, Color(1, 1, 1, 0.85))
 	stack_caption = _label(30, Color(1.0, 0.85, 0.3))
 	you_caption = _label(26, Color(1, 1, 1, 0.7))
+	you_points = _label(30, Color(1, 1, 1, 0.85))
 	message_label = _label(40, Color(1, 1, 1))
 	banner_label = _label(44, Color(1.0, 0.85, 0.3))
 
@@ -413,6 +415,8 @@ func _relayout() -> void:
 	banner_label.position = Vector2(30, h - hs.y - 150)
 	you_avatar.size = Vector2(104, 104)
 	you_avatar.position = Vector2(24, h - hs.y - 215)
+	you_points.size = Vector2(190, 38)
+	you_points.position = Vector2(you_avatar.position.x + 52.0 - 95.0, you_avatar.position.y + 106.0)
 	react_menu.place(Vector2(w - 24.0 - ReactionMenu.BTN, h - hs.y - 215.0), size)
 	_layout_hand()
 
@@ -1053,9 +1057,18 @@ func _update_captions() -> void:
 
 func _update_seats(st: Dictionary) -> void:
 	var cur_id: String = game.current_id()
+	var pts: Dictionary = game.live_points()
+	var best := 0
+	for id in pts:
+		best = maxi(best, int(pts[id]))
+	var my_pts := int(pts.get(ME, 0))
+	you_points.text = "%d pts" % my_pts
+	you_points.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3) if (best > 0 and my_pts == best) else Color(1, 1, 1, 0.85))
 	for p in st["players"]:
 		if p["id"] == ME:
 			continue
+		opp_views[p["id"]].points = int(pts.get(p["id"], 0))
+		opp_views[p["id"]].leading = best > 0 and int(pts.get(p["id"], 0)) == best
 		var v: Control = opp_views[p["id"]]
 		var status := ""
 		if p["status"] == "finished":

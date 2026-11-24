@@ -35,6 +35,15 @@ static func ranking_points(stats: Dictionary) -> int:
 	return int(r["raw_bonus"])
 
 
+## Running points shown during the game. Combos and passed-on penalties count as they happen; the
+## finishing bonuses (clean / few draws, going out on a penalty card, first out) only once the player
+## is really out, so the number never promises something that can still be lost.
+static func live_points(stats: Dictionary) -> int:
+	var out := str(stats["finish_rank"]) != ""
+	var r := compute(0, 0, 0, "normal", int(stats["draws"]), stats["chains"], str(stats["finish_rank"]), stats["penalty_chains"], bool(stats["first_out"]), out, true)
+	return int(r["raw_bonus"])
+
+
 ## Returns {total, mult, clean, raw_bonus, lines: [[label, points], ...]}. `draws` = voluntary bank draws.
 ## `finished` = the player got out (an empty hand); the one left holding cards has lost outright
 ## and earns no finishing bonuses. `first_out` = went out before everybody else.
