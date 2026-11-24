@@ -47,6 +47,7 @@ var _sleeve_mat: StandardMaterial3D
 var _dir := 1.0 # 1 = reaches up from the bottom (you), -1 = reaches down from the top (opponents)
 var _scale := 1.0 # hand size follows the card it holds (opponents' cards start small)
 var _tw: Tween
+var _tw2: Tween # grip pulses while a batch of cards is dealt
 var _tilt := 0.0
 var _last_pos := Vector2.ZERO
 var _time := 0.0
@@ -226,6 +227,8 @@ func _activate(on: bool) -> void:
 func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, style: int = -1) -> void:
 	if _tw != null:
 		_tw.kill()
+	if _tw2 != null:
+		_tw2.kill()
 	_follow = null
 	_dir = -1.0 if from_top else 1.0
 	set_style(style if style >= 0 else Settings.hand_color)
@@ -260,6 +263,23 @@ func hand_over(node: Control, hold: float) -> void:
 	_tw.tween_property(self, "grip", 0.0, 0.1)
 	_tw.tween_property(self, "pos:y", _away_y(), 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_tw.tween_callback(_activate.bind(false))
+
+
+## Style index for the player (bot_index 0) or bot n: the player's choice, then the next ones along,
+## so everyone at the table differs (up to STYLES.size() players).
+static func style_for(bot_index: int, base: int) -> int:
+	return posmod(base + bot_index, STYLES.size())
+
+
+## While the hand holds still at the destination, squeeze `count` times (one per card released).
+func pulse(count: int, step: float, delay: float) -> void:
+	if _tw2 != null:
+		_tw2.kill()
+	_tw2 = create_tween()
+	_tw2.tween_interval(delay)
+	for i in count:
+		_tw2.tween_property(self, "grip", 0.25, step * 0.4)
+		_tw2.tween_property(self, "grip", 1.0, step * 0.6)
 
 
 func set_style(i: int) -> void:

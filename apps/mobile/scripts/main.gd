@@ -6,6 +6,7 @@ extends Control
 ##   --menushot=<file.png>   screenshot of the menu
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
+##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
@@ -62,6 +63,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
+			return
+		elif a.begins_with("--drawshot="):
+			_drawshot(a.substr(11))
 			return
 		elif a.begins_with("--boardshot="):
 			var LB := preload("res://scripts/game/leaderboard.gd")
@@ -183,6 +187,26 @@ func _suitshot(path: String) -> void:
 	for i in 4:
 		await get_tree().create_timer(0.18).timeout
 		_save(path, "_pill%d" % i)
+	get_tree().quit()
+
+
+## Forces a 4-card penalty on the human and captures the 3D hand dealing the cards in.
+func _drawshot(path: String) -> void:
+	var t := _start_game(2, "normal")
+	t.game.bot_delay = 5.0 # keep the bots out of the way
+	t.game.rng.seed = 5
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(1.0).timeout
+	t.game.state["pending"] = 4
+	t.game.updated.emit([])
+	await get_tree().create_timer(0.3).timeout
+	t.game.human_take_penalty()
+	var i := 0
+	for m in [0.25, 0.2, 0.2, 0.2, 0.3, 0.6]:
+		await get_tree().create_timer(m).timeout
+		_save(path, "_%d" % i)
+		i += 1
 	get_tree().quit()
 
 

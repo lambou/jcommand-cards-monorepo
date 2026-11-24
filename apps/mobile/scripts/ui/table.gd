@@ -471,6 +471,18 @@ func _layout_hand(smooth: bool = false, delay: float = 0.0) -> void:
 			v.rotation = target_rot
 			v.set_meta("placed", true)
 		v.z_index = i
+	# Mouse picking follows scene-tree order (not z_index), so keep the tree order
+	# equal to the visual stacking or clicks land on the card behind.
+	var par: Node = hand_views[0].get_parent()
+	if par != null:
+		var lo := par.get_child_count()
+		for hv in hand_views:
+			if hv.get_parent() == par:
+				lo = mini(lo, hv.get_index())
+		for i in n:
+			var hv: Control = hand_views[i]
+			if hv.get_parent() == par:
+				par.move_child(hv, lo + i)
 
 
 # ---------------------------------------------------------------- game events
@@ -724,9 +736,7 @@ func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -
 ## The 3D hand is skipped when motion is reduced.
 ## Your hand uses the colour from settings; each bot gets the next ones along, so they all differ.
 func _hand_style(who: String) -> int:
-	if who == ME:
-		return Settings.hand_color
-	return Settings.hand_color + int(who.trim_prefix("bot"))
+	return Hand3D.style_for(0 if who == ME else int(who.trim_prefix("bot")), Settings.hand_color)
 
 
 func _hand_ok(bots: bool = false) -> bool:
@@ -777,27 +787,38 @@ func _update_peek() -> void:
 func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) -> void:
 	var bank_c := _center(bank_view)
 	var bank_w := bank_view.size.x
-	if who == ME:
+	var bot := who != ME
+	var n := mini(count, 10) if bot else new_ids.size()
+	# A hand grabs the top card of the bank and carries it over; on a bigger draw (a penalty) it stays
+	# at the destination and squeezes once for each further card as it lands.
+	var grab := n > 0 and _hand_ok(bot)
+	var lead := REACH if grab else 0.0
+	var first: Control = null
+	if not bot:
 		var i := 0
-		var grab := count == 1 and new_ids.size() == 1 and _hand_ok()
 		for id in new_ids:
 			var hv := _hand_view(id)
 			if hv == null:
 				continue
 			var cid: int = id
 			var card: Dictionary = hv.card
-			var flight := _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, REACH if grab else STAGGER * i, FLY, func():
+			var flight := _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, lead + STAGGER * i, FLY, func():
 				_unhide(cid)
-				Sfx.play("draw", 0.7), false, grab)
-			if grab:
-				hand3d.carry(flight, REACH, FLY)
+				Sfx.play("draw", 0.7), false, grab and i == 0)
+			if i == 0:
+				first = flight
 			i += 1
 	else:
-		var n := mini(count, 10)
 		for i in n:
-			_fly({}, false, false, bank_c, bank_w, _seat_center(who), 70.0, STAGGER * i, FLY, func(): Sfx.play("draw", 0.45))
+			var flight := _fly({}, false, false, bank_c, bank_w, _seat_center(who), 70.0, lead + STAGGER * i, FLY, func(): Sfx.play("draw", 0.45), false, grab and i == 0)
+			if i == 0:
+				first = flight
+	if grab and first != null:
+		hand3d.carry(first, REACH, FLY + STAGGER * float(n - 1) + 0.05, bot, _hand_style(who))
+		if n > 1:
+			hand3d.pulse(n - 1, STAGGER, REACH + FLY)
 	if is_penalty and count > 0:
-		_penalty_effect(who, count)
+		_penalty_effect(who, count, lead)
 
 
 func _extend_trail(f: float, streak: Line2D, from_c: Vector2, to_c: Vector2) -> void:
@@ -837,8 +858,8 @@ func _impact(card: Dictionary, chosen: String, prev_req: Dictionary) -> void:
 
 
 ## Red "+N" and a flash for whoever just took a penalty (after the cards have flown in).
-func _penalty_effect(who: String, count: int) -> void:
-	await get_tree().create_timer(FLY + STAGGER * float(mini(count, 10))).timeout
+func _penalty_effect(who: String, count: int, lead: float = 0.0) -> void:
+	await get_tree().create_timer(lead + FLY + STAGGER * float(mini(count, 10))).timeout
 	if not is_inside_tree() or fx == null:
 		return
 	Sfx.play("penalty", 1.0 if who == ME else 0.6)
