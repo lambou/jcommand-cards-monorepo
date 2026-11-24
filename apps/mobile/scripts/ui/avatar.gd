@@ -68,6 +68,27 @@ static func _draw_sprite(ci: CanvasItem, idx: int, c: Vector2, r: float, happy: 
 	return true
 
 
+## The ring around the portrait: a Blender-rendered bevelled metal band (tools/avatars/render_frame.py), tinted
+## with `ring`. Thin or thick by how heavy the ring is relative to the avatar; a plain arc if the art is missing.
+static var _frames := {}
+
+
+static func _draw_frame(ci: CanvasItem, c: Vector2, r: float, ring: Color, ring_w: float) -> void:
+	var kind := "thick" if ring_w / r >= 0.1 else "thin"
+	if not _frames.has(kind):
+		var p := "res://assets/avatars/frame_%s.png" % kind
+		_frames[kind] = load(p) if ResourceLoader.exists(p) else null
+	var tex: Texture2D = _frames[kind]
+	if tex == null:
+		ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size
+		return
+	# The filter is per canvas item, not per draw call; sprite sheets have no mipmaps, so this costs them nothing.
+	if ci.texture_filter != CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS:
+		ci.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var half := r * 1.1   # the art spans +-1.1 avatar radii
+	ci.draw_texture_rect(tex, Rect2(c - Vector2(half, half), Vector2(half, half) * 2.0), false, ring)
+
+
 static func _dir(a: float) -> Vector2:
 	return Vector2(cos(a), sin(a))
 
@@ -99,7 +120,7 @@ static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void
 static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false, talk: bool = false) -> void:
 	if _draw_sprite(ci, idx, c, r, happy or talk):
 		if ring_w > 0.0:
-			ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size
+			_draw_frame(ci, c, r, ring, ring_w)
 		return
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
