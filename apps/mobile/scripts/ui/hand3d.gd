@@ -20,6 +20,9 @@ const STYLES := [
 	["Shadow", Color(0.12, 0.12, 0.14), Color(0.70, 0.12, 0.18)],
 ]
 const HAND_SCALE := 0.95
+## While a card is being flipped (card_flip.gd sets "flip_angle" on it) the hand twists with it this much (1 = the whole turn,
+## and it keeps that pose as it lets go and withdraws, like a hand that has just turned a card over).
+const ROLL_FOLLOW := 1.0
 ## Where on the card the fingertips hold it, as a fraction of the card height below its centre.
 const GRIP_Y := 0.2
 
@@ -49,6 +52,7 @@ var _scale := 1.0 # hand size follows the card it holds (opponents' cards start 
 var _tw: Tween
 var _tw2: Tween # grip pulses while a batch of cards is dealt
 var _tilt := 0.0
+var _roll := 0.0 # twist of the wrist about the vertical axis, following a card that is being turned over
 var _last_pos := Vector2.ZERO
 var _time := 0.0
 
@@ -231,6 +235,7 @@ func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, 
 		_tw2.kill()
 	_follow = null
 	_dir = -1.0 if from_top else 1.0
+	_roll = 0.0
 	set_style(style if style >= 0 else Settings.hand_color)
 	_scale = _scale_for(node)
 	var grab := _grip_point(node)
@@ -289,7 +294,8 @@ func set_style(i: int) -> void:
 
 
 func _grip_point(node: Control) -> Vector2:
-	return node.position + node.size / 2.0 + Vector2(0, node.size.y * node.scale.y * GRIP_Y * _dir)
+	var dx := float(node.get_meta("grip_dx", 0.0)) # a card being flipped is held by its hinge edge
+	return node.position + node.size / 2.0 + Vector2(dx, node.size.y * node.scale.y * GRIP_Y * _dir)
 
 
 ## Off-screen resting spot: below the screen for your hand, above it for the opponents'.
@@ -314,5 +320,10 @@ func _process(delta: float) -> void:
 	if _follow != null and is_instance_valid(_follow):
 		_scale = lerpf(_scale, _scale_for(_follow), minf(delta * 10.0, 1.0))
 	_root.scale = Vector3.ONE * HAND_SCALE * _scale
+	var want_roll := _roll # holds its twist after letting go; carry() resets it for the next reach
+	if _follow != null and is_instance_valid(_follow):
+		want_roll = float(_follow.get_meta("flip_angle", 0.0)) * ROLL_FOLLOW
+	_roll = lerpf(_roll, want_roll, minf(delta * 14.0, 1.0))
+	_root.rotation.y = _roll
 	_root.rotation.z = (PI if _dir < 0.0 else 0.0) + _tilt * _dir
 	_apply_pose()

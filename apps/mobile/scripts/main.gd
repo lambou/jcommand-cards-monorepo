@@ -16,6 +16,8 @@ extends Control
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
 ##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
+##   --flipplay              playground for the bank draw: a real card lifted off the pile and flipped (ui/flip_playground.gd)
+##   --flipshot=<file.png>   <file>_00.. slow-motion frames of one playground draw
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
@@ -64,6 +66,14 @@ func _ready() -> void:
 			podium_path = a.substr(13)
 		elif a.begins_with("--checkshot="):
 			_checkshot(a.substr(12))
+			return
+		elif a == "--flipplay":
+			_swap(preload("res://scripts/ui/flip_playground.gd").new())
+			return
+		elif a.begins_with("--flipshot="):
+			var fp := preload("res://scripts/ui/flip_playground.gd").new()
+			_swap(fp)
+			fp.capture(a.substr(11))
 			return
 		elif a == "--modelview":
 			_swap(preload("res://scripts/ui/model_view.gd").new())

@@ -23,6 +23,25 @@ var lifted := false
 var badge_text := ""
 ## Number of cards to show peeking out from underneath (pile thickness).
 var peek := 0
+## Flip effects driven by card_flip.gd: height above the table (0..1, grows the shadow), edge-on paper edge
+## (0..1), a darker side while turning (0..1) and the highlight sweep after the turn (0..1 progress).
+var lift := 0.0
+var edge := 0.0
+var grad := 0.0
+var glare := 0.0
+## Perspective while turning (-1..1): the nearer vertical edge is taller, like a card turning about its
+## centre line. Done with a vertex shader that is only attached during a flip.
+var persp := 0.0
+
+const PERSP_SHADER := """shader_type canvas_item;
+uniform float persp = 0.0;
+uniform vec2 card_size = vec2(150.0, 215.0);
+void vertex() {
+	float xn = (VERTEX.x / card_size.x - 0.5) * 2.0;
+	VERTEX.y = (VERTEX.y - card_size.y * 0.5) * (1.0 + persp * xn) + card_size.y * 0.5;
+}
+"""
+static var _persp_shader: Shader
 
 
 func _init() -> void:
@@ -87,6 +106,28 @@ func _stop_roar() -> void:
 	set_process(false)
 
 
+func set_fx(p_lift: float, p_edge: float, p_grad: float, p_glare: float, p_persp: float = 0.0) -> void:
+	lift = p_lift
+	edge = p_edge
+	grad = p_grad
+	glare = p_glare
+	persp = p_persp
+	if absf(persp) > 0.001:
+		if material == null:
+			if _persp_shader == null:
+				_persp_shader = Shader.new()
+				_persp_shader.code = PERSP_SHADER
+			var m := ShaderMaterial.new()
+			m.shader = _persp_shader
+			material = m
+		var sm := material as ShaderMaterial
+		sm.set_shader_parameter("persp", persp)
+		sm.set_shader_parameter("card_size", size)
+	elif material != null:
+		material = null
+	queue_redraw()
+
+
 func set_flags(p_dimmed: bool, p_lifted: bool, p_badge: String = "") -> void:
 	dimmed = p_dimmed
 	lifted = p_lifted
@@ -130,15 +171,17 @@ const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "JOKER"
 
 
 ## Face-down card, usable for any rect (also the opponents' fans).
-static func draw_back(ci: CanvasItem, r: Rect2) -> void:
+static func draw_back(ci: CanvasItem, r: Rect2, p_lift: float = 0.0) -> void:
 	var u := r.size.x / BASE.x
 	var rad := int(16 * u)
 	var theme := TableBg.current_theme() # the back changes colour with the table so it never blends in
 	var back_col: Color = theme["back"]
 	var shadow := StyleBoxFlat.new()
-	shadow.bg_color = Color(0, 0, 0, 0.35)
+	shadow.bg_color = Color(0, 0, 0, 0.35 - 0.12 * p_lift)
 	shadow.set_corner_radius_all(rad)
-	ci.draw_style_box(shadow, Rect2(r.position + Vector2(0, 5 * u), r.size))
+	shadow.shadow_color = Color(0, 0, 0, 0.30 * p_lift)
+	shadow.shadow_size = int(26 * p_lift * u)
+	ci.draw_style_box(shadow, Rect2(r.position + Vector2(0, (5 + 34 * p_lift) * u), r.size))
 	var body := StyleBoxFlat.new()
 	body.set_corner_radius_all(rad)
 	body.bg_color = back_col
@@ -185,7 +228,8 @@ func _draw() -> void:
 	var rank: String = str(card.get("rank", ""))
 
 	# Pile thickness: cards peeking out from underneath, each slightly rotated.
-	if peek > 0 and face_up:
+	if peek > 0:
+		var under_col := Color(0.86, 0.84, 0.78) if face_up else (TableBg.current_theme()["back"] as Color).darkened(0.25)
 		for k in range(peek, 0, -1):
 			var ang := sin(float(k) * 12.9898 + float(card.get("id", 0))) * deg_to_rad(6.0)
 			draw_set_transform(size / 2.0 + Vector2(-6.0, 6.0) * float(k) * u, ang, Vector2.ONE)
@@ -195,25 +239,29 @@ func _draw() -> void:
 			draw_style_box(sh, Rect2(-size / 2.0 + Vector2(0, 4 * u), size))
 			var under := StyleBoxFlat.new()
 			under.set_corner_radius_all(rad)
-			under.bg_color = Color(0.86, 0.84, 0.78)
+			under.bg_color = under_col
 			under.set_border_width_all(maxi(2, int(4 * u)))
-			under.border_color = INK
+			under.border_color = INK if face_up else Color(0.85, 0.85, 0.95)
 			draw_style_box(under, Rect2(-size / 2.0, size))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	if not face_up:
-		draw_back(self, Rect2(Vector2.ZERO, size))
+		draw_back(self, Rect2(Vector2.ZERO, size), lift)
 		_draw_badge(font, u)
+		_draw_fx(u)
 		return
 
 	# Hard offset shadow (+ gold glow when playable).
 	var sh2 := StyleBoxFlat.new()
-	sh2.bg_color = Color(0, 0, 0, 0.35)
+	sh2.bg_color = Color(0, 0, 0, 0.35 - 0.12 * lift)
 	sh2.set_corner_radius_all(rad)
 	if lifted:
 		sh2.shadow_color = Color(1.0, 0.8, 0.2, 0.6)
 		sh2.shadow_size = int(14 * u)
-	draw_style_box(sh2, Rect2(Vector2(0, 6 * u), size))
+	elif lift > 0.0:
+		sh2.shadow_color = Color(0, 0, 0, 0.30 * lift)
+		sh2.shadow_size = int(26 * lift * u)
+	draw_style_box(sh2, Rect2(Vector2(0, (6 + 34 * lift) * u), size))
 
 	var body := StyleBoxFlat.new()
 	body.set_corner_radius_all(rad)
@@ -280,6 +328,7 @@ func _draw() -> void:
 		shade.set_corner_radius_all(rad)
 		draw_style_box(shade, Rect2(Vector2.ZERO, size))
 	_draw_badge(font, u)
+	_draw_fx(u)
 
 
 func _corner(_font: Font, u: float, text: String, suit: String, col: Color, pivot: Vector2, ang: float) -> void:
@@ -306,3 +355,31 @@ func _draw_badge(font: Font, u: float) -> void:
 	draw_circle(c, 30 * u, Color(0.85, 0.12, 0.12))
 	draw_arc(c, 30 * u, 0, TAU, 32, Color.WHITE, 3.0 * u)
 	TextFx.draw(self, font, c + Vector2(-30 * u, 12 * u), badge_text, HORIZONTAL_ALIGNMENT_CENTER, 60 * u, int(32 * u), Color.WHITE)
+
+
+## Turn effects on top of the card: a darker side, the highlight sweeping across once it has turned, and
+## the cream paper edge when it is edge-on (so it never shrinks to a hairline).
+func _draw_fx(u: float) -> void:
+	var m := 9.0 * u
+	var r := Rect2(Vector2(m, m), size - Vector2(m, m) * 2.0)
+	if grad > 0.0:
+		var dark := Color(0, 0, 0, grad)
+		var clear := Color(0, 0, 0, 0)
+		draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([dark, clear, clear, dark]))
+	if glare > 0.0 and glare < 1.0:
+		var cx := lerpf(-0.25, 1.25, glare) * size.x
+		var hw := 0.14 * size.x
+		var skew := 0.22 * size.y
+		var top := r.position.y
+		var bot := r.end.y
+		var a := Color(1, 1, 1, 0.42 * sin(glare * PI))
+		var pts := PackedVector2Array([
+			Vector2(clampf(cx - hw + skew, r.position.x, r.end.x), top), Vector2(clampf(cx + hw + skew, r.position.x, r.end.x), top),
+			Vector2(clampf(cx + hw - skew, r.position.x, r.end.x), bot), Vector2(clampf(cx - hw - skew, r.position.x, r.end.x), bot)])
+		draw_polygon(pts, PackedColorArray([a, a, a, a]))
+	if edge > 0.0:
+		var e := StyleBoxFlat.new()
+		e.bg_color = Color(1.0, 0.985, 0.93, clampf(edge, 0.0, 1.0))
+		e.set_corner_radius_all(int(18 * u))
+		draw_style_box(e, Rect2(Vector2.ZERO, size))
