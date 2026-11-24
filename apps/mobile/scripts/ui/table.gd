@@ -64,6 +64,7 @@ var bank_caption: Label
 var stack_caption: Label
 var you_caption: Label
 var you_points: Label # your running points, under your avatar
+var _you_points_tween: Tween
 var message_label: Label
 var banner_label: Label
 var fx: Control
@@ -558,7 +559,7 @@ func _relayout() -> void:
 	you_avatar.size = Vector2(104, 104)
 	you_avatar.position = Vector2(24, h - hs.y - 215)
 	you_points.size = Vector2(190, 38)
-	you_points.position = Vector2(you_avatar.position.x + 52.0 - 95.0, you_avatar.position.y + 106.0)
+	_place_you_points(false)
 	react_menu.place(Vector2(w - 24.0 - ReactionMenu.BTN, h - hs.y - 215.0), size)
 	if coach != null:
 		coach.bottom_limit = h - hs.y - 235.0 # keeps Rex's bubble off your avatar, the banner and the hand
@@ -1194,12 +1195,31 @@ func _in_check(p: Dictionary) -> bool:
 	return p["status"] == "playing" and p["hand"].size() == 1
 
 
+## Stacks your points under the avatar: they drop below the CHECK! plate while it is up and
+## slide back up when it goes away. `animate` is skipped on layout and when motion is reduced.
+func _place_you_points(animate: bool) -> void:
+	var x := you_avatar.position.x + 52.0 - 95.0
+	var y := you_avatar.position.y + 106.0 + (AvatarView.CHECK_DROP if you_avatar.check else 0.0)
+	if _you_points_tween != null:
+		_you_points_tween.kill()
+		_you_points_tween = null
+	if not animate or Settings.reduce():
+		you_points.position = Vector2(x, y)
+		return
+	you_points.position.x = x
+	_you_points_tween = create_tween()
+	_you_points_tween.tween_property(you_points, "position:y", y, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
 ## Keeps your own badge in sync and re-arms the alert for anyone who is no longer in check.
 func _update_check_state(st: Dictionary) -> void:
 	for p in st["players"]:
 		if not _in_check(p):
 			_alerted.erase(p["id"])
+	var was_check: bool = you_avatar.check
 	you_avatar.check = _in_check(_find(st, ME)) and not st["over"]
+	if you_avatar.check != was_check:
+		_place_you_points(true)
 
 
 ## The one-time announcement, fired when the card that left a player on one card has landed.
