@@ -291,9 +291,15 @@ func draw_cards(count: int) -> void:
 			if i == n - 1:
 				_busy = false)
 	if grab:
-		# One hand animation per draw, however many cards: it carries (and turns over) the first card, stays
-		# out of the way while the rest land, then lets go. No grip pulses - they read as the fingers blinking.
-		hand3d.carry(first, REACH, fly_time + STAGGER * float(n - 1) + 0.05, false, Settings.hand_color)
+		# One hand animation per draw, however many cards: it carries (and turns over) the first card, and when
+		# that lands it keeps hold and slides on along the row to the last card (each lands as it passes), then
+		# lets go. No grip pulses - they read as the fingers blinking.
+		var slide_to := Vector2.INF
+		var slide_t := 0.0
+		if n > 1:
+			slide_to = _slot_center(hand.size() - 1, hand.size()) + Vector2(0.0, hs.y * Hand3D.GRIP_Y)
+			slide_t = maxf(STAGGER * float(n - 1), 0.25) + 0.15
+		hand3d.carry(first, REACH, fly_time, false, Settings.hand_color, slide_to, slide_t)
 	status.text = "Drew %d" % n
 	_shown_remaining = deck.size() + n
 
@@ -327,7 +333,11 @@ func _lift_from_bank() -> void:
 func capture(path: String) -> void:
 	# Run with `--fixed-fps 60` so each frame is exactly 1/60 s of game time: frames are then evenly spaced.
 	await get_tree().create_timer(0.5).timeout
-	draw_cards(1)
+	var count := 1
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--flipcount="):
+			count = int(a.substr(12))
+	draw_cards(count)
 	var base := path.get_basename()
 	for _i in 22: # skip the glove's reach: the peel starts at about 0.3 s
 		await get_tree().process_frame

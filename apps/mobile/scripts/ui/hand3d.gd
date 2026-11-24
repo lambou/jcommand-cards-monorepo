@@ -26,12 +26,22 @@ const ROLL_FOLLOW := 1.0
 ## Where on the card the fingertips hold it, as a fraction of the card height below its centre.
 const GRIP_Y := 0.2
 
+## The thumb: where it joins the palm, its two segments and radius, and how it moves into the pinch (grip = 1).
+## These angles were solved so that the thumb tip touches the index and the middle fingertip
+## (tests/hand_pinch.gd checks it), with the contact point on the card's plane at its lower edge.
+const THUMB_BASE := Vector3(-58.0, -78.0, 6.0)
+const THUMB_LEN := [42.0, 34.0]
+const THUMB_R := 15.5
+const THUMB_PINCH := {"z": 20.1, "x": 1.5, "yaw": -34.1, "j0": -47.2, "j1": -0.1, "shift": Vector3(18.0, 14.0, -10.0)}
+
 # x: position across the palm. len: segment lengths. open/closed: curl per joint (degrees).
+# The grip is a pinch: the thumb and the two fingers next to it (index, middle) hold the card, while the two
+# farthest fingers (ring, little) are curled tightly into the palm, out of the way.
 const FINGERS := [
-	{"x": -42.0, "len": [56.0, 38.0, 28.0], "r": 16.0, "spread": 7.0, "open": [-4.0, -8.0, -6.0], "closed": [-30.0, -52.0, -40.0]},
-	{"x": -14.0, "len": [64.0, 42.0, 30.0], "r": 16.5, "spread": 2.5, "open": [-4.0, -8.0, -6.0], "closed": [-30.0, -52.0, -40.0]},
-	{"x": 14.0, "len": [58.0, 40.0, 29.0], "r": 16.0, "spread": -2.5, "open": [-4.0, -8.0, -6.0], "closed": [-30.0, -52.0, -40.0]},
-	{"x": 42.0, "len": [46.0, 32.0, 25.0], "r": 14.0, "spread": -8.0, "open": [-4.0, -8.0, -6.0], "closed": [-30.0, -52.0, -40.0]},
+	{"x": -42.0, "len": [56.0, 38.0, 28.0], "r": 16.0, "spread": 7.0, "open": [-4.0, -8.0, -6.0], "closed": [-33.0, -90.0, -44.0]},
+	{"x": -14.0, "len": [64.0, 42.0, 30.0], "r": 16.5, "spread": 2.5, "open": [-4.0, -8.0, -6.0], "closed": [-33.0, -90.0, -44.0]},
+	{"x": 14.0, "len": [58.0, 40.0, 29.0], "r": 16.0, "spread": -2.5, "open": [-4.0, -8.0, -6.0], "closed": [-78.0, -105.0, -78.0]},
+	{"x": 42.0, "len": [46.0, 32.0, 25.0], "r": 14.0, "spread": -8.0, "open": [-4.0, -8.0, -6.0], "closed": [-80.0, -108.0, -80.0]},
 ]
 
 var pos := Vector2.ZERO # screen position of the grip point
@@ -176,9 +186,9 @@ func _build_hand() -> void:
 		_fingers.append({"base": base, "joints": joints, "def": def})
 
 	_thumb_base = Node3D.new()
-	_thumb_base.position = Vector3(-58.0, -78.0, 6.0)
+	_thumb_base.position = THUMB_BASE
 	_palm.add_child(_thumb_base)
-	_thumb_joints = _chain(_thumb_base, [42.0, 34.0], 15.5, skin)
+	_thumb_joints = _chain(_thumb_base, THUMB_LEN, THUMB_R, skin)
 
 	# Wrist cuff and a long sleeve that runs off the bottom of the screen.
 	var cuff_mesh := CylinderMesh.new()
@@ -210,10 +220,14 @@ func _apply_pose() -> void:
 		(f["base"] as Node3D).rotation.z = deg_to_rad(lerpf(float(d["spread"]) * 1.7, float(d["spread"]) * 0.3, g)) + sway
 		for j in 3:
 			(f["joints"][j] as Node3D).rotation.x = deg_to_rad(lerpf(float(d["open"][j]), float(d["closed"][j]), g))
-	_thumb_base.rotation.z = deg_to_rad(lerpf(64.0, 40.0, g))
-	_thumb_base.rotation.x = deg_to_rad(lerpf(0.0, -16.0, g))
-	(_thumb_joints[0] as Node3D).rotation.x = deg_to_rad(lerpf(-8.0, -26.0, g))
-	(_thumb_joints[1] as Node3D).rotation.x = deg_to_rad(lerpf(-6.0, -34.0, g))
+	# The thumb comes across and presses its tip against the index and middle fingertips.
+	var tp := THUMB_PINCH
+	_thumb_base.position = THUMB_BASE + (tp["shift"] as Vector3) * g
+	_thumb_base.rotation.z = deg_to_rad(lerpf(64.0, float(tp["z"]), g))
+	_thumb_base.rotation.x = deg_to_rad(lerpf(0.0, float(tp["x"]), g))
+	_thumb_base.rotation.y = deg_to_rad(float(tp["yaw"])) * g
+	(_thumb_joints[0] as Node3D).rotation.x = deg_to_rad(lerpf(-8.0, float(tp["j0"]), g))
+	(_thumb_joints[1] as Node3D).rotation.x = deg_to_rad(lerpf(-6.0, float(tp["j1"]), g))
 	_palm.rotation.x = lerpf(0.0, -0.14, g)
 
 
@@ -228,7 +242,10 @@ func _activate(on: bool) -> void:
 ## Reach in from below, grip `node` (a flying/resting card) and carry it for `carry_t` seconds, then leave.
 ## The card should start moving after `reach` seconds.
 ## `style` picks a STYLES entry (-1 = the player's own choice from settings).
-func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, style: int = -1) -> void:
+## With `slide_to` (a grip point) the hand does not let go where the card lands: it keeps its hold and slides on
+## to that point over `slide_t` seconds first (dealing a whole row of cards), then lets go.
+func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, style: int = -1,
+		slide_to: Vector2 = Vector2.INF, slide_t: float = 0.0) -> void:
 	if _tw != null:
 		_tw.kill()
 	if _tw2 != null:
@@ -250,6 +267,8 @@ func carry(node: Control, reach: float, carry_t: float, from_top: bool = false, 
 	_tw.tween_callback(func(): _follow = node)
 	_tw.tween_interval(carry_t)
 	_tw.tween_callback(func(): _follow = null)
+	if slide_to.is_finite() and slide_t > 0.0:
+		_tw.tween_property(self, "pos", slide_to, slide_t).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_tw.tween_property(self, "grip", 0.0, 0.1)
 	_tw.tween_property(self, "pos:y", _away_y(), 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_tw.tween_callback(_activate.bind(false))
