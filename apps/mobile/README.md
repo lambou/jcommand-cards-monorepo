@@ -11,6 +11,7 @@ You play against 1-3 bots, fully offline.
 - `scripts/ai/bot.gd` - bot players (`easy` = mostly random, `normal` = heuristic)
 - `scripts/game/offline_game.gd` - offline session: runs the engine, drives the bots
 - `scripts/audio/sfx.gd` - synthesised sound effects (`Sfx.play("name")`); `scripts/game/settings.gd` - saved settings (sound, volume, reduce motion)
+- `DESIGN_SYSTEM.md` / `scripts/ui/ui_kit.gd` - UI tokens + widgets; all new UI must use them
 - `scripts/ui/` - menu, table, placeholder vector cards (`card_art.gd`, `card_view.gd`, ...)
 - `scripts/main.gd` - root; also hosts debug flags (below)
 - `data/rules.json` - synced copy of `packages/rules-spec/rules.json` (`pnpm sync-rules`)

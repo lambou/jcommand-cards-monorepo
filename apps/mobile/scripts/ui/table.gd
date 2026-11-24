@@ -14,6 +14,7 @@ const OfflineGame := preload("res://scripts/game/offline_game.gd")
 const Fx := preload("res://scripts/ui/fx.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const AvatarView := preload("res://scripts/ui/avatar_view.gd")
+const UI := preload("res://scripts/ui/ui_kit.gd")
 const Podium := preload("res://scripts/ui/podium.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
@@ -1086,26 +1087,12 @@ func _show_over(st: Dictionary) -> void:
 	over_panel = Control.new()
 	over_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	over_panel.z_index = 2000
-	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.13, 0.09, 1.0)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	over_panel.add_child(dim)
-	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 26)
+	over_panel.add_child(UI.background())
+	var box := UI.column(26)
 	over_panel.add_child(box)
 
 	var my_place := int(_find(st, ME)["place"])
-	var title := Label.new()
-	title.text = "You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place)
-	title.add_theme_font_size_override("font_size", 88)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	title.add_theme_constant_override("outline_size", 18)
-	title.add_theme_color_override("font_outline_color", Color(0.25, 0.12, 0.02))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(title)
+	box.add_child(UI.title("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place)))
 
 	var pod := Podium.new()
 	pod.custom_minimum_size = Vector2(minf(size.x * 0.94, 1040.0), minf(760.0, size.y * 0.42))
@@ -1116,18 +1103,8 @@ func _show_over(st: Dictionary) -> void:
 			Fx.confetti(over_panel, size.x))
 	box.add_child(pod)
 
-	var again := Button.new()
-	again.text = "Play again"
-	again.add_theme_font_size_override("font_size", 52)
-	again.custom_minimum_size = Vector2(420, 110)
-	again.pressed.connect(func(): start(bots, difficulty))
-	box.add_child(again)
-	var back := Button.new()
-	back.text = "Menu"
-	back.add_theme_font_size_override("font_size", 52)
-	back.custom_minimum_size = Vector2(420, 110)
-	back.pressed.connect(func(): quit_to_menu.emit())
-	box.add_child(back)
+	box.add_child(UI.button("Play again", UI.Variant.PRIMARY, func(): start(bots, difficulty)))
+	box.add_child(UI.button("Menu", UI.Variant.SECONDARY, func(): quit_to_menu.emit()))
 	add_child(over_panel)
 	pod.play()
 
