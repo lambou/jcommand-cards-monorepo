@@ -3,7 +3,7 @@ extends SceneTree
 ## godot --headless --path apps/mobile -s <this file>
 
 func _init() -> void:
-	var src := "res://assets/joker/soundzee-lion-snarl-growl-354324.mp3"
+	var src := "D:/develop/games/jcommand-cards-game/tools/audio/source/soundzee-lion-snarl-growl-354324.mp3"   # kept outside res:// so the game never imports or ships it
 	var stream := AudioStreamMP3.new()
 	stream.data = FileAccess.get_file_as_bytes(src)
 	var length := stream.get_length()

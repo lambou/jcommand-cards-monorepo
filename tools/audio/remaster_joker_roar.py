@@ -3,7 +3,7 @@
     1. godot --headless --path apps/mobile -s <abs path>/tools/audio/decode_mp3.gd     (MP3 -> tools/audio/_roar_raw.f32)
     2. python tools/audio/remaster_joker_roar.py                                         (-> apps/mobile/assets/joker/joker_roar.wav)
 
-Source: apps/mobile/assets/joker/soundzee-lion-snarl-growl-354324.mp3 (the clip's loud roar starts at ~3.9 s,
+Source: tools/audio/source/soundzee-lion-snarl-growl-354324.mp3 (outside the game folder: not imported or exported) (the clip's loud roar starts at ~3.9 s,
 preceded by a quieter snarl from ~3.0 s). We keep 3.55 s .. 4.85 s so the roar's onset lands ~0.35 s after the
 sound starts, the moment the mouth opens in the animation, and the whole thing is ~1.3 s like the animation.
 

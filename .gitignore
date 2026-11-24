@@ -19,3 +19,7 @@ tools/blender/_joker_scratch/
 # Blender-rendered Joker sprite sheets: not tracked, regenerate with tools/blender/make_joker.py + pack_joker.py
 # (without them the game falls back to the flat lion). meta.json stays tracked.
 apps/mobile/assets/joker/*.png
+
+# Review / preview exports that the game never loads
+tools/avatars/previews/
+sounds-preview/

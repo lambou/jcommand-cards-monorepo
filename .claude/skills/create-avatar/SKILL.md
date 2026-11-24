@@ -12,7 +12,7 @@ Avatars are **pre-rendered 3D sprites**: Blender builds a procedural chibi (head
 - `tools/avatars/render_avatars.py` — Blender script (rig, hair kinds, lighting, animations).
 - `tools/avatars/pack_avatars.py` — masks frames to a circle, writes sheets + `meta.json` + GIFs.
 - `apps/mobile/assets/avatars/` — output used by the game (`<name>_idle.png`, `<name>_happy.png`, `meta.json`). Commit these.
-- `tools/avatars/previews/*.gif` — review GIFs (`all.gif` = every avatar side by side). Commit these.
+- `tools/avatars/previews/*.gif` — review GIFs (`all.gif` = every avatar side by side). Git-ignored: they are only for reviewing a render, the game never loads them.
 - `tools/avatars/frames/` — raw renders, git-ignored.
 
 ## Add a new avatar
