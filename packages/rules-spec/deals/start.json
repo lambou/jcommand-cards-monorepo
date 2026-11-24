@@ -1,15 +1,15 @@
 [
   {
-    "name": "start-7-and-lion-go-to-bottom-of-bank",
+    "name": "start-7-and-joker-go-to-bottom-of-bank",
     "playerIds": ["A", "B"],
-    "deck": ["3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "7H", "LR", "5D", "KD"],
+    "deck": ["3S", "4S", "5S", "6S", "8S", "9S", "10S", "QS", "KS", "3C", "7H", "JR", "5D", "KD"],
     "expect": {
       "stackTop": "5D",
       "required": "D",
       "current": "A",
       "bankSize": 3,
-      "bankBottom": ["LR", "7H"],
-      "bankTop": ["KD", "7H", "LR"]
+      "bankBottom": ["JR", "7H"],
+      "bankTop": ["KD", "7H", "JR"]
     }
   },
   {

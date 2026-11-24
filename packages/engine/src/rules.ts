@@ -3,7 +3,7 @@ import type { Rank, RuleDef, Settings } from './types';
 
 interface RulesSpec {
   version: number;
-  deck: { suits: string[]; ranks: string[]; lions: string[] };
+  deck: { suits: string[]; ranks: string[]; jokers: string[] };
   defaultSettings: Settings;
   ranks: Record<string, RuleDef>;
 }

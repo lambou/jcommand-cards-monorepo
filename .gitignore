@@ -9,3 +9,9 @@ shots/
 
 # Raw avatar render frames (tools/avatars/render_avatars.py); the packed sheets live in apps/mobile/assets/avatars
 tools/avatars/frames/
+
+# Intermediate decode of the Joker roar (tools/audio/decode_mp3.gd)
+tools/audio/_roar_raw.f32
+
+# Scratch renders / reviews for the Joker lion (tools/blender/make_joker.py)
+tools/blender/_joker_scratch/

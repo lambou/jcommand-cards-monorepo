@@ -32,7 +32,7 @@ signal quit_to_menu
 
 const ME := "you"
 const SUIT_ORDER := {"H": 0, "D": 1, "C": 2, "S": 3, "": 4}
-const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "LION"]
+const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "JOKER"]
 const FLY := 0.42 # seconds for a card to travel
 const STAGGER := 0.07 # delay between cards of one batch
 const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
@@ -733,7 +733,7 @@ func _who(id: String) -> String:
 
 
 func _card_text(card: Dictionary) -> String:
-	if card["rank"] == "LION":
+	if card["rank"] == "JOKER":
 		return "%s Joker" % str(card["color"]).capitalize()
 	return "%s of %s" % [card["rank"], CardArt.SUIT_NAMES[card["suit"]]]
 
@@ -1031,8 +1031,9 @@ func _impact(card: Dictionary, chosen: String, prev_req: Dictionary) -> void:
 			Sfx.play("thump")
 			Fx.ring(fx, c, Color(1.0, 0.25, 0.2, 0.9), stack_view.size.x * 1.2, 0.6, 14.0)
 			Fx.popup_text(fx, "+%d" % pending, above, Color(1.0, 0.35, 0.3), 96)
-		"LION":
+		"JOKER":
 			Sfx.play("roar")
+			stack_view.anim_joker()
 			Fx.ring(fx, c, Color(1.0, 0.25, 0.2, 0.9), stack_view.size.x * 1.5, 0.7, 18.0)
 			Fx.burst(fx, c, Color(1.0, 0.8, 0.2), 26, 560.0)
 			Fx.popup_text(fx, "JOKER! +%d" % pending, above, Color(1.0, 0.35, 0.3), 100)
@@ -1433,7 +1434,7 @@ func _react_to_events(events: Array) -> void:
 					_bot_react("took_penalty", e["playerId"], 1.5)
 			"play":
 				var rank: String = e["card"]["rank"]
-				if rank == "7" or rank == "LION":
+				if rank == "7" or rank == "JOKER":
 					if e["playerId"] != ME:
 						_bot_react("big_play", e["playerId"], 0.8)
 					var victim: String = game.current_id()
@@ -1524,7 +1525,7 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 		banner_label.text = "You're out! Watching the rest..."
 	elif human_turn:
 		if int(st["pending"]) > 0:
-			banner_label.text = "Block with a 7 or Lion, or take %d cards" % int(st["pending"])
+			banner_label.text = "Block with a 7 or Joker, or take %d cards" % int(st["pending"])
 		elif bool(st.get("finalTurn", false)):
 			banner_label.text = "LAST CHANCE! Play your last card or you lose"
 		elif me["hand"].is_empty():
@@ -1602,7 +1603,7 @@ func _on_card_pressed(card_id: int) -> void:
 	if not can:
 		Sfx.play("nope", 0.8)
 		if int(st["pending"]) > 0:
-			_flash("Only a 7 or a Lion can block a penalty")
+			_flash("Only a 7 or a Joker can block a penalty")
 		else:
 			_flash("You can't play that card now")
 		return

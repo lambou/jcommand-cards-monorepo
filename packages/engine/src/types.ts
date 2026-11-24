@@ -2,12 +2,12 @@ export type Suit = 'H' | 'D' | 'C' | 'S';
 export type Color = 'red' | 'black';
 export type Rank =
   | 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K'
-  | 'LION';
+  | 'JOKER';
 
 export interface Card {
   id: number;
   rank: Rank;
-  /** Absent for Lions. */
+  /** Absent for Jokers. */
   suit?: Suit;
   color: Color;
 }
@@ -83,12 +83,12 @@ export interface RuleDef {
   playOn: PlayOn;
   sets: Sets;
   penalty?: number;
-  /** Playable on any Lion regardless of the required colour. */
-  playOnLion?: boolean;
+  /** Playable on any Joker regardless of the required colour. */
+  playOnJoker?: boolean;
   /** Playable on any 7 regardless of the required colour. */
   playOnSeven?: boolean;
   slideUnder?: boolean;
-  /** Default true. Lions have no number, so they never rank-match. */
+  /** Default true. Jokers have no number, so they never rank-match. */
   matchRank?: boolean;
   skipNext?: number;
   cannotFinishWhenTwoPlayersLeft?: boolean;

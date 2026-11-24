@@ -3,6 +3,7 @@ extends Control
 
 const TextFx := preload("res://scripts/ui/text_fx.gd")
 const CardArt := preload("res://scripts/ui/card_art.gd")
+const Settings := preload("res://scripts/game/settings.gd")
 
 signal pressed(card_id: int)
 signal dragged(dx: float)
@@ -29,10 +30,61 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
+## Joker animation progress: the roar (0 = resting lion) and, once it is over, the idle loop (breathing, mane sway, a blink).
+## Only the card that just played the roar moves; every other Joker shows the resting frame.
+var joker_p := 0.0
+var joker_idle := false
+var _joker_tw: Tween
+var _idle_t0 := 0
+const IDLE_SECONDS := 1.25
+
+
 func set_card(c: Dictionary, up: bool = true) -> void:
+	if int(c.get("id", -1)) != int(card.get("id", -2)):
+		_stop_roar()
 	card = c
 	face_up = up
 	queue_redraw()
+
+
+## Plays the Joker's roar once (about 1.25 s), then idles until another card covers it; skipped with reduce motion.
+func anim_joker() -> void:
+	if Settings.reduce() or str(card.get("rank", "")) != "JOKER":
+		return
+	_stop_roar()
+	_joker_tw = create_tween()
+	_joker_tw.tween_method(_set_joker_p, 0.0, 1.0, 1.25)
+	_joker_tw.tween_callback(_start_idle)
+
+
+func _start_idle() -> void:
+	joker_idle = true
+	joker_p = 0.0
+	_idle_t0 = Time.get_ticks_msec()
+	set_process(true)
+	queue_redraw()
+
+
+func _process(_delta: float) -> void:
+	if not joker_idle:
+		set_process(false)
+		return
+	joker_p = fposmod(float(Time.get_ticks_msec() - _idle_t0) / 1000.0 / IDLE_SECONDS, 1.0)
+	queue_redraw()
+
+
+func _set_joker_p(v: float) -> void:
+	joker_p = v
+	queue_redraw()
+
+
+func _stop_roar() -> void:
+	if _joker_tw != null:
+		_joker_tw.kill()
+		_joker_tw = null
+	joker_p = 0.0
+	joker_idle = false
+	set_process(false)
 
 
 func set_flags(p_dimmed: bool, p_lifted: bool, p_badge: String = "") -> void:
@@ -72,9 +124,9 @@ const SPECIAL := {
 	"2": Color(0.58, 0.32, 0.88),
 	"J": Color(0.15, 0.52, 0.92),
 	"A": Color(0.08, 0.66, 0.56),
-	"LION": Color(0.96, 0.74, 0.12),
+	"JOKER": Color(0.96, 0.74, 0.12),
 }
-const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "LION": "JOKER +4"}
+const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "JOKER": "JOKER +4"}
 
 
 ## Face-down card, usable for any rect (also the opponents' fans).
@@ -195,10 +247,10 @@ func _draw() -> void:
 	var col := INK
 	var corner_text := rank
 	var pip_suit := ""
-	if rank == "LION":
+	if rank == "JOKER":
 		col = CardArt.RED if card["color"] == "red" else CardArt.BLACK
 		corner_text = "J"
-		CardArt.draw_lion(self, card["color"], Vector2(size.x / 2.0, size.y * 0.37), 34 * u)
+		CardArt.draw_joker(self, card["color"], Vector2(size.x / 2.0, size.y * 0.37), 34 * u, joker_p, joker_idle)
 	elif rank != "":
 		pip_suit = card["suit"]
 		col = CardArt.suit_color(pip_suit)

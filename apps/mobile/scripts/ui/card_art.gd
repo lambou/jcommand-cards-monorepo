@@ -1,5 +1,5 @@
 extends RefCounted
-## Placeholder vector art: suit symbols and the lion, drawn with polygons/circles.
+## Placeholder vector art: suit symbols and the joker, drawn with polygons/circles.
 
 const RED := Color(0.80, 0.09, 0.12)
 const BLACK := Color(0.10, 0.10, 0.14)
@@ -41,8 +41,41 @@ static func _stem(ci: CanvasItem, c: Vector2, s: float, col: Color) -> void:
 		c + Vector2(0.24 * s, 0.92 * s), c + Vector2(-0.24 * s, 0.92 * s)]), col)
 
 
-## A simple lion face; mane color = the lion's color.
-static func draw_lion(ci: CanvasItem, color_name: String, c: Vector2, s: float) -> void:
+## The Joker's 3D lion (tools/blender/make_joker.py -> assets/joker/joker_<color>_roar.png, 30 frames).
+## `p` is the animation progress 0..1: the roar (0 = resting face) or, with `idle`, one loop of the idle (breathing, mane sway, a blink).
+## Returns false when the sheet is missing, so the flat lion stays as the fallback.
+static var _joker_tex := {}
+static var _joker_meta := {}
+
+
+static func _draw_joker_sprite(ci: CanvasItem, color_name: String, c: Vector2, s: float, p: float, idle: bool) -> bool:
+	if _joker_meta.is_empty():
+		var f := FileAccess.open("res://assets/joker/meta.json", FileAccess.READ)
+		_joker_meta = JSON.parse_string(f.get_as_text()) if f != null else {"sheets": {}}
+	var info: Dictionary = _joker_meta.get("idle" if idle else "sheets", {}).get(color_name, {})
+	if info.is_empty():
+		return false
+	var key := color_name + ("_idle" if idle else "")
+	if not _joker_tex.has(key):
+		var path := "res://assets/joker/%s" % str(info["file"])
+		_joker_tex[key] = load(path) if ResourceLoader.exists(path) else null
+	var tex: Texture2D = _joker_tex[key]
+	if tex == null:
+		return false
+	var n := int(info["frames"])
+	var cols := int(_joker_meta["cols"])
+	var fs := float(_joker_meta["frame_px"])
+	var frame := clampi(int(p * float(n)), 0, n - 1)
+	var side := s * 3.7
+	ci.draw_texture_rect_region(tex, Rect2(c - Vector2(side, side) / 2.0, Vector2(side, side)),
+		Rect2(float(frame % cols) * fs, float(frame / cols) * fs, fs, fs))
+	return true
+
+
+## A simple lion face (flat fallback); mane color = the Joker's color.
+static func draw_joker(ci: CanvasItem, color_name: String, c: Vector2, s: float, p: float = 0.0, idle: bool = false) -> void:
+	if _draw_joker_sprite(ci, color_name, c, s, p, idle):
+		return
 	var mane := RED if color_name == "red" else BLACK
 	var n := 12
 	for i in n:

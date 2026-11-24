@@ -1,0 +1,29 @@
+{
+  "fps": 24,
+  "frame_px": 256,
+  "cols": 6,
+  "sheets": {
+    "red": {
+      "file": "joker_red_roar.png",
+      "frames": 30,
+      "rows": 5
+    },
+    "black": {
+      "file": "joker_black_roar.png",
+      "frames": 30,
+      "rows": 5
+    }
+  },
+  "idle": {
+    "red": {
+      "file": "joker_red_idle.png",
+      "frames": 30,
+      "rows": 5
+    },
+    "black": {
+      "file": "joker_black_idle.png",
+      "frames": 30,
+      "rows": 5
+    }
+  }
+}

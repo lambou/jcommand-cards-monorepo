@@ -226,8 +226,8 @@
     ]
   },
   {
-    "name": "lion-on-lion-after-the-penalty-was-taken",
-    "description": "A plays a Lion, B cannot block and draws 4, then C may play the other Lion on it (a Lion matches a Lion whatever its color).",
+    "name": "joker-on-joker-after-the-penalty-was-taken",
+    "description": "A plays a Joker, B cannot block and draws 4, then C may play the other Joker on it (a Joker matches a Joker whatever its color).",
     "setup": {
       "players": [
         "A",
@@ -236,7 +236,7 @@
       ],
       "hands": {
         "A": [
-          "LR",
+          "JR",
           "3H"
         ],
         "B": [
@@ -244,7 +244,7 @@
           "6C"
         ],
         "C": [
-          "LB",
+          "JB",
           "4D"
         ]
       },
@@ -262,7 +262,7 @@
       {
         "player": "A",
         "action": "play",
-        "card": "LR",
+        "card": "JR",
         "expect": {
           "pending": 4,
           "required": "red",
@@ -283,19 +283,19 @@
       {
         "player": "C",
         "action": "play",
-        "card": "LB",
+        "card": "JB",
         "expect": {
           "pending": 4,
           "required": "black",
-          "stackTop": "LB",
+          "stackTop": "JB",
           "current": "A"
         }
       }
     ]
   },
   {
-    "name": "lion-needs-a-matching-color-on-a-non-lion-card",
-    "description": "Lion-on-Lion is the only exception: on any other card a Lion still needs its own color.",
+    "name": "joker-needs-a-matching-color-on-a-non-joker-card",
+    "description": "Joker-on-Joker is the only exception: on any other card a Joker still needs its own color.",
     "setup": {
       "players": [
         "A",
@@ -303,7 +303,7 @@
       ],
       "hands": {
         "A": [
-          "LB",
+          "JB",
           "3H"
         ],
         "B": [
@@ -318,7 +318,7 @@
       {
         "player": "A",
         "action": "play",
-        "card": "LB",
+        "card": "JB",
         "expectError": true
       }
     ]

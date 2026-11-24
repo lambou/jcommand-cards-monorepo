@@ -130,7 +130,7 @@
       "pending": 0,
       "required": "red",
       "current": "A",
-      "stackTop": "LR",
+      "stackTop": "JR",
       "stackSize": 13,
       "bankSize": 33
     }

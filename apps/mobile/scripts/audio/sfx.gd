@@ -2,7 +2,7 @@ extends Node
 ## Sound effects, synthesised in code (sine tones, filtered noise, sweeps) so the game needs no
 ## audio assets yet. Add one instance to the tree, then call `Sfx.play("name")` from anywhere.
 ##
-## Names: combo_2..combo_5, jackpot, play, draw, deal, slide, thump, roar, penalty, stop, check, turn, nope, win, lose.
+## Names: combo_2..combo_5, jackpot, play, draw, deal, slide, thump, roar (recorded), penalty, stop, check, turn, nope, win, lose.
 
 const Settings := preload("res://scripts/game/settings.gd")
 
@@ -90,6 +90,11 @@ func _build() -> void:
 	_sweep(b, 0.0, 500.0, 140.0, 0.6, 0.22, 4.0)
 	_noise(b, 0.0, 0.5, 0.14, 5.0, 0.08)
 	_streams["roar"] = _stream(b)
+	# The Joker's recorded lion roar (tools/audio/remaster_joker_roar.py: cropped, filtered, levelled to the
+	# other effects with a soft limiter). The synthesised growl above stays as the fallback.
+	var roar_path := "res://assets/joker/joker_roar.wav"
+	if ResourceLoader.exists(roar_path):
+		_streams["roar"] = load(roar_path)
 
 	# Taking a penalty: two sinking notes.
 	b = _buf(0.7)

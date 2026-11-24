@@ -114,7 +114,7 @@ static func is_playable(s: Dictionary, hand: Array, card: Dictionary) -> bool:
 	var rule := Rules.rule_of(card["rank"])
 	var stack: Array = s["stack"]
 	var floor_card: Dictionary = stack[stack.size() - 1]
-	if rule.get("playOnLion", false) and floor_card["rank"] == "LION":
+	if rule.get("playOnJoker", false) and floor_card["rank"] == "JOKER":
 		return true
 	if rule.get("playOnSeven", false) and floor_card["rank"] == "7":
 		return true

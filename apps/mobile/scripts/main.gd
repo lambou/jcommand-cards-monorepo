@@ -308,7 +308,7 @@ func _slideshot(path: String) -> void:
 	while t._locked() or not t.game.is_human_turn():
 		await get_tree().create_timer(0.05).timeout
 	await get_tree().create_timer(1.0).timeout
-	# --fxcard=2|7|LION|A|J picks which special card to inject and play (default 2).
+	# --fxcard=2|7|JOKER|A|J picks which special card to inject and play (default 2).
 	var which := "2"
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--fxcard="):
@@ -316,7 +316,7 @@ func _slideshot(path: String) -> void:
 	var cards := {
 		"2": {"id": 999, "rank": "2", "suit": "S", "color": "black"},
 		"7": {"id": 999, "rank": "7", "suit": "H", "color": "red"},
-		"LION": {"id": 999, "rank": "LION", "suit": "", "color": "red"},
+		"JOKER": {"id": 999, "rank": "JOKER", "suit": "", "color": "red"},
 		"A": {"id": 999, "rank": "A", "suit": "S", "color": "black"},
 		"J": {"id": 999, "rank": "J", "suit": "S", "color": "black"},
 	}

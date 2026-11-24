@@ -22,7 +22,7 @@
       "Q",
       "K"
     ],
-    "lions": [
+    "jokers": [
       "red",
       "black"
     ]
@@ -47,10 +47,10 @@
       "playOn": "required",
       "sets": "suit",
       "penalty": 2,
-      "playOnLion": true,
+      "playOnJoker": true,
       "onStart": "redeal"
     },
-    "LION": {
+    "JOKER": {
       "playOn": "required",
       "sets": "color",
       "penalty": 4,

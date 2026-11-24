@@ -39,75 +39,75 @@
     ]
   },
   {
-    "name": "lion-follows-color-and-chains-with-lion",
-    "description": "Red lion on a red card; black lion on a pending penalty is fine; penalty taker then faces a black-color requirement.",
+    "name": "joker-follows-color-and-chains-with-joker",
+    "description": "Red joker on a red card; black joker on a pending penalty is fine; penalty taker then faces a black-color requirement.",
     "setup": {
       "players": ["A", "B"],
-      "hands": { "A": ["LR", "3H"], "B": ["LB", "5D", "2C"] },
+      "hands": { "A": ["JR", "3H"], "B": ["JB", "5D", "2C"] },
       "bank": ["4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC"],
       "stack": ["9H"]
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "LR", "expect": { "pending": 4, "required": "red", "current": "B" } },
-      { "player": "B", "action": "play", "card": "LB", "expect": { "pending": 8, "required": "black", "current": "A" } },
+      { "player": "A", "action": "play", "card": "JR", "expect": { "pending": 4, "required": "red", "current": "B" } },
+      { "player": "B", "action": "play", "card": "JB", "expect": { "pending": 8, "required": "black", "current": "A" } },
       { "player": "A", "action": "takePenalty", "expect": { "pending": 0, "handSizes": { "A": 9 }, "current": "B", "required": "black" } },
       { "player": "B", "action": "play", "card": "5D", "expectError": true },
-      { "player": "B", "action": "play", "card": "2C", "expect": { "required": "black", "stackTop": "LB", "stackBottom": "2C" } }
+      { "player": "B", "action": "play", "card": "2C", "expect": { "required": "black", "stackTop": "JB", "stackBottom": "2C" } }
     ]
   },
   {
-    "name": "black-lion-illegal-on-red-card",
+    "name": "black-joker-illegal-on-red-card",
     "setup": {
       "players": ["A", "B"],
-      "hands": { "A": ["LB", "3H"], "B": ["4H"] },
+      "hands": { "A": ["JB", "3H"], "B": ["4H"] },
       "stack": ["9H"]
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "LB", "expectError": true },
+      { "player": "A", "action": "play", "card": "JB", "expectError": true },
       { "player": "A", "action": "play", "card": "3H", "expect": { "current": "B" } }
     ]
   },
   {
-    "name": "after-lion-any-suit-of-that-color",
+    "name": "after-joker-any-suit-of-that-color",
     "setup": {
       "players": ["A", "B"],
-      "hands": { "A": ["LR", "4D", "4C"], "B": ["5C", "6C"] },
+      "hands": { "A": ["JR", "4D", "4C"], "B": ["5C", "6C"] },
       "bank": ["KS", "KC", "QS", "QC"],
       "stack": ["9H"]
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "LR" },
+      { "player": "A", "action": "play", "card": "JR" },
       { "player": "B", "action": "takePenalty", "expect": { "current": "A", "required": "red" } },
       { "player": "A", "action": "play", "card": "4C", "expectError": true },
       { "player": "A", "action": "play", "card": "4D", "expect": { "required": "D" } }
     ]
   },
   {
-    "name": "seven-playable-on-lion-of-any-color",
-    "description": "After a red lion's penalty is taken, required is red, yet a black 7 may still go on the lion; a black 4 may not.",
+    "name": "seven-playable-on-joker-of-any-color",
+    "description": "After a red joker's penalty is taken, required is red, yet a black 7 may still go on the joker; a black 4 may not.",
     "setup": {
       "players": ["A", "B"],
-      "hands": { "A": ["LR", "7C", "4C"], "B": ["5C", "6C"] },
+      "hands": { "A": ["JR", "7C", "4C"], "B": ["5C", "6C"] },
       "bank": ["KS", "KC", "QS", "QC"],
       "stack": ["9H"]
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "LR" },
+      { "player": "A", "action": "play", "card": "JR" },
       { "player": "B", "action": "takePenalty", "expect": { "current": "A", "required": "red" } },
       { "player": "A", "action": "play", "card": "4C", "expectError": true },
       { "player": "A", "action": "play", "card": "7C", "expect": { "pending": 2, "required": "C", "current": "B" } }
     ]
   },
   {
-    "name": "lion-is-always-legal-when-free",
+    "name": "joker-is-always-legal-when-free",
     "setup": {
       "players": ["A", "B"],
-      "hands": { "A": ["LB", "3H"], "B": ["4H"] },
+      "hands": { "A": ["JB", "3H"], "B": ["4H"] },
       "stack": ["9H"],
       "required": "free"
     },
     "steps": [
-      { "player": "A", "action": "play", "card": "LB", "expect": { "pending": 4, "required": "black" } }
+      { "player": "A", "action": "play", "card": "JB", "expect": { "pending": 4, "required": "black" } }
     ]
   },
   {

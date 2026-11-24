@@ -26,13 +26,13 @@ describe('createGame', () => {
 
   const hands2 = ['3S', '4S', '5S', '6S', '8S', '9S', '10S', 'QS', 'KS', '3C']; // A,B alternate
 
-  it('sends a starting 7 or Lion to the bottom of the bank and flips again', () => {
+  it('sends a starting 7 or Joker to the bottom of the bank and flips again', () => {
     const s = createGame({
       playerIds: ['A', 'B'],
-      deck: stackedDeck([...hands2, '7H', 'LR', '5D', 'KD']),
+      deck: stackedDeck([...hands2, '7H', 'JR', '5D', 'KD']),
     });
     expect(cardCode(s.stack[0]!)).toBe('5D');
-    expect(s.bank.map(cardCode).slice(0, 2)).toEqual(['LR', '7H']);
+    expect(s.bank.map(cardCode).slice(0, 2)).toEqual(['JR', '7H']);
     expect(s.required).toEqual({ kind: 'suit', suit: 'D' });
     expect(s.current).toBe(0);
   });

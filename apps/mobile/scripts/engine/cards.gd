@@ -1,6 +1,6 @@
 extends RefCounted
 ## Cards are plain dictionaries: {id:int, rank:String, suit:String, color:String}.
-## Lions have rank "LION" and suit "".
+## Jokers have rank "JOKER" and suit "".
 
 const Rules := preload("res://scripts/engine/rules.gd")
 
@@ -19,24 +19,24 @@ static func create_deck() -> Array:
 		for rank in deck["ranks"]:
 			cards.append({"id": id, "rank": rank, "suit": suit, "color": suit_color(suit)})
 			id += 1
-	for color in deck["lions"]:
-		cards.append({"id": id, "rank": "LION", "suit": "", "color": color})
+	for color in deck["jokers"]:
+		cards.append({"id": id, "rank": "JOKER", "suit": "", "color": color})
 		id += 1
 	return cards
 
 
-## "7H", "10S", "AD", "LR" (red lion), "LB" (black lion).
+## "7H", "10S", "AD", "JR" (red joker), "JB" (black joker).
 static func card_code(card: Dictionary) -> String:
-	if card["rank"] == "LION":
-		return "LR" if card["color"] == "red" else "LB"
+	if card["rank"] == "JOKER":
+		return "JR" if card["color"] == "red" else "JB"
 	return str(card["rank"]) + str(card["suit"])
 
 
 static func parse_card(code: String, id: int) -> Dictionary:
-	if code == "LR":
-		return {"id": id, "rank": "LION", "suit": "", "color": "red"}
-	if code == "LB":
-		return {"id": id, "rank": "LION", "suit": "", "color": "black"}
+	if code == "JR":
+		return {"id": id, "rank": "JOKER", "suit": "", "color": "red"}
+	if code == "JB":
+		return {"id": id, "rank": "JOKER", "suit": "", "color": "black"}
 	var suit := code.substr(code.length() - 1)
 	var rank := code.substr(0, code.length() - 1)
 	assert(SUITS.has(suit) and (Rules.spec()["deck"]["ranks"] as Array).has(rank), "Bad card code: " + code)

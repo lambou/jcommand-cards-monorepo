@@ -15,21 +15,21 @@ export function createDeck(): Card[] {
       cards.push({ id: id++, rank, suit, color: suitColor(suit) });
     }
   }
-  for (const color of spec.deck.lions as Color[]) {
-    cards.push({ id: id++, rank: 'LION', color });
+  for (const color of spec.deck.jokers as Color[]) {
+    cards.push({ id: id++, rank: 'JOKER', color });
   }
   return cards;
 }
 
-/** "7H", "10S", "AD", "LR" (red lion), "LB" (black lion). */
+/** "7H", "10S", "AD", "JR" (red joker), "JB" (black joker). */
 export function cardCode(card: Card): string {
-  if (card.rank === 'LION') return card.color === 'red' ? 'LR' : 'LB';
+  if (card.rank === 'JOKER') return card.color === 'red' ? 'JR' : 'JB';
   return `${card.rank}${card.suit}`;
 }
 
 export function parseCard(code: string, id: number): Card {
-  if (code === 'LR') return { id, rank: 'LION', color: 'red' };
-  if (code === 'LB') return { id, rank: 'LION', color: 'black' };
+  if (code === 'JR') return { id, rank: 'JOKER', color: 'red' };
+  if (code === 'JB') return { id, rank: 'JOKER', color: 'black' };
   const suit = code.slice(-1) as Suit;
   const rank = code.slice(0, -1) as Rank;
   if (!SUITS.includes(suit) || !(spec.deck.ranks as string[]).includes(rank)) {

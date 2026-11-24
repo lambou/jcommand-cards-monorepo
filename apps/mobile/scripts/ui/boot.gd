@@ -152,6 +152,9 @@ func _resource_list() -> PackedStringArray:
 			_add_if_exists(out, "res://assets/avatars/%s_%s.png" % [n, anim])
 	for su in ["H", "D", "C", "S"]:
 		_add_if_exists(out, "res://assets/suits/suit_%s.png" % su)
+	for col in ["red", "black"]:
+		for anim in ["roar", "idle"]:
+			_add_if_exists(out, "res://assets/joker/joker_%s_%s.png" % [col, anim])
 	return out
 
 
