@@ -81,13 +81,15 @@ const CAPTIONS := {"7": "+2", "2": "ANY", "J": "PICK SUIT", "A": "STOP", "LION":
 static func draw_back(ci: CanvasItem, r: Rect2) -> void:
 	var u := r.size.x / BASE.x
 	var rad := int(16 * u)
+	var theme := TableBg.current_theme() # the back changes colour with the table so it never blends in
+	var back_col: Color = theme["back"]
 	var shadow := StyleBoxFlat.new()
 	shadow.bg_color = Color(0, 0, 0, 0.35)
 	shadow.set_corner_radius_all(rad)
 	ci.draw_style_box(shadow, Rect2(r.position + Vector2(0, 5 * u), r.size))
 	var body := StyleBoxFlat.new()
 	body.set_corner_radius_all(rad)
-	body.bg_color = Color(0.12, 0.21, 0.52)
+	body.bg_color = back_col
 	body.set_border_width_all(maxi(2, int(4 * u)))
 	body.border_color = Color(0.97, 0.97, 1.0)
 	ci.draw_style_box(body, r)
@@ -101,7 +103,7 @@ static func draw_back(ci: CanvasItem, r: Rect2) -> void:
 	# Diamond lattice.
 	var step := 24.0 * u
 	var half := 8.0 * u
-	var lat := Color(0.30, 0.46, 0.85, 0.55)
+	var lat: Color = theme["lattice"]
 	var cy := inner.position.y + step * 0.5
 	var row := 0
 	while cy < inner.end.y - half:
@@ -118,7 +120,7 @@ static func draw_back(ci: CanvasItem, r: Rect2) -> void:
 	var c := r.position + r.size / 2.0
 	ci.draw_circle(c, 36 * u, INK)
 	ci.draw_circle(c, 32 * u, Color(1.0, 0.80, 0.25))
-	ci.draw_circle(c, 25 * u, Color(0.12, 0.21, 0.52))
+	ci.draw_circle(c, 25 * u, back_col)
 	CardArt.draw_suit(ci, "D", c, 17 * u, Color(0.97, 0.97, 1.0))
 	# Bevel highlight.
 	ci.draw_line(r.position + Vector2(18 * u, 5 * u), r.position + Vector2(r.size.x - 18 * u, 5 * u), Color(1, 1, 1, 0.55), maxf(1.0, 2.0 * u))

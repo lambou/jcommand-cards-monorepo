@@ -190,10 +190,10 @@ func _build() -> void:
 	message_label = _label(40, Color(1, 1, 1))
 	banner_label = _label(44, Color(1.0, 0.85, 0.3))
 
-	menu_button = UI.icon_button("home", func(): game.stop(); quit_to_menu.emit())
+	menu_button = UI.icon_button("home", func(): game.stop(); quit_to_menu.emit(), UI.Variant.SECONDARY, TableBg.current_theme()["button"])
 	add_child(menu_button)
 
-	settings_button = UI.icon_button("gear", _open_settings)
+	settings_button = UI.icon_button("gear", _open_settings, UI.Variant.SECONDARY, TableBg.current_theme()["button"])
 	add_child(settings_button)
 
 	fx = Control.new() # flying cards live here, above the hand
@@ -226,7 +226,7 @@ func _label(font_size: int, color: Color) -> Label:
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_constant_override("outline_size", 10)
-	l.add_theme_color_override("font_outline_color", Color(0.06, 0.1, 0.08))
+	l.add_theme_color_override("font_outline_color", TableBg.current_theme()["ink"])
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
 	l.add_theme_constant_override("shadow_offset_y", 4)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

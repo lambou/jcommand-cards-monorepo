@@ -4,11 +4,32 @@ extends Control
 
 const STYLES := ["Classic Felt", "Royal Velvet", "Burgundy Lounge", "Dark Wood"]
 const GOLD := Color(0.91, 0.75, 0.31)
+const Settings := preload("res://scripts/game/settings.gd")
+
+## Per-table palette for the game UI drawn on top of the table: dark plate colour (opponent panels, emoji
+## button), button face, text outline, and the card-back colours (body, lattice).
+const THEMES := [
+	{"panel": Color(0.05, 0.22, 0.14), "button": Color(0.15, 0.62, 0.40), "ink": Color(0.06, 0.10, 0.08),
+		"back": Color(0.12, 0.21, 0.52), "lattice": Color(0.30, 0.46, 0.85, 0.55)},
+	{"panel": Color(0.04, 0.07, 0.22), "button": Color(0.24, 0.36, 0.76), "ink": Color(0.02, 0.04, 0.15),
+		"back": Color(0.50, 0.08, 0.18), "lattice": Color(0.80, 0.32, 0.44, 0.55)}, # burgundy back stands out on navy
+	{"panel": Color(0.22, 0.05, 0.09), "button": Color(0.66, 0.18, 0.28), "ink": Color(0.13, 0.02, 0.05),
+		"back": Color(0.12, 0.21, 0.52), "lattice": Color(0.30, 0.46, 0.85, 0.55)},
+	{"panel": Color(0.05, 0.22, 0.14), "button": Color(0.15, 0.62, 0.40), "ink": Color(0.06, 0.10, 0.08),
+		"back": Color(0.12, 0.21, 0.52), "lattice": Color(0.30, 0.46, 0.85, 0.55)},
+]
+
+
+## The palette of the table style chosen in settings.
+static func current_theme() -> Dictionary:
+	Settings.load_settings()
+	return THEMES[Settings.table_style % THEMES.size()]
 
 var style := 0
 
 var _glow: GradientTexture2D
 var _weave: ImageTexture
+var _fade: GradientTexture2D
 
 
 func _init() -> void:
@@ -21,13 +42,16 @@ func _ready() -> void:
 	match style:
 		1:
 			_glow = _radial([Color(0.17, 0.27, 0.58), Color(0.04, 0.07, 0.20)], Vector2(0.5, 0.4), Vector2(1.0, 1.0))
+			# same centre colour, opaque in the middle and clear toward the edges
+			_fade = _radial([Color(0.17, 0.27, 0.58, 0.96), Color(0.10, 0.17, 0.40, 0.0)], Vector2(0.5, 0.4), Vector2(1.0, 0.75))
+			_weave = _make_weave(false)
 		2:
 			_glow = _radial([Color(0.56, 0.12, 0.20), Color(0.16, 0.03, 0.07)], Vector2(0.5, 0.45), Vector2(1.0, 1.0))
 		3:
 			_glow = _radial([Color(0.12, 0.50, 0.31), Color(0.03, 0.22, 0.14)], Vector2(0.5, 0.45), Vector2(0.9, 0.9))
 		_:
 			_glow = _radial([Color(0.16, 0.62, 0.38), Color(0.01, 0.12, 0.07)], Vector2(0.5, 0.45), Vector2(1.0, 1.0), 0.6, Color(0.07, 0.38, 0.23))
-			_weave = _make_weave()
+			_weave = _make_weave(true)
 	queue_redraw()
 
 
@@ -50,24 +74,31 @@ func _draw_classic() -> void:
 
 
 func _draw_velvet() -> void:
-	draw_texture_rect(_glow, Rect2(Vector2.ZERO, size), false)
-	# Damask: gold diamonds with a dot in the middle, on a 72px grid.
-	var s := 72.0
-	var line := Color(GOLD, 0.26)
-	var dot := Color(GOLD, 0.30)
-	var y := 0.0
-	while y < size.y + s:
-		var x := 0.0
-		while x < size.x + s:
-			var c := Vector2(x + s * 0.5, y + s * 0.5)
-			var h := s * 0.42
-			draw_polyline(PackedVector2Array([c + Vector2(0, -h), c + Vector2(h, 0), c + Vector2(0, h), c + Vector2(-h, 0), c + Vector2(0, -h)]), line, 1.5, true)
-			draw_circle(c, 5.0, dot)
-			draw_circle(Vector2(x, y), 3.0, Color(GOLD, 0.2))
-			x += s
-		y += s
-	var w := maxf(6.0, minf(size.x, size.y) * 0.012)
-	draw_rect(Rect2(Vector2(w, w) * 0.5, size - Vector2(w, w)), Color(GOLD, 0.55), false, w)
+	var r := Rect2(Vector2.ZERO, size)
+	draw_texture_rect(_glow, r, false)
+	# Gold lattice of touching diamonds (two sets of diagonal lines), with a small ornament in each cell.
+	var d := 110.0
+	var line := Color(GOLD, 0.4)
+	var k := -int(size.y / d) - 1
+	while k * d < size.x + size.y:
+		draw_line(Vector2(k * d, 0), Vector2(k * d + size.y, size.y), line, 2.0, true)
+		draw_line(Vector2(k * d, 0), Vector2(k * d - size.y, size.y), line, 2.0, true)
+		k += 1
+	var orn := Color(GOLD, 0.45)
+	for b in int(size.y / (d * 0.5)) + 2:
+		for a in int(size.x / (d * 0.5)) + 2:
+			if (a + b) % 2 == 1: # cell centres sit where the grid index sum is odd
+				var c := Vector2(a, b) * d * 0.5
+				var h := d * 0.17
+				draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h), c + Vector2(h * 0.6, 0), c + Vector2(0, h), c + Vector2(-h * 0.6, 0)]), orn)
+	# Calm the middle, where the piles and hands are: paint the glow back over it, fading out toward the edges.
+	draw_texture_rect(_fade, r, false)
+	draw_texture_rect(_weave, r, true) # fine velvet pile
+	var m := minf(size.x, size.y) * 0.045
+	# A quieter rim than Classic Felt: it runs behind the corner buttons and the hand, so it shouldn't shout.
+	_rim(Rect2(Vector2(m, m), size - Vector2(m, m) * 2.0), m * 2.2, Color(GOLD, 0.5), maxf(2.0, m * 0.15))
+	var m2 := m * 1.6
+	_rim(Rect2(Vector2(m2, m2), size - Vector2(m2, m2) * 2.0), m * 1.8, Color(GOLD, 0.2), maxf(1.0, m * 0.08))
 
 
 func _draw_burgundy() -> void:
@@ -183,7 +214,7 @@ func _radial(colors: Array, center: Vector2, edge: Vector2, mid_at := -1.0, mid 
 	return t
 
 
-func _make_weave() -> ImageTexture:
+func _make_weave(crosshatch: bool) -> ImageTexture:
 	# 96px tile: a visible crosshatch weave plus random felt speckle (seeded so it never shimmers)
 	var n := 96
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
@@ -193,7 +224,7 @@ func _make_weave() -> ImageTexture:
 		for x in n:
 			var a := 0.0
 			var c := Color.WHITE
-			if (x + y) % 6 == 0 or (x - y + n * 2) % 6 == 0:
+			if crosshatch and ((x + y) % 6 == 0 or (x - y + n * 2) % 6 == 0):
 				a = 0.07
 			var r := rng.randf()
 			if r < 0.18:
