@@ -100,7 +100,7 @@ func _draw() -> void:
 		var ring := col.lightened(0.2)
 		Avatar.draw_avatar(self, Avatar.index_for(id), ac, ar, ring, 7.0 * u, place == 0)
 		if place == 0 and rise > 0.9:
-			_crown(ac + Vector2(0, -ar - 4.0 * u), 46.0 * u)
+			_crown(ac + Vector2(0, -ar + 2.0 * u), 64.0 * u)
 		if id == me and rise > 0.5:
 			var tag_y := ac.y - ar - (62.0 * u if place == 0 else 14.0 * u)
 			TextFx.draw(self, font, Vector2(centers[place] - 80.0, tag_y), "YOU", HORIZONTAL_ALIGNMENT_CENTER, 160.0, int(38.0 * u), Color(1.0, 0.9, 0.35))
@@ -116,11 +116,60 @@ func _draw() -> void:
 		Avatar.draw_avatar(self, Avatar.index_for(id4), Vector2(cx - 150.0 * u, y4), ar4, Color(1, 1, 1, 0.5 * r3), 3.0)
 
 
+## Gold crown: soft rounded peaks with ball tips, gradient body, outline, gemmed band.
+## c = bottom-centre of the crown, w = half width.
 func _crown(c: Vector2, w: float) -> void:
-	var h := w * 0.7
-	draw_colored_polygon(PackedVector2Array([
-		c + Vector2(-w, 0), c + Vector2(-w, -h * 0.9), c + Vector2(-w * 0.5, -h * 0.4), c + Vector2(0, -h),
-		c + Vector2(w * 0.5, -h * 0.4), c + Vector2(w, -h * 0.9), c + Vector2(w, 0)]), GOLD)
-	draw_rect(Rect2(c.x - w, c.y - h * 0.18, w * 2.0, h * 0.22), GOLD.darkened(0.15))
-	for k in [-1.0, 0.0, 1.0]:
-		draw_circle(c + Vector2(k * w * 0.62, -h * (0.95 if k == 0.0 else 0.8)), h * 0.1, Color(0.9, 0.2, 0.25))
+	var h := w * 0.9
+	var lw := maxf(2.0, w * 0.07)
+	var outline := Color(0.42, 0.24, 0.02)
+	var light := Color(1.0, 0.93, 0.5)
+	var deep := Color(0.9, 0.58, 0.08)
+	# Top profile through peaks/valleys, eased so every tip and dip is round.
+	var ctrl := [Vector2(-w, -h * 0.78), Vector2(-w * 0.5, -h * 0.42), Vector2(0, -h * 0.98),
+			Vector2(w * 0.5, -h * 0.42), Vector2(w, -h * 0.78)]
+	var top := PackedVector2Array()
+	for i in range(ctrl.size() - 1):
+		var p0: Vector2 = ctrl[i]
+		var p1: Vector2 = ctrl[i + 1]
+		for k in 14:
+			var t := float(k) / 14.0
+			var e := t * t * (3.0 - 2.0 * t)
+			top.append(Vector2(lerpf(p0.x, p1.x, t), lerpf(p0.y, p1.y, e)))
+	top.append(ctrl[ctrl.size() - 1])
+	var poly := PackedVector2Array()
+	var cols := PackedColorArray()
+	for v in top:
+		poly.append(c + v)
+		cols.append(light.lerp(deep, clampf((v.y + h) / h, 0.0, 1.0)))
+	poly.append(c + Vector2(w * 0.94, 0))
+	cols.append(deep)
+	poly.append(c + Vector2(-w * 0.94, 0))
+	cols.append(deep)
+	draw_polygon(poly, cols)
+	var line := PackedVector2Array(poly)
+	line.append(poly[0])
+	draw_polyline(line, outline, lw, true)
+	# Ball tips on the three peaks.
+	var br := w * 0.13
+	for pk in [ctrl[0], ctrl[2], ctrl[4]]:
+		var bc: Vector2 = c + pk + Vector2(0, -br * 0.35)
+		draw_circle(bc, br + lw * 0.5, outline)
+		draw_circle(bc, br, light.lerp(deep, 0.25))
+		draw_circle(bc + Vector2(-br * 0.3, -br * 0.3), br * 0.3, Color(1, 1, 1, 0.85))
+	# Band with rounded ends.
+	var band := Rect2(c.x - w * 1.0, c.y - h * 0.3, w * 2.0, h * 0.3)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = deep.lerp(light, 0.25)
+	sb.set_corner_radius_all(int(band.size.y * 0.5))
+	sb.set_border_width_all(int(ceilf(lw)))
+	sb.border_color = outline
+	draw_style_box(sb, band)
+	draw_rect(Rect2(band.position.x + band.size.y * 0.5, band.position.y + lw * 1.2, band.size.x - band.size.y, lw * 0.8), Color(1, 1, 1, 0.35))
+	# Gems on the band: big red centre, small blue sides.
+	var gy := band.position.y + band.size.y * 0.5
+	for g in [[-0.6, Color(0.25, 0.55, 1.0), 0.6], [0.0, Color(0.95, 0.2, 0.28), 0.9], [0.6, Color(0.25, 0.55, 1.0), 0.6]]:
+		var gr := band.size.y * 0.5 * float(g[2]) * 0.85
+		var gc := Vector2(c.x + w * float(g[0]), gy)
+		draw_circle(gc, gr + lw * 0.4, outline)
+		draw_circle(gc, gr, g[1])
+		draw_circle(gc + Vector2(-gr * 0.3, -gr * 0.3), gr * 0.32, Color(1, 1, 1, 0.8))
