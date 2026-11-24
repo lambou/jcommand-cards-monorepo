@@ -87,6 +87,22 @@ func _process(_delta: float) -> void:
 	queue_redraw() # drives the CHECK pulse
 
 
+## Three bouncing dots in a pill right after the name: "it's this player's turn".
+func _draw_thinking(font: Font) -> void:
+	var name_w := font.get_string_size(player_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 114.0, 42).x
+	var pill := Rect2(100.0 + name_w + 14.0, 22.0, 78.0, 40.0)
+	if pill.end.x > size.x - 8.0:
+		pill.position.x = size.x - 8.0 - pill.size.x
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(1.0, 0.82, 0.2, 0.95)
+	bg.set_corner_radius_all(20)
+	draw_style_box(bg, pill)
+	var t := float(Time.get_ticks_msec()) / 1000.0
+	for i in 3:
+		var bounce := 0.0 if Settings.reduce() else -maxf(0.0, sin((t * 3.0 - i * 0.45) * TAU * 0.5)) * 7.0
+		draw_circle(Vector2(pill.position.x + 20.0 + 19.0 * i, pill.position.y + 21.0 + bounce), 5.5, Color(0.25, 0.15, 0.02))
+
+
 func _draw() -> void:
 	var font := preload("res://assets/fonts/LilitaOne-Regular.ttf")
 	var pulse := 0.5 if Settings.reduce() else 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 0.5)
@@ -108,6 +124,8 @@ func _draw() -> void:
 		ring = Color(1.0, 0.25, 0.2)
 	Avatar.draw_avatar(self, avatar_index, Vector2(54, 44), 32.0, ring, 5.0 if (active or check) else 2.5)
 	TextFx.draw(self, font, Vector2(100, 56), player_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 114.0, 42, Color.WHITE)
+	if active:
+		_draw_thinking(font)
 	# Running points: a badge on the top edge; the leader's is gold with a small crown.
 	var ptxt := "%d pts" % points
 	var tw := _pts_width(font, ptxt)
