@@ -27,19 +27,31 @@ const FIELD_MULT := {1: 1.0, 2: 1.5, 3: 2.0}      # by number of bots
 const DIFFICULTY_MULT := {"easy": 0.6, "normal": 1.0}
 
 
-## Returns {total, mult, clean, lines: [[label, points], ...]}. `draws` = voluntary bank draws.
-static func compute(place: int, players: int, bots: int, difficulty: String, draws: int, chains: Array = [], finish_rank: String = "", penalty_chains: Array = []) -> Dictionary:
+## Performance points used to RANK the players who got out: everything except the place-based
+## base and the field/difficulty multiplier, so it is the same yardstick for every player.
+## `stats` = {draws, chains, finish_rank, penalty_chains, first_out}.
+static func ranking_points(stats: Dictionary) -> int:
+	var r := compute(0, 0, 0, "normal", int(stats["draws"]), stats["chains"], str(stats["finish_rank"]), stats["penalty_chains"], bool(stats["first_out"]), true, true)
+	return int(r["raw_bonus"])
+
+
+## Returns {total, mult, clean, raw_bonus, lines: [[label, points], ...]}. `draws` = voluntary bank draws.
+## `finished` = the player got out (an empty hand); the one left holding cards has lost outright
+## and earns no finishing bonuses. `first_out` = went out before everybody else.
+static func compute(place: int, players: int, bots: int, difficulty: String, draws: int, chains: Array = [], finish_rank: String = "", penalty_chains: Array = [], first_out: bool = false, finished: bool = true, rank_only: bool = false) -> Dictionary:
 	var lines: Array = []
-	var base := int(round(float(WIN_POINTS) * float(players - place) / float(players - 1)))
-	if place == 1:
-		base = WIN_POINTS
-	lines.append(["Finished %s of %d" % [_ordinal(place), players], base])
-	var clean := draws == 0 and place < players
+	var base := 0
+	if not rank_only:
+		base = int(round(float(WIN_POINTS) * float(players - place) / float(players - 1)))
+		if place == 1:
+			base = WIN_POINTS
+		lines.append(["Finished %s of %d" % [_ordinal(place), players], base])
+	var clean := draws == 0 and finished
 	var bonus := 0
 	if clean:
 		bonus = CLEAN_BONUS
 		lines.append(["CLEAN FINISH - never drew from the bank", CLEAN_BONUS])
-	elif place < players:
+	elif finished:
 		bonus = maxi(0, FEW_DRAWS_MAX - FEW_DRAWS_STEP * draws)
 		if bonus > 0:
 			lines.append(["Few draws (%d)" % draws, bonus])
@@ -66,12 +78,12 @@ static func compute(place: int, players: int, bots: int, difficulty: String, dra
 			var pp: int = PENALTY_FINISH_PER_CARD * pen
 			bonus += pp
 			lines.append(["Went out on a penalty card (+%d draw)" % pen, pp])
-		if place == 1:
+		if first_out:
 			bonus += WINNING_CARD
-			lines.append(["Winning card", WINNING_CARD])
+			lines.append(["First out", WINNING_CARD])
 	var mult: float = float(FIELD_MULT.get(bots, 1.0)) * float(DIFFICULTY_MULT.get(difficulty, 1.0))
 	var total := int(round(float(base + bonus) * mult))
-	return {"total": total, "mult": mult, "clean": clean, "lines": lines}
+	return {"total": total, "mult": mult, "clean": clean, "raw_bonus": bonus, "lines": lines}
 
 
 static func _ordinal(n: int) -> String:

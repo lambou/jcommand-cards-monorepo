@@ -15,6 +15,7 @@ const DESIGN_H := 760.0
 var order: Array = [] # player ids, 1st first
 var names: Dictionary = {}
 var me := "you"
+var scores: Dictionary = {} # player id -> final points (optional)
 
 var r0 := 0.0:
 	set(v):
@@ -34,10 +35,11 @@ var r3 := 0.0:
 		queue_redraw()
 
 
-func setup(p_order: Array, p_names: Dictionary, p_me: String) -> void:
+func setup(p_order: Array, p_names: Dictionary, p_me: String, p_scores: Dictionary = {}) -> void:
 	order = p_order
 	names = p_names
 	me = p_me
+	scores = p_scores
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_redraw()
 
@@ -66,7 +68,7 @@ func _draw() -> void:
 	var cx := size.x / 2.0
 	var base_y := size.y - (130.0 * u if order.size() >= 4 else 24.0 * u)
 	var centers := [cx, cx - (step_w + gap), cx + (step_w + gap)]
-	var heights := [340.0 * u, 250.0 * u, 175.0 * u]
+	var heights := [390.0 * u, 310.0 * u, 235.0 * u]
 	var colors := [GOLD, SILVER, BRONZE]
 	var rises := [r0, r1, r2]
 
@@ -93,6 +95,8 @@ func _draw() -> void:
 			var is_me := id == me
 			var name_col := Color(1, 1, 1, a)
 			TextFx.draw(self, font, Vector2(x, top + 112.0 * u + 52.0 * u), str(names.get(id, id)), HORIZONTAL_ALIGNMENT_CENTER, step_w, int(42.0 * u), name_col)
+			if scores.has(id):
+				TextFx.draw(self, font, Vector2(x, top + 112.0 * u + 104.0 * u), "%d pts" % int(scores[id]), HORIZONTAL_ALIGNMENT_CENTER, step_w, int(36.0 * u), Color(1.0, 0.92, 0.45, a))
 
 		# The avatar rides on top of its block.
 		var ar := (68.0 if place == 0 else 56.0) * u
@@ -111,6 +115,8 @@ func _draw() -> void:
 		var ar4 := 34.0 * u
 		var y4 := size.y - 52.0 * u
 		var label := "4th   %s" % str(names.get(id4, id4))
+		if scores.has(id4):
+			label += "   %d pts" % int(scores[id4])
 		var col4 := Color(1, 1, 1, r3)
 		TextFx.draw(self, font, Vector2(cx - 100.0 * u, y4 + 12.0 * u), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(40.0 * u), col4)
 		Avatar.draw_avatar(self, Avatar.index_for(id4), Vector2(cx - 150.0 * u, y4), ar4, Color(1, 1, 1, 0.5 * r3), 3.0)

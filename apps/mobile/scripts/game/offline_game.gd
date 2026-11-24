@@ -18,13 +18,25 @@ var difficulty := "normal"
 var bot_delay := 0.9
 var rng := RandomNumberGenerator.new()
 
-var human_draws := 0 # voluntary bank draws by the human this game (for the Clean Finish bonus)
-var human_chains: Array = [] # [{len, aces}] runs of consecutive plays by the human (combo bonus)
+## Score stats for EVERY player (points decide the final ranking, so bots need them too):
+##   id -> {draws: voluntary bank draws, chains: [{len, aces}], penalty_chains: [{cards, pile}],
+##          finish_rank: rank of the card that got them out ("" until they do), first_out: bool, last_rank}
+var stats: Dictionary = {}
+var points: Dictionary = {} # id -> ranking points, filled in when the game ends
+var is_draw := false # the top places were tied on points
 var memory: Dictionary = {} # bot notebook (see Bot.update_memory)
-var human_penalty_chains: Array = [] # [{cards, pile}] penalty piles the human fed but someone else took
-var _pile_mine := 0 # penalty cards the human added to the pile currently pending
-var human_finish_rank := "" # rank of the card that got the human out ("" until they finish)
-var _human_last_rank := ""
+var human_draws: int:
+	get: return int(stats[HUMAN_ID]["draws"])
+var human_chains: Array:
+	get: return stats[HUMAN_ID]["chains"]
+var human_penalty_chains: Array:
+	get: return stats[HUMAN_ID]["penalty_chains"]
+var human_finish_rank: String:
+	get: return str(stats[HUMAN_ID]["finish_rank"])
+var human_first_out: bool:
+	get: return bool(stats[HUMAN_ID]["first_out"])
+var _pile: Dictionary = {} # id -> penalty cards they added to the pile currently pending
+var _anyone_out := false
 var _chain_player := ""
 var _bonus_events: Array = [] # "bonus" events queued by _track_chain, appended to the turn's events
 var _serial := 0
@@ -43,16 +55,17 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 		seed_value = (randi() % 2000000000) + 1
 	rng.seed = seed_value
 	_passes = 0
-	human_draws = 0
-	human_chains = []
-	human_finish_rank = ""
-	human_penalty_chains = []
+	stats = {}
+	for id in ids:
+		stats[id] = {"draws": 0, "chains": [], "penalty_chains": [], "finish_rank": "", "first_out": false, "last_rank": ""}
+	points = {}
+	is_draw = false
+	_pile = {}
+	_anyone_out = false
 	_bonus_events = []
-	_pile_mine = 0
-	_human_last_rank = ""
 	_chain_player = ""
 	memory = {}
-	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value})
+	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value, "settings": {"finalTurn": true}})
 	updated.emit([])
 	_bot_loop()
 
@@ -103,8 +116,8 @@ func _apply(action: Dictionary) -> bool:
 		if not bonus_event.is_empty():
 			extra.append(bonus_event)
 		if e["type"] == "draw":
-			if e["playerId"] == HUMAN_ID and int(e["count"]) > 0:
-				human_draws += 1
+			if int(e["count"]) > 0:
+				stats[e["playerId"]]["draws"] += 1
 			_passes = _passes + 1 if int(e["count"]) == 0 else 0
 		elif e["type"] == "play":
 			_passes = 0
@@ -113,8 +126,51 @@ func _apply(action: Dictionary) -> bool:
 	res["events"].append_array(extra)
 	if _passes >= state["players"].size() * 2 and not state["over"]:
 		_force_end(res["events"])
+	if state["over"]:
+		_rank_by_points()
 	updated.emit(res["events"])
 	return true
+
+
+## Final standings. Players who got out (empty hand) are ranked by points, best first; equal points
+## share the place (a draw). Anyone left holding cards has lost outright - points don't matter -
+## and sits below everybody who got out, in the order the engine already gave them.
+func _rank_by_points() -> void:
+	var winners: Array = []
+	var losers: Array = []
+	for id in state["finishedOrder"]:
+		var p := _player(id)
+		if p["hand"].is_empty():
+			winners.append(id)
+			points[id] = Scoring.ranking_points(stats[id])
+		else:
+			losers.append(id)
+	var order := winners.duplicate()
+	# Stable on ties: whoever got out first stays ahead in the list (the place itself is shared).
+	var out_order: Array = state["finishedOrder"].duplicate()
+	order.sort_custom(func(a, b):
+		if int(points[a]) != int(points[b]):
+			return int(points[a]) > int(points[b])
+		return out_order.find(a) < out_order.find(b))
+	var place := 0
+	var prev := -1
+	for i in order.size():
+		var id: String = order[i]
+		if i == 0 or int(points[id]) != prev:
+			place = i + 1
+		prev = int(points[id])
+		_player(id)["place"] = place
+	for j in losers.size():
+		_player(losers[j])["place"] = order.size() + j + 1
+	state["finishedOrder"] = order + losers
+	is_draw = order.size() > 1 and int(_player(order[0])["place"]) == int(_player(order[1])["place"])
+
+
+func _player(id: String) -> Dictionary:
+	for p in state["players"]:
+		if p["id"] == id:
+			return p
+	return {}
 
 
 ## A chain is consecutive plays by one player with nobody else acting in between
@@ -122,26 +178,36 @@ func _apply(action: Dictionary) -> bool:
 ## Returns a "combo" event ({len, aces, jackpot, fresh}) when the human extends a chain, else {}.
 func _track_chain(e: Dictionary) -> Dictionary:
 	var t: String = e["type"]
-	if t == "play" and e["playerId"] == HUMAN_ID:
-		_human_last_rank = e["card"]["rank"]
-		if Rules.penalty_of(_human_last_rank) > 0:
-			_pile_mine += 1
+	if t == "play":
+		var st: Dictionary = stats[e["playerId"]]
+		st["last_rank"] = e["card"]["rank"]
+		if Rules.penalty_of(st["last_rank"]) > 0:
+			_pile[e["playerId"]] = int(_pile.get(e["playerId"], 0)) + 1
 	elif t == "penaltyTaken":
-		# Whoever takes the pile ends the chain; it only pays if that was not the human.
-		if e["playerId"] != HUMAN_ID and _pile_mine > 0:
-			human_penalty_chains.append({"cards": _pile_mine, "pile": int(e["count"])})
-			_bonus_events.append({"type": "bonus", "kind": "pass_on", "victim": e["playerId"], "cards": _pile_mine,
-				"pile": int(e["count"]),
-				"points": Scoring.PASS_ON_PER_CARD * _pile_mine + Scoring.PASS_ON_PER_PILE_CARD * int(e["count"])})
-		_pile_mine = 0
-	elif t == "finish" and e["playerId"] == HUMAN_ID:
-		human_finish_rank = _human_last_rank   # confirmed exit: the card that emptied the hand
-		var pen := Rules.penalty_of(human_finish_rank)
-		if pen > 0:
-			_bonus_events.append({"type": "bonus", "kind": "penalty_finish", "rank": human_finish_rank, "pen": pen,
-				"points": Scoring.PENALTY_FINISH_PER_CARD * pen})
-		if int(e["place"]) == 1:
-			_bonus_events.append({"type": "bonus", "kind": "winning_card", "points": Scoring.WINNING_CARD})
+		# Whoever takes the pile ends the chain; it pays everyone else who fed it.
+		for fid in _pile:
+			if fid == e["playerId"] or int(_pile[fid]) <= 0:
+				continue
+			var n := int(_pile[fid])
+			stats[fid]["penalty_chains"].append({"cards": n, "pile": int(e["count"])})
+			if fid == HUMAN_ID:
+				_bonus_events.append({"type": "bonus", "kind": "pass_on", "victim": e["playerId"], "cards": n,
+					"pile": int(e["count"]),
+					"points": Scoring.PASS_ON_PER_CARD * n + Scoring.PASS_ON_PER_PILE_CARD * int(e["count"])})
+		_pile.clear()
+	elif t == "finish":
+		var fid: String = e["playerId"]
+		var st: Dictionary = stats[fid]
+		st["finish_rank"] = st["last_rank"]   # confirmed exit: the card that emptied the hand
+		st["first_out"] = not _anyone_out
+		_anyone_out = true
+		if fid == HUMAN_ID:
+			var pen := Rules.penalty_of(st["finish_rank"])
+			if pen > 0:
+				_bonus_events.append({"type": "bonus", "kind": "penalty_finish", "rank": st["finish_rank"], "pen": pen,
+					"points": Scoring.PENALTY_FINISH_PER_CARD * pen})
+			if st["first_out"]:
+				_bonus_events.append({"type": "bonus", "kind": "winning_card", "points": Scoring.WINNING_CARD})
 	if t != "play" and t != "draw" and t != "penaltyTaken":
 		return {}
 	var pid: String = e["playerId"]
@@ -150,16 +216,16 @@ func _track_chain(e: Dictionary) -> Dictionary:
 		return {}
 	var is_ace: bool = e["card"]["rank"] == "A"
 	if pid == _chain_player:
-		if pid == HUMAN_ID:
-			var c: Dictionary = human_chains[human_chains.size() - 1]
-			c["len"] += 1
-			c["aces"] += 1 if is_ace else 0
+		var chains: Array = stats[pid]["chains"]
+		var c: Dictionary = chains[chains.size() - 1]
+		c["len"] += 1
+		c["aces"] += 1 if is_ace else 0
+		if pid == HUMAN_ID: # only the human gets the on-screen combo show
 			return {"type": "combo", "playerId": pid, "len": c["len"], "aces": c["aces"],
 				"jackpot": c["aces"] >= 4, "fresh": is_ace and c["aces"] == 4}
 	else:
 		_chain_player = pid
-		if pid == HUMAN_ID:
-			human_chains.append({"len": 1, "aces": 1 if is_ace else 0})
+		stats[pid]["chains"].append({"len": 1, "aces": 1 if is_ace else 0})
 	return {}
 
 

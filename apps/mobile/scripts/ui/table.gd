@@ -584,7 +584,9 @@ func _describe(e: Dictionary) -> String:
 		"provisionalFinish":
 			return "%s is out of cards (if no one blocks)" % _who(e["playerId"])
 		"finish":
-			return "%s finished %s!" % [_who(e["playerId"]), _ordinal(int(e["place"]))]
+			return "%s is out!" % _who(e["playerId"])
+		"finalTurn":
+			return "%s has one last turn!" % _who(e["playerId"])
 	return ""
 
 
@@ -897,7 +899,7 @@ func _bonus_effect(e: Dictionary) -> void:
 			else:
 				c.y += 90.0
 				Fx.burst(fx, c, gold, 20, 400.0, 0.6)
-				_combo_labels.append(Fx.popup_text(fx, "%s WINNING CARD" % pts, c, Color(1.0, 0.95, 0.7), 56, 100.0, 1.6))
+				_combo_labels.append(Fx.popup_text(fx, "%s FIRST OUT" % pts, c, Color(1.0, 0.95, 0.7), 56, 100.0, 1.6))
 
 
 var _combo_labels: Array = [] # popups of the latest combo, replaced by the next one
@@ -1047,7 +1049,7 @@ func _update_seats(st: Dictionary) -> void:
 		var v: Control = opp_views[p["id"]]
 		var status := ""
 		if p["status"] == "finished":
-			status = "Out - %s" % _ordinal(int(p["place"]))
+			status = "Out" if p["hand"].is_empty() else "Lost"
 		elif p["status"] == "provisional":
 			status = "Last card played!"
 		var last: Dictionary = _last_played.get(p["id"], {})
@@ -1297,8 +1299,10 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 	elif human_turn:
 		if int(st["pending"]) > 0:
 			banner_label.text = "Block with a 7 or Lion, or take %d cards" % int(st["pending"])
+		elif bool(st.get("finalTurn", false)):
+			banner_label.text = "LAST CHANCE! Play your last card or you lose"
 		elif _in_check(me):
-			banner_label.text = "CHECK! Play your last card to win"
+			banner_label.text = "CHECK! Play your last card to go out"
 		else:
 			banner_label.text = "Your turn"
 	else:
@@ -1408,21 +1412,33 @@ func _show_over(st: Dictionary) -> void:
 	over_panel.z_index = 2000
 	over_panel.add_child(UI.background())
 	var my_place := int(_find(st, ME)["place"])
-	var page := UI.scroll_page("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place), "", Callable())
+	var i_got_out: bool = _find(st, ME)["hand"].is_empty()
+	var title := "You lost" # left holding cards: lost outright, points don't matter
+	if i_got_out:
+		if my_place == 1:
+			title = "It's a draw!" if game.is_draw else "You win!"
+		else:
+			title = "You finished %s" % _ordinal(my_place)
+	var page := UI.scroll_page(title, "", Callable())
 	over_panel.add_child(page["scroll"])
 	over_panel.add_child(page["header"])
 	over_panel.add_child(page["footer"])
 	var box: VBoxContainer = page["content"]
 
-	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws, game.human_chains, game.human_finish_rank, game.human_penalty_chains)
+	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws, game.human_chains, game.human_finish_rank, game.human_penalty_chains, game.human_first_out, i_got_out)
 	var rank := Leaderboard.add(int(result["total"]), my_place, st["players"].size(), difficulty, bool(result["clean"]))
 
 	var pod := Podium.new()
 	pod.custom_minimum_size = Vector2(minf(size.x * 0.94, 1040.0), minf(620.0, size.y * 0.32))
-	pod.setup(st["finishedOrder"], game.names, ME)
+	var scores := {}
+	for p in st["players"]:
+		var s: Dictionary = game.stats[p["id"]]
+		scores[p["id"]] = int(Scoring.compute(int(p["place"]), st["players"].size(), bots, difficulty, int(s["draws"]), s["chains"],
+				str(s["finish_rank"]), s["penalty_chains"], bool(s["first_out"]), p["hand"].is_empty())["total"])
+	pod.setup(st["finishedOrder"], game.names, ME, scores)
 	pod.first_landed.connect(func():
-		Sfx.play("win" if my_place == 1 else "lose")
-		if my_place == 1:
+		Sfx.play("win" if (my_place == 1 and i_got_out) else "lose")
+		if my_place == 1 and i_got_out:
 			Fx.confetti(over_panel, size.x))
 	pod.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(pod)

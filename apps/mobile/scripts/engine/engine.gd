@@ -112,7 +112,7 @@ static func is_playable(s: Dictionary, hand: Array, card: Dictionary) -> bool:
 	if int(s["pending"]) > 0:
 		return Rules.penalty_of(card["rank"]) > 0
 	var rule := Rules.rule_of(card["rank"])
-	if rule.get("cannotFinishWhenTwoPlayersLeft", false) and hand.size() == 1 and _unfinished_count(s) == 2:
+	if rule.get("cannotFinishWhenTwoPlayersLeft", false) and hand.size() == 1 and _unfinished_count(s) <= 2:
 		return false
 	var stack: Array = s["stack"]
 	var floor_card: Dictionary = stack[stack.size() - 1]
@@ -207,8 +207,21 @@ static func _check_over(s: Dictionary, events: Array) -> bool:
 			left.append(p)
 	if left.size() > 1:
 		return false
+	# FINAL TURN (settings.finalTurn): the last player left still gets one turn if their single
+	# remaining card is playable. Playing it gets them out too (a draw on places, decided by points).
+	# Anything else - more than one card, or a card they cannot play - and they have lost outright.
+	if left.size() == 1 and bool(s["settings"].get("finalTurn", false)) and not bool(s.get("finalTurn", false)):
+		var lp: Dictionary = left[0]
+		if lp["hand"].size() == 1 and is_playable(s, lp["hand"], lp["hand"][0]):
+			s["finalTurn"] = true
+			events.append({"type": "finalTurn", "playerId": lp["id"]})
+			return false
 	s["over"] = true
 	s["provisionalOrder"] = []
+	if left.size() == 1 and left[0]["status"] == "provisional" and left[0]["hand"].is_empty():
+		# Went out on a penalty card with nobody left to take it: that is a real finish.
+		_confirm_finish(s, left[0], events)
+		left.clear()
 	if left.size() == 1:
 		var last: Dictionary = left[0]
 		last["status"] = "finished"
@@ -307,6 +320,8 @@ static func _do_draw(s: Dictionary, cur: Dictionary, events: Array) -> Dictionar
 	if card != null:
 		cur["hand"].append(card)
 	events.append({"type": "draw", "playerId": cur["id"], "count": 1 if card != null else 0})
+	if bool(s.get("finalTurn", false)) and _check_over(s, events):
+		return {"ok": true, "state": s, "events": events} # drew instead of going out: lost
 	s["current"] = _next_unfinished(s, s["current"])
 	return {"ok": true, "state": s, "events": events}
 
