@@ -295,5 +295,30 @@ func show_outro(title: String, text: String, next_label: String) -> void:
 	Sfx.play("win", 0.6)
 
 
+## Layout problems at the current window size (for the form-factor tests): empty = fine. Checks that Rex's bubble
+## and the chapter-end panel are fully on screen, and that the bubble does not hide the spotlighted spot.
+func layout_issues() -> Array:
+	var issues: Array = []
+	var screen := Rect2(Vector2.ZERO, size)
+	if active:
+		var b := _bubble.get_rect()
+		if not screen.encloses(b):
+			issues.append("bubble %s is not inside the screen %s" % [str(b), str(screen)])
+		if target.has_area():
+			if not screen.grow(2.0).encloses(target):
+				issues.append("spotlight %s is not inside the screen" % str(target))
+			if b.grow(4.0).intersects(target):
+				issues.append("bubble %s covers the spotlight %s" % [str(b), str(target)])
+		if _next.visible and not screen.encloses(Rect2(_next.global_position - global_position, _next.size)):
+			issues.append("Next button is off screen")
+	if outro_visible():
+		for c in _outro.get_children():
+			if c is CenterContainer:
+				var panel := c.get_child(0) as Control
+				if not screen.encloses(Rect2(panel.global_position - global_position, panel.size)):
+					issues.append("chapter-end panel %s does not fit the screen %s" % [str(panel.get_rect()), str(screen)])
+	return issues
+
+
 func outro_visible() -> bool:
 	return _outro != null and is_instance_valid(_outro)

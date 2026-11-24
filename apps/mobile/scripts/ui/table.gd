@@ -150,6 +150,8 @@ func start_tutorial(index: int) -> void:
 	game.bot_delay = 1.1
 	game.bot_delay_max = -1.0
 	opp_views[Tutorial.REX].avatar_index = Coach.REX_STYLE
+	if you_avatar.avatar_index == Coach.REX_STYLE: # you picked Rex's look: don't be your own opponent
+		you_avatar.avatar_index = 0
 	coach = Coach.new()
 	coach.next_pressed.connect(_on_coach_next)
 	coach.outro_next.connect(func():
@@ -1776,6 +1778,7 @@ func _bounds(c: Control) -> Rect2:
 func _tutorial_tick() -> void:
 	if tutorial == null or coach == null or game == null or game.state.is_empty() or not _dealt or coach.outro_visible():
 		return
+	banner_label.visible = not coach.active # Rex says it better, and the arrow would sit on top of it
 	if coach.active:
 		var s := tutorial.step()
 		if s.is_empty():

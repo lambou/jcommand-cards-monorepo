@@ -4,6 +4,7 @@ extends Control
 ##   --selftest              play full games through the real UI handlers; exit code 0 = pass
 ##   --shot=<file.png> [--bots=N]   save <file>_a/_b/_c.png: mid-deal, a card mid-flight, settled
 ##   --tutorialtest          plays every tutorial chapter through the real UI handlers; exit code 0 = pass
+##   --taptest               the same with real touch and mouse events only (hit-testing, overlay, suit picker)
 ##   --tutorialshot=<file.png>   the same, saving <file>_c<chapter>_s<step>[_nudge|_picker] / _outro screenshots
 ##   --howtoshot=<file.png> / --welcomeshot=<file.png>   the "How to play" chooser / the first-launch invitation
 ##   --menushot=<file.png>   screenshot of the menu
@@ -97,6 +98,9 @@ func _ready() -> void:
 			await get_tree().create_timer(0.6).timeout
 			get_viewport().get_texture().get_image().save_png(a.substr(a.find("=") + 1))
 			get_tree().quit()
+			return
+		elif a == "--taptest":
+			_taptest()
 			return
 		elif a == "--tutorialtest":
 			_tutorialtest("")
@@ -229,11 +233,94 @@ func _tutorialtest(path: String) -> void:
 		print("tutorial chapter %d: %s" % [chapter + 1, "ok" if finished else "FAILED at step %d" % t.tutorial.index])
 		if not finished:
 			ok = false
+		await get_tree().create_timer(0.8).timeout # outro pops in
+		var outro_issues: Array = t.coach.layout_issues()
+		if not outro_issues.is_empty():
+			push_error("chapter %d outro at %s: %s" % [chapter + 1, str(t.size), "; ".join(outro_issues)])
+			ok = false
 		if path != "":
-			await get_tree().create_timer(0.8).timeout # outro pops in
 			_save(path, "_c%d_outro" % chapter)
 	print("TUTORIAL ", "PASS" if ok else "FAIL")
 	get_tree().quit(0 if ok else 1)
+
+
+## One tap as the OS would deliver it ("touch" = a finger, "mouse" = a PC click) at a point in table coordinates.
+func _tap(p: Vector2, kind: String) -> void:
+	var wp := get_window().get_final_transform() * p # table (stretched) coordinates -> window pixels
+	for down in [true, false]:
+		if kind == "touch":
+			var e := InputEventScreenTouch.new()
+			e.index = 0
+			e.position = wp
+			e.pressed = down
+			Input.parse_input_event(e)
+		else:
+			var e := InputEventMouseButton.new()
+			e.button_index = MOUSE_BUTTON_LEFT
+			e.position = wp
+			e.global_position = wp
+			e.pressed = down
+			e.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+			Input.parse_input_event(e)
+		await get_tree().create_timer(0.08).timeout
+
+
+## Plays every tutorial chapter with real taps/clicks only (hit-testing, fanned cards, the coach overlay on top,
+## the suit picker), for both a touch screen and a mouse. Exit code 0 = pass.
+func _taptest() -> void:
+	var ok := true
+	for kind in ["touch", "mouse"]:
+		for chapter in Tutorial.count():
+			var t := _start_tutorial(chapter)
+			t.game.bot_delay = 0.3
+			var done := await _drive_taps(t, kind)
+			print("%s taps, chapter %d: %s" % [kind, chapter + 1, "ok" if done else "FAILED at step %d" % t.tutorial.index])
+			ok = ok and done
+	print("TAPTEST ", "PASS" if ok else "FAIL")
+	get_tree().quit(0 if ok else 1)
+
+
+func _drive_taps(t: Table, kind: String) -> bool:
+	var started := Time.get_ticks_msec()
+	var last := -1
+	var tries := 0
+	while Time.get_ticks_msec() - started < 60000:
+		await get_tree().process_frame
+		if t.coach.outro_visible():
+			# The chapter-end buttons must be tappable too: "Replay chapter" restarts, so just check Menu is reachable.
+			return true
+		if not t.coach.active or t.tutorial.done():
+			continue
+		await get_tree().create_timer(0.7).timeout
+		if not t.coach.active or t.tutorial.done():
+			continue
+		var idx: int = t.tutorial.index
+		if idx != last:
+			last = idx
+			tries = 0
+		tries += 1
+		if tries > 6:
+			push_error("tap had no effect at step %d" % idx)
+			return false
+		var s: Dictionary = t.tutorial.step()
+		if s["expect"] == null:
+			var nb: Control = t.coach._next
+			await _tap(nb.global_position + nb.size / 2.0, kind)
+			if t.coach.active and t.coach._typing != null and t.coach._typing.is_running():
+				await _tap(nb.global_position + nb.size / 2.0, kind) # the first tap finished the sentence
+			continue
+		var ex: Dictionary = s["expect"]
+		if ex["type"] == "play":
+			for v in t.hand_views:
+				if t.Cards.card_code(v.card) == str(ex["card"]):
+					await _tap(v.get_global_transform() * Vector2(v.size.x * 0.22, v.size.y * 0.4), kind)
+			if t.picker.visible:
+				await get_tree().create_timer(0.5).timeout
+				var b: Control = t.picker_buttons[str(ex["suit"])]
+				await _tap(b.get_global_rect().get_center(), kind)
+		else:
+			await _tap(t.bank_view.get_global_rect().get_center(), kind)
+	return false
 
 
 func _drive_tutorial(t: Table, path: String, chapter: int) -> bool:
@@ -251,6 +338,10 @@ func _drive_tutorial(t: Table, path: String, chapter: int) -> bool:
 			continue
 		var idx: int = t.tutorial.index
 		var s: Dictionary = t.tutorial.step()
+		var issues: Array = t.coach.layout_issues()
+		if not issues.is_empty():
+			push_error("chapter %d step %d at %s: %s" % [chapter + 1, idx, str(t.size), "; ".join(issues)])
+			return false
 		if path != "" and shot_step != idx:
 			shot_step = idx
 			_save(path, "_c%d_s%d" % [chapter, idx])
