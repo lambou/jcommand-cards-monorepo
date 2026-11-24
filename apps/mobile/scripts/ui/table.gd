@@ -15,6 +15,8 @@ const Fx := preload("res://scripts/ui/fx.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const AvatarView := preload("res://scripts/ui/avatar_view.gd")
 const UI := preload("res://scripts/ui/ui_kit.gd")
+const Scoring := preload("res://scripts/game/scoring.gd")
+const Leaderboard := preload("res://scripts/game/leaderboard.gd")
 const Podium := preload("res://scripts/ui/podium.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
@@ -1094,8 +1096,11 @@ func _show_over(st: Dictionary) -> void:
 	var my_place := int(_find(st, ME)["place"])
 	box.add_child(UI.title("You win!" if my_place == 1 else "You finished %s" % _ordinal(my_place)))
 
+	var result := Scoring.compute(my_place, st["players"].size(), bots, difficulty, game.human_draws)
+	var rank := Leaderboard.add(int(result["total"]), my_place, st["players"].size(), difficulty, bool(result["clean"]))
+
 	var pod := Podium.new()
-	pod.custom_minimum_size = Vector2(minf(size.x * 0.94, 1040.0), minf(760.0, size.y * 0.42))
+	pod.custom_minimum_size = Vector2(minf(size.x * 0.94, 1040.0), minf(620.0, size.y * 0.32))
 	pod.setup(st["finishedOrder"], game.names, ME)
 	pod.first_landed.connect(func():
 		Sfx.play("win" if my_place == 1 else "lose")
@@ -1103,10 +1108,39 @@ func _show_over(st: Dictionary) -> void:
 			Fx.confetti(over_panel, size.x))
 	box.add_child(pod)
 
+	box.add_child(_score_panel(result, rank))
 	box.add_child(UI.button("Play again", UI.Variant.PRIMARY, func(): start(bots, difficulty)))
 	box.add_child(UI.button("Menu", UI.Variant.SECONDARY, func(): quit_to_menu.emit()))
 	add_child(over_panel)
 	pod.play()
+
+
+## Score breakdown card shown under the podium on the results screen.
+func _score_panel(result: Dictionary, rank: int) -> Control:
+	var card := UI.panel(UI.SPACE_S)
+	card[0].custom_minimum_size.x = minf(size.x * 0.94, 1000.0)
+	var inner: VBoxContainer = card[1]
+	for line in result["lines"]:
+		var row := HBoxContainer.new()
+		var name_l := UI.body(str(line[0]), 0.0, UI.FONT_HINT)
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(name_l)
+		row.add_child(UI.body("+%d" % int(line[1]), 0.0, UI.FONT_HINT))
+		inner.add_child(row)
+	if not is_equal_approx(float(result["mult"]), 1.0):
+		inner.add_child(UI.hint("x%s for %d opponents, %s" % [str(snappedf(float(result["mult"]), 0.01)), bots, difficulty]))
+	inner.add_child(UI.title("%d pts" % int(result["total"]), UI.FONT_H1))
+	var note := ""
+	if bool(result["clean"]):
+		note = "Clean finish!"
+	if rank == 1:
+		note = (note + " " if note != "" else "") + "New #1 on the leaderboard"
+	elif rank > 0:
+		note = (note + " " if note != "" else "") + "Leaderboard rank #%d" % rank
+	if note != "":
+		inner.add_child(UI.heading(note))
+	return card[0]
 
 
 func _open_settings() -> void:

@@ -16,6 +16,7 @@ var difficulty := "normal"
 var bot_delay := 0.9
 var rng := RandomNumberGenerator.new()
 
+var human_draws := 0 # voluntary bank draws by the human this game (for the Clean Finish bonus)
 var memory: Dictionary = {} # bot notebook (see Bot.update_memory)
 var _serial := 0
 var _passes := 0
@@ -33,6 +34,7 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 		seed_value = (randi() % 2000000000) + 1
 	rng.seed = seed_value
 	_passes = 0
+	human_draws = 0
 	memory = {}
 	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value})
 	updated.emit([])
@@ -81,6 +83,8 @@ func _apply(action: Dictionary) -> bool:
 	# Safety valve: if everybody keeps passing with an exhausted bank, end the game.
 	for e in res["events"]:
 		if e["type"] == "draw":
+			if e["playerId"] == HUMAN_ID and int(e["count"]) > 0:
+				human_draws += 1
 			_passes = _passes + 1 if int(e["count"]) == 0 else 0
 		elif e["type"] == "play":
 			_passes = 0

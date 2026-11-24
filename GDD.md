@@ -141,6 +141,13 @@ Slid 2s sit at the bottom of the stack, so they come out first.
   - **Edge case:** if every other player's last cards are all penalty cards and the chain ends on the last remaining player, that player draws and loses. The game ends.
 - The game continues until one player remains. That player is last place.
 
+### 8.3 Scoring and leaderboard (offline)
+- **Base points:** 1st = 1000, then evenly down to 0 for last (3 players: 1000/500/0).
+- **Clean Finish:** finishing (any place but last) without ever drawing from the bank = **+3000**. Forced penalty draws do not break it; a draw on an empty bank does not count.
+- **Otherwise:** up to +200 for few voluntary draws (-50 per draw).
+- **Multiplier:** x1.0 / 1.5 / 2.0 for 1 / 2 / 3 bots, x0.6 on Easy.
+- Scores are stored on the device (`user://leaderboard.cfg`, top 20, last place scores 0 and is not listed). Menu > Leaderboard shows them. Code: `scripts/game/scoring.gd`, `leaderboard.gd`.
+
 ## 9. Settings (per-room / per-game)
 
 | Setting | Default | Notes |

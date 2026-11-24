@@ -5,6 +5,7 @@ signal start_requested(bots: int, difficulty: String)
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+const LeaderboardPanel := preload("res://scripts/ui/leaderboard_panel.gd")
 
 const RULES_TEXT := """GOAL
 Be the first to play all your cards.
@@ -19,6 +20,9 @@ Penalties stack: answer a 7 or Lion with another 7 or Lion (any suit) to pass th
 2 - goes on anything and slides under the pile; nothing changes.
 J - you choose the next suit. A J can go on another J.
 Ace (Stop) - skips the next player. An Ace can go on another Ace.
+
+SCORING
+Points for your finishing place, multiplied for more opponents and for Normal difficulty. Finish without ever drawing from the bank (a CLEAN FINISH) for 3000 bonus points. Forced penalty draws do not count against you.
 
 ENDING
 In a 2-player game you cannot finish on an Ace, and a last 7 or Lion only wins if the opponent cannot answer it."""
@@ -47,6 +51,7 @@ func _ready() -> void:
 
 	box.add_child(UI.spacer(10))
 	box.add_child(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
+	box.add_child(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
 	box.add_child(UI.button("How to play", UI.Variant.SECONDARY, _show_rules))
 	box.add_child(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
 
@@ -75,6 +80,12 @@ func _show_rules() -> void:
 	close.custom_minimum_size.x = 0
 	col.add_child(close)
 	add_child(overlay)
+
+
+func _show_leaderboard() -> void:
+	var p := LeaderboardPanel.new()
+	p.closed.connect(p.queue_free)
+	add_child(p)
 
 
 func _show_settings() -> void:

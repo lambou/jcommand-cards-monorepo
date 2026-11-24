@@ -4,6 +4,7 @@ extends Control
 ##   --selftest              play full games through the real UI handlers; exit code 0 = pass
 ##   --shot=<file.png> [--bots=N]   save <file>_a/_b/_c.png: mid-deal, a card mid-flight, settled
 ##   --menushot=<file.png>   screenshot of the menu
+##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
@@ -58,6 +59,18 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
+			return
+		elif a.begins_with("--boardshot="):
+			var LB := preload("res://scripts/game/leaderboard.gd")
+			LB.add(9000, 1, 3, "normal", true)
+			LB.add(2000, 1, 4, "normal", false)
+			LB.add(650, 2, 3, "easy", false)
+			_show_menu()
+			var lp := preload("res://scripts/ui/leaderboard_panel.gd").new()
+			_current.add_child(lp)
+			await get_tree().create_timer(0.5).timeout
+			get_viewport().get_texture().get_image().save_png(a.substr(12))
+			get_tree().quit()
 			return
 		elif a.begins_with("--menushot="):
 			_show_menu()
