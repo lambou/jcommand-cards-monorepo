@@ -24,6 +24,7 @@ const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const Hand3D := preload("res://scripts/ui/hand3d.gd")
+const CardFlip := preload("res://scripts/ui/card_flip.gd")
 const Reactions := preload("res://scripts/game/reactions.gd")
 const ReactionBubble := preload("res://scripts/ui/reaction_bubble.gd")
 const ReactionMenu := preload("res://scripts/ui/reaction_menu.gd")
@@ -38,6 +39,8 @@ const ME := "you"
 const SUIT_ORDER := {"H": 0, "D": 1, "C": 2, "S": 3, "": 4}
 const RANK_ORDER := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "JOKER"]
 const FLY := 0.42 # seconds for a card to travel
+const FLIP_FLY := 0.55 # a drawn card is peeled off the bank, turned over and carried: long enough to see the turn
+const PILE_PER_LAYER := 8 # cards in the bank per visible layer of pile thickness
 const STAGGER := 0.07 # delay between cards of one batch
 const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
 const HURRY_AFTER_MS := 14000 # a bot nudges you when your turn has taken this long
@@ -726,9 +729,9 @@ func _events_anim_time(events: Array) -> float:
 					d += 0.7 # lift, slide, settle
 			"draw":
 				if int(e["count"]) > 0:
-					d = REACH + FLY + STAGGER * float(mini(int(e["count"]), 10))
+					d = REACH + _draw_fly(e["playerId"]) + STAGGER * float(mini(int(e["count"]), 10))
 			"penaltyTaken":
-				d = REACH + FLY + STAGGER * float(mini(int(e["count"]), 10)) + 0.35 # + the red "+N cards"
+				d = REACH + _draw_fly(e["playerId"]) + STAGGER * float(mini(int(e["count"]), 10)) + 0.35 # + the red "+N cards"
 			"skip":
 				d = FLY + 0.35
 			"combo":
@@ -1020,41 +1023,101 @@ func _update_peek() -> void:
 	stack_view.queue_redraw()
 
 
+## Seconds a drawn card is in the air: yours are peeled off the bank and turned over (longer); the bots' are
+## face-down and just fly.
+func _draw_fly(who: String) -> float:
+	return FLY if who != ME else FLIP_FLY
+
+
 func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) -> void:
 	var bank_c := _center(bank_view)
 	var bank_w := bank_view.size.x
 	var bot := who != ME
 	var n := mini(count, 10) if bot else new_ids.size()
-	# A hand grabs the top card of the bank and carries it over; on a bigger draw (a penalty) it stays
-	# at the destination and squeezes once for each further card as it lands.
+	# A hand grabs the top card of the bank and carries it over. One hand animation per draw, however many
+	# cards: on a bigger draw (a penalty) it keeps its hold after the first card lands and slides on to the
+	# farthest new card, each landing as it passes.
 	var grab := n > 0 and _hand_ok(bot)
 	var lead := REACH if grab else 0.0
 	var first: Control = null
+	var slide_to := Vector2.INF
+	var slide_t := 0.0
 	if not bot:
 		var i := 0
+		var first_c := Vector2.ZERO
 		for id in new_ids:
 			var hv := _hand_view(id)
 			if hv == null:
 				continue
 			var cid: int = id
 			var card: Dictionary = hv.card
-			var flight := _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, lead + STAGGER * i, FLY, func():
+			var to_c := _center(hv)
+			var flight := _fly_flip(card, bank_c, bank_w, to_c, hv.size.x, lead + STAGGER * i, func():
 				_unhide(cid)
-				Sfx.play("draw", 0.7), false, grab and i == 0)
+				Sfx.play("draw", 0.7), grab and i == 0)
 			if i == 0:
 				first = flight
+				first_c = to_c
+			elif absf(to_c.x - first_c.x) > absf(slide_to.x - first_c.x) or not slide_to.is_finite():
+				slide_to = to_c + Vector2(0.0, hv.size.y * Hand3D.GRIP_Y)
 			i += 1
+		if slide_to.is_finite():
+			slide_to.x = clampf(slide_to.x, 80.0, size.x - 80.0)
+			slide_t = maxf(STAGGER * float(n - 1), 0.25) + 0.15
 	else:
 		for i in n:
 			var flight := _fly({}, false, false, bank_c, bank_w, _seat_center(who), 70.0, lead + STAGGER * i, FLY, func(): Sfx.play("draw", 0.45), false, grab and i == 0)
 			if i == 0:
 				first = flight
 	if grab and first != null:
-		hand3d.carry(first, REACH, FLY + STAGGER * float(n - 1) + 0.05, bot, _hand_style(who))
-		if n > 1:
-			hand3d.pulse(n - 1, STAGGER, REACH + FLY)
+		hand3d.carry(first, REACH, _draw_fly(who) + (0.0 if slide_t > 0.0 else STAGGER * float(n - 1) + 0.05), bot, _hand_style(who), slide_to, slide_t)
 	if is_penalty and count > 0:
 		_penalty_effect(who, count, lead)
+
+
+## A drawn card of yours: the top card of the bank is peeled off, turned over from left to right in the air
+## (see card_flip.gd) and lands in its slot in your hand. `early_show` shows it while the glove still reaches.
+func _fly_flip(card: Dictionary, from_c: Vector2, from_w: float, to_c: Vector2, to_w: float, delay: float,
+		on_land: Callable, early_show: bool = false) -> Control:
+	var v := CardView.new()
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.set_card(card, false)
+	v.size = Vector2(to_w, to_w * CardView.BASE.y / CardView.BASE.x)
+	v.pivot_offset = v.size / 2.0
+	v.position = from_c - v.size / 2.0
+	var from_scale := from_w / to_w
+	v.scale = Vector2.ONE * from_scale
+	v.visible = early_show
+	fx.add_child(v)
+	var tw := create_tween()
+	if delay > 0.0:
+		tw.tween_interval(delay)
+	tw.tween_callback(func():
+		v.visible = true
+		_lift_from_bank()
+		CardFlip.run(self, v, card, FLIP_FLY, from_scale, from_c, to_c, Settings.reduce()))
+	tw.tween_interval(FLIP_FLY)
+	tw.tween_callback(func():
+		if on_land.is_valid():
+			on_land.call()
+		v.queue_free())
+	return v
+
+
+## The bank reacts as a card leaves it: the pile gives a small bump and the count swells.
+func _lift_from_bank() -> void:
+	if Settings.reduce():
+		return
+	bank_view.pivot_offset = bank_view.size / 2.0
+	var bump := create_tween()
+	bump.tween_property(bank_view, "scale", Vector2.ONE * 1.06, 0.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	bump.tween_property(bank_view, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	bank_caption.pivot_offset = bank_caption.size / 2.0
+	var pulse := create_tween()
+	pulse.tween_property(bank_caption, "scale", Vector2.ONE * 1.25, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	pulse.parallel().tween_property(bank_caption, "modulate", Color(1.0, 0.85, 0.3), 0.12)
+	pulse.tween_property(bank_caption, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pulse.parallel().tween_property(bank_caption, "modulate", Color.WHITE, 0.4)
 
 
 func _extend_trail(f: float, streak: Line2D, from_c: Vector2, to_c: Vector2) -> void:
@@ -1342,6 +1405,8 @@ func _refresh() -> void:
 
 	var pending := int(st["pending"])
 	bank_view.set_flags(false, human_turn, ("+%d" % pending) if pending > 0 else "")
+	bank_view.peek = clampi(ceili(float(st["bank"].size()) / PILE_PER_LAYER) - 1, 0, 3)
+	bank_view.queue_redraw()
 	if human_turn and pending > 0:
 		bank_caption.text = "Tap to take %d" % pending
 	elif human_turn:
