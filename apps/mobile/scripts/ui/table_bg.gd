@@ -123,8 +123,12 @@ func _draw_wood() -> void:
 	shadow.shadow_size = int(m * 0.8)
 	shadow.anti_aliasing = true
 	draw_style_box(shadow, panel)
-	var inset := rad * 0.3
-	draw_texture_rect(_glow, panel.grow(-inset), false)
+	# Felt gradient, clipped to the rounded panel shape: a polygon whose UVs sample the gradient.
+	var pts := _rounded_points(panel, rad, 12)
+	var uvs := PackedVector2Array()
+	for pt in pts:
+		uvs.append((pt - panel.position) / panel.size)
+	draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, _glow)
 	var frame := StyleBoxFlat.new()
 	frame.bg_color = Color(0, 0, 0, 0)
 	frame.set_border_width_all(int(maxf(5.0, m * 0.14)))
@@ -132,6 +136,22 @@ func _draw_wood() -> void:
 	frame.set_corner_radius_all(int(rad))
 	frame.anti_aliasing = true
 	draw_style_box(frame, panel)
+
+
+## Outline of a rounded rectangle (convex), `seg` points per corner.
+func _rounded_points(r: Rect2, radius: float, seg: int) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var corners := [
+		[r.position + Vector2(r.size.x - radius, radius), -PI * 0.5],
+		[r.position + Vector2(r.size.x - radius, r.size.y - radius), 0.0],
+		[r.position + Vector2(radius, r.size.y - radius), PI * 0.5],
+		[r.position + Vector2(radius, radius), PI],
+	]
+	for c in corners:
+		for i in seg + 1:
+			var a: float = c[1] + (PI * 0.5) * float(i) / seg
+			pts.append((c[0] as Vector2) + Vector2(cos(a), sin(a)) * radius)
+	return pts
 
 
 func _rim(rect: Rect2, radius: float, col: Color, width: float) -> void:
