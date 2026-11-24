@@ -589,6 +589,13 @@ func _on_updated(events: Array) -> void:
 	var st: Dictionary = game.state
 	var first := not _dealt
 	_dealt = true
+	# A resumed game is already mid-play: show its state as it is instead of dealing it out again.
+	var resumed := first and not _is_fresh_deal(st)
+	if resumed:
+		first = false
+		var top: Dictionary = st["stack"][st["stack"].size() - 1]
+		_floor_held = -1
+		_set_floor(top, false)
 
 	# Remember where hand cards were, to launch "played" flights from there.
 	var old_rects := {}
@@ -598,7 +605,7 @@ func _on_updated(events: Array) -> void:
 	# Cards that just arrived in our hand stay hidden until their flight lands.
 	var new_ids: Array = []
 	for c in _find(st, ME)["hand"]:
-		if first or not old_rects.has(c["id"]):
+		if first or (not resumed and not old_rects.has(c["id"])):
 			new_ids.append(c["id"])
 			_hidden[c["id"]] = true
 
@@ -746,6 +753,16 @@ func _fly(card: Dictionary, start_face_up: bool, flip: bool, from_c: Vector2, fr
 			create_tween().tween_property(streak, "modulate:a", 0.0, 0.2)
 			get_tree().create_timer(0.25).timeout.connect(streak.queue_free))
 	return v
+
+
+func _is_fresh_deal(st: Dictionary) -> bool:
+	if (st["stack"] as Array).size() != 1:
+		return false
+	var hs := int(st["settings"]["handSize"])
+	for p in st["players"]:
+		if (p["hand"] as Array).size() != hs:
+			return false
+	return true
 
 
 func _animate_deal(st: Dictionary) -> void:

@@ -9,7 +9,8 @@ const STYLES := [
 	{"name": "Zed", "bg": Color(0.34, 0.70, 0.46), "skin": Color(0.55, 0.38, 0.27), "hair": Color(0.06, 0.06, 0.07), "kind": "afro", "accent": Color(0.06, 0.06, 0.07)},
 ]
 
-const DARK := Color(0.12, 0.10, 0.12)
+const Settings := preload("res://scripts/game/settings.gd")
+const DARK :=Color(0.12, 0.10, 0.12)
 
 
 static func index_for(id: String) -> int:
@@ -53,10 +54,30 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
 	var hair: Color = st["hair"]
-	ci.draw_circle(c, r, st["bg"])
-	_shoulders(ci, c, r, (st["bg"] as Color).darkened(0.18))
+	# Idle animation: breathing shoulders, a gentle head bob/sway, blinking and eyes that wander.
+	# Each avatar has its own phase so they don't move in lockstep.
+	var bob := 0.0
+	var sway := 0.0
+	var breathe := 0.0
+	var blink := 1.0
+	var look := Vector2.ZERO
+	if not Settings.reduce():
+		var t := float(Time.get_ticks_msec()) / 1000.0
+		var ph := float(idx) * 1.9
+		bob = sin(t * 2.2 + ph) * r * 0.025
+		sway = sin(t * 1.1 + ph) * r * 0.025
+		breathe = sin(t * 2.2 + ph - 0.6) * r * 0.02
+		if happy:
+			bob -= absf(sin(t * 6.0 + ph)) * r * 0.07
+		var cyc := fmod(t + ph, 3.4 + float(idx % 3) * 0.6)
+		if cyc < 0.14:
+			blink = absf(cyc - 0.07) / 0.07 # 1 -> 0 -> 1
+		look = Vector2(sin(t * 0.7 + ph * 2.0), sin(t * 0.43 + ph) * 0.5)
 
-	var hc := c + Vector2(0, r * 0.1)
+	ci.draw_circle(c, r, st["bg"])
+	_shoulders(ci, c + Vector2(0, breathe), r, (st["bg"] as Color).darkened(0.18))
+
+	var hc := c + Vector2(sway, r * 0.1 + bob)
 	var hr := r * 0.5
 
 	# Hair behind the head.
@@ -94,8 +115,12 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 	var eye_y := hr * 0.14
 	for sx in [-1.0, 1.0]:
 		var ec: Vector2 = hc + Vector2(sx * hr * 0.4, eye_y)
-		ci.draw_circle(ec, hr * 0.13, DARK)
-		ci.draw_circle(ec + Vector2(hr * 0.04, -hr * 0.05), hr * 0.045, Color.WHITE)
+		ec += look * hr * 0.05
+		if blink < 0.999:
+			ci.draw_line(ec - Vector2(hr * 0.13, 0), ec + Vector2(hr * 0.13, 0), DARK, maxf(2.0, hr * 0.06), true)
+		else:
+			ci.draw_circle(ec, hr * 0.13, DARK)
+			ci.draw_circle(ec + Vector2(hr * 0.04, -hr * 0.05), hr * 0.045, Color.WHITE)
 		ci.draw_circle(hc + Vector2(sx * hr * 0.62, hr * 0.3), hr * 0.14, Color(1.0, 0.45, 0.5, 0.35))
 	var smile := hr * (0.42 if happy else 0.3)
 	ci.draw_arc(hc + Vector2(0, hr * (0.22 if happy else 0.3)), smile, 0.12 * PI, 0.88 * PI, 14, DARK, maxf(2.0, hr * 0.07), true)

@@ -44,6 +44,10 @@ func setup(p_order: Array, p_names: Dictionary, p_me: String, p_scores: Dictiona
 	queue_redraw()
 
 
+func _process(_delta: float) -> void:
+	queue_redraw() # avatar idle animation
+
+
 ## Raises the podium: 3rd, then 2nd, then 1st.
 func play() -> void:
 	var tw := create_tween()

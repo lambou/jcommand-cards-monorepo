@@ -57,7 +57,7 @@ func _layout_mini() -> void:
 
 func update_info(p_name: String, p_count: int, p_active: bool, p_status: String, last_card: Dictionary, p_last_top: bool, p_check: bool = false) -> void:
 	check = p_check
-	set_process(check)
+	set_process(true) # avatar idle animation + CHECK pulse
 	player_name = p_name
 	count = p_count
 	active = p_active

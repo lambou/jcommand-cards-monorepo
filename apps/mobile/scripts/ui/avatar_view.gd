@@ -9,7 +9,6 @@ var avatar_index := 0
 var check := false:
 	set(v):
 		check = v
-		set_process(v)
 		queue_redraw()
 var active := false:
 	set(v):
@@ -21,6 +20,7 @@ func _init(p_index: int = 0) -> void:
 	avatar_index = p_index
 	size = Vector2(110, 110)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_process(true) # idle animation
 
 
 func _notification(what: int) -> void:
