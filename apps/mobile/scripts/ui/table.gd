@@ -183,18 +183,10 @@ func _build() -> void:
 	message_label = _label(40, Color(1, 1, 1))
 	banner_label = _label(44, Color(1.0, 0.85, 0.3))
 
-	menu_button = Button.new()
-	menu_button.text = "Menu"
-	menu_button.add_theme_font_size_override("font_size", 32)
-	menu_button.custom_minimum_size = Vector2(150, 64)
-	menu_button.pressed.connect(func(): game.stop(); quit_to_menu.emit())
+	menu_button = UI.icon_button("home", func(): game.stop(); quit_to_menu.emit())
 	add_child(menu_button)
 
-	settings_button = Button.new()
-	settings_button.text = "Settings"
-	settings_button.add_theme_font_size_override("font_size", 32)
-	settings_button.custom_minimum_size = Vector2(190, 64)
-	settings_button.pressed.connect(_open_settings)
+	settings_button = UI.icon_button("gear", _open_settings)
 	add_child(settings_button)
 
 	fx = Control.new() # flying cards live here, above the hand
@@ -357,7 +349,7 @@ func _relayout() -> void:
 	var w := size.x
 	var h := size.y
 	menu_button.position = Vector2(20, 14)
-	settings_button.position = Vector2(184, 14)
+	settings_button.position = Vector2(w - 20.0 - UI.ICON_BTN, 14)
 
 	# Opponents.
 	var n := opp_views.size()
@@ -366,7 +358,7 @@ func _relayout() -> void:
 	var oh := minf(230.0, h * 0.125)
 	var total := ow * n + gap * float(maxi(n - 1, 0))
 	var x := (w - total) / 2.0
-	var oy := 92.0
+	var oy := 140.0
 	for id in opp_views:
 		var v: Control = opp_views[id]
 		v.size = Vector2(ow, oh)

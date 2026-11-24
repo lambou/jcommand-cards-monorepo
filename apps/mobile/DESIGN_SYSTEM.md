@@ -35,6 +35,7 @@ Playful "felt table" casino: deep-green gradient, gold accents, chunky candy but
 - `UI.column()` centered vertical stack; `UI.panel()` returns `[panel, inner_vbox]`.
 - Text: `UI.title(text, size)`, `UI.tagline`, `UI.heading`, `UI.body(text, wrap_w)`, `UI.hint`.
 - `UI.button(text, Variant, on_press, large)`: PRIMARY (amber) / SECONDARY (emerald) / TERTIARY (teal) / DANGER (red).
+- `UI.icon_button("home"|"gear", on_press)`: round icon-only HUD button, `ICON_BTN` 110 px (finger-sized). Use for table HUD instead of text buttons.
 - `UI.choice_row(labels, selected, on_pick)` mutually exclusive pills; `UI.toggle(text, on, handler)` on/off switch (gold = on); `UI.stepper("-"/"+", cb)`.
 - `UI.spacer(h)`.
 
@@ -52,4 +53,4 @@ Playful "felt table" casino: deep-green gradient, gold accents, chunky candy but
 New colour/size/component: add to `ui_kit.gd`, add a row here, then use it. Verify with `godot --path apps/mobile -- --menushot=out.png` / `--settingsshot=out.png`.
 
 ## Migration status
-Done: menu, rules, settings. Done also: game-over screen. Still ad-hoc (migrate when touched): table HUD buttons, J suit picker popup in `table.gd`.
+Done: menu, rules, settings. Done also: game-over screen. Still ad-hoc (migrate when touched): J suit picker popup in `table.gd`.

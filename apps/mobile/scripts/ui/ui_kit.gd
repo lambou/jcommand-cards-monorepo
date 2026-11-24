@@ -48,7 +48,8 @@ const BTN_H_L := 170
 const BTN_H := 120
 const PILL_W := 190
 const PILL_H := 110
-const MARGIN_SCREEN := 50   # edge margin for full-screen content
+const ICON_BTN := 110       # icon-only HUD button (touch target)
+const MARGIN_SCREEN := 50  # edge margin for full-screen content
 
 enum Variant { PRIMARY, SECONDARY, TERTIARY, DANGER }
 
@@ -263,6 +264,45 @@ static func toggle(text: String, on: bool, handler: Callable) -> Button:
 	var b := pill(text, on, Vector2(BTN_W, BTN_H))
 	b.toggled.connect(handler)
 	return b
+
+
+## Round icon-only button (HUD). kind: "home" or "gear". Touch-sized (ICON_BTN).
+static func icon_button(kind: String, on_press: Callable, variant: Variant = Variant.SECONDARY) -> Button:
+	var face := face_color(variant)
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(ICON_BTN, ICON_BTN)
+	b.size = Vector2(ICON_BTN, ICON_BTN)
+	_apply_states(b, face, ICON_BTN / 2, 8)
+	for state in ["normal", "hover", "pressed"]:   # softer shadow than full-size buttons
+		var sb: StyleBoxFlat = b.get_theme_stylebox(state)
+		sb.shadow_color = Color(0, 0, 0, 0.18)
+		sb.shadow_size = 5 if state != "pressed" else 2
+		sb.shadow_offset = Vector2(0, 3)
+	var art := Control.new()
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.draw.connect(_draw_icon.bind(art, kind))
+	b.add_child(art)
+	b.pressed.connect(on_press)
+	return b
+
+
+static func _draw_icon(c: Control, kind: String) -> void:
+	var ctr := c.size / 2.0 - Vector2(0, 3)
+	var u := ICON_BTN / 100.0
+	if kind == "home":
+		var roof := PackedVector2Array([ctr + Vector2(0, -34) * u, ctr + Vector2(-38, -2) * u, ctr + Vector2(38, -2) * u])
+		c.draw_colored_polygon(roof, TEXT)
+		c.draw_rect(Rect2(ctr + Vector2(-26, -4) * u, Vector2(52, 38) * u), TEXT)
+		c.draw_rect(Rect2(ctr + Vector2(-8, 12) * u, Vector2(16, 22) * u), EMERALD.darkened(0.2))
+	else:
+		for i in 8:
+			var a := TAU * i / 8.0
+			var d := Vector2.from_angle(a)
+			c.draw_line(ctr + d * 22.0 * u, ctr + d * 34.0 * u, TEXT, 13.0 * u)
+		c.draw_circle(ctr, 27.0 * u, TEXT)
+		c.draw_circle(ctr, 12.0 * u, EMERALD.darkened(0.2))
 
 
 ## Small round-ish +/- button.
