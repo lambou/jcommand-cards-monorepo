@@ -43,7 +43,7 @@ Playful "felt table" casino: deep-green gradient, gold accents, chunky candy but
 1. **One primary button per screen**, amber and large, at the bottom of the main action stack. Secondary actions below it in emerald/teal. Close/Back is SECONDARY.
 2. Group related controls in one `UI.panel()` with gold `UI.heading`s; don't scatter controls on the bare background.
 3. Selection is always gold; "off" is always `OFF` dark green. State is also written in text ("Sound: On"), never colour alone.
-4. Screens are portrait, one centered column, nothing closer than 50 px to the edge. Long content scrolls inside a `ScrollContainer` with the title and Close pinned.
+4. Screens are portrait, one centered column, nothing closer than 50 px to the edge. Long content scrolls inside `UI.scroll_area()` (invisible scroll bar; never the default grey bar) with the title and Close pinned.
 5. Full-screen overlays use `UI.background()` (opaque). Modals over the live table use `SCRIM` + `UI.popup_style()`.
 6. Text over art gets an outline/shadow (`UI.title` does this); body text sits on a panel, not directly on the gradient.
 7. Respect Reduce motion (`Settings.reduce_motion`) for any new animation; UI feedback sounds go through `Sfx.play`.

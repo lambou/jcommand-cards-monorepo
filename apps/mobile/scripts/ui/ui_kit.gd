@@ -104,6 +104,21 @@ static func background() -> TextureRect:
 	return bg
 
 
+## Vertical scroll area with an invisible scroll bar (drag or wheel to scroll).
+static func scroll_area() -> ScrollContainer:
+	var s := ScrollContainer.new()
+	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# The bar is invisible: touch-dragging is the interaction, a bar is just noise.
+	var bar := s.get_v_scroll_bar()
+	bar.modulate.a = 0.0
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.custom_minimum_size.x = 0
+	for style in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
+		bar.add_theme_stylebox_override(style, StyleBoxEmpty.new())
+	return s
+
+
 ## Centered vertical column; add your blocks to it.
 static func column(separation: int = SPACE_M) -> VBoxContainer:
 	var box := VBoxContainer.new()

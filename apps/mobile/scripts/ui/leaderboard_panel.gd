@@ -26,9 +26,7 @@ func _ready() -> void:
 	var st := Leaderboard.stats()
 	col.add_child(UI.tagline("%d games  -  %d wins  -  %d clean finishes" % [st["games"], st["wins"], st["cleans"]]))
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var scroll := UI.scroll_area()
 	col.add_child(scroll)
 	var card := UI.panel()
 	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL

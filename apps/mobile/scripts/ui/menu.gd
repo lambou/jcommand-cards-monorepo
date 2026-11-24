@@ -69,8 +69,7 @@ func _show_rules() -> void:
 	col.add_theme_constant_override("separation", UI.SPACE_M)
 	margin.add_child(col)
 	col.add_child(UI.title("How to play"))
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var scroll := UI.scroll_area()
 	col.add_child(scroll)
 	var card := UI.panel()
 	card[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
