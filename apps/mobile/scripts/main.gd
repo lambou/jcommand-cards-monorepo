@@ -14,7 +14,8 @@ extends Control
 ##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
-##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
+##   --penalty=N             a 2-bot game where you take an N-card penalty on your first turn, then play on (to try the draw animation)
+##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty (--pending=N sets the size, 0 = a one-card draw; --frames=N)
 ##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
 ##   --flipplay              playground for the bank draw: a real card lifted off the pile and flipped (ui/flip_playground.gd)
 ##   --flipshot=<file.png>   <file>_00.. slow-motion frames of one playground draw
@@ -120,6 +121,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--slideshot="):
 			_slideshot(a.substr(12))
+			return
+		elif a.begins_with("--penalty="):
+			_penalty_play(int(a.substr(10)))
 			return
 		elif a.begins_with("--drawshot="):
 			_drawshot(a.substr(11))
@@ -491,7 +495,21 @@ func _revealshot(path: String) -> void:
 	get_tree().quit()
 
 
-## Forces a 4-card penalty on the human and captures the 3D hand dealing the cards in.
+## `--penalty=N`: a normal 2-bot game in which, on your first turn, you are handed an N-card penalty and take
+## it (a few seconds after the turn starts, so you can watch). The game then carries on for you to test.
+func _penalty_play(count: int) -> void:
+	var t := _start_game(2, "normal")
+	t.game.rng.seed = 5
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(2.5).timeout
+	t.game.state["pending"] = count
+	t.game.updated.emit([])
+	await get_tree().create_timer(1.5).timeout
+	t.game.human_take_penalty()
+
+
+## Forces a penalty on the human (4 cards unless --pending=N) and captures the 3D hand dealing the cards in.
 func _drawshot(path: String) -> void:
 	var t := _start_game(2, "normal")
 	t.game.bot_delay = 5.0 # keep the bots out of the way
@@ -499,14 +517,25 @@ func _drawshot(path: String) -> void:
 	while t._locked() or not t.game.is_human_turn():
 		await get_tree().create_timer(0.05).timeout
 	await get_tree().create_timer(1.0).timeout
-	t.game.state["pending"] = 4
-	t.game.updated.emit([])
+	var pending := 4 # --pending=N: size of the penalty (0 = an ordinary one-card draw)
+	var frames := 6
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--pending="):
+			pending = int(a.substr(10))
+		elif a.begins_with("--frames="):
+			frames = int(a.substr(9))
+	if pending > 0:
+		t.game.state["pending"] = pending
+		t.game.updated.emit([])
 	await get_tree().create_timer(0.3).timeout
-	t.game.human_take_penalty()
+	if pending > 0:
+		t.game.human_take_penalty()
+	else:
+		t.game.human_draw()
 	var i := 0
-	for m in [0.25, 0.2, 0.2, 0.2, 0.3, 0.6]:
-		await get_tree().create_timer(m).timeout
-		_save(path, "_%d" % i)
+	for k in frames:
+		await get_tree().create_timer(0.25 if frames > 6 else [0.25, 0.2, 0.2, 0.2, 0.3, 0.6][k]).timeout
+		_save(path, "_%02d" % i)
 		i += 1
 	get_tree().quit()
 

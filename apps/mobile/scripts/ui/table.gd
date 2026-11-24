@@ -1059,10 +1059,14 @@ func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) ->
 				first = flight
 				first_c = to_c
 			elif absf(to_c.x - first_c.x) > absf(slide_to.x - first_c.x) or not slide_to.is_finite():
-				slide_to = to_c + Vector2(0.0, hv.size.y * Hand3D.GRIP_Y)
+				slide_to = to_c
 			i += 1
 		if slide_to.is_finite():
-			slide_to.x = clampf(slide_to.x, 80.0, size.x - 80.0)
+			# Slide along just above the row, with the whole hand on screen: the grip point is at the fingertips
+			# and the palm and arm hang below it, so a path at the cards' own grip height would leave only
+			# the fingertips visible at the bottom edge of the screen.
+			slide_to.x = clampf(slide_to.x, 130.0, size.x - 130.0)
+			slide_to.y = minf(slide_to.y - _hand_card_size().y * 0.1, size.y - 210.0)
 			slide_t = maxf(STAGGER * float(n - 1), 0.25) + 0.15
 	else:
 		for i in n:
