@@ -4,6 +4,11 @@
 
 Reads <frames_dir>/<color>/f00.png.. (roar) and <frames_dir>/<color>_idle/f00.png.. (idle loop) and writes
 <out_dir>/joker_<color>_roar.png / joker_<color>_idle.png, matching .gif previews and <out_dir>/meta.json. Frames are rendered bigger and downsampled here for clean edges. Needs Pillow.
+
+The sheets are NOT committed (apps/mobile/assets/joker/*.png is gitignored); regenerate them with
+  blender -b -P tools/blender/make_joker.py -- --color red --frames 30 --size 384 --out <abs frames dir>
+  blender -b -P tools/blender/make_joker.py -- --color red --idle 30 --size 384 --out <abs frames dir>
+  (same for --color black), then run this script with <out_dir> = apps/mobile/assets/joker.
 """
 import json
 import os
