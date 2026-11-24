@@ -6,6 +6,7 @@ extends Control
 ##   --menushot=<file.png>   screenshot of the menu
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
+##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
@@ -59,6 +60,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--suitshot="):
 			_suitshot(a.substr(11))
+			return
+		elif a.begins_with("--revealshot="):
+			_revealshot(a.substr(13))
 			return
 		elif a.begins_with("--comboshot="):
 			_comboshot(a.substr(12))
@@ -195,6 +199,27 @@ func _suitshot(path: String) -> void:
 	for i in 4:
 		await get_tree().create_timer(0.18).timeout
 		_save(path, "_pill%d" % i)
+	get_tree().quit()
+
+
+## Switches the required suit mid-game and captures the table before, then frame by frame after.
+func _revealshot(path: String) -> void:
+	var t := _start_game(2, "normal")
+	t.game.bot_delay = 30.0 # keep the bots out of the way
+	t.game.rng.seed = 5
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	t.game.state["required"] = {"kind": "suit", "suit": "H"}
+	t.game.updated.emit([])
+	await get_tree().create_timer(1.0).timeout
+	_save(path, "_before")
+	t.game.state["required"] = {"kind": "suit", "suit": "S"}
+	t.game.updated.emit([])
+	var i := 0
+	for m in [0.6, 0.9, 0.6, 0.9, 1.0]:
+		await get_tree().create_timer(m).timeout
+		_save(path, "_after%d" % i)
+		i += 1
 	get_tree().quit()
 
 

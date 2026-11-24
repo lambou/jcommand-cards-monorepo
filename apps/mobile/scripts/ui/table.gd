@@ -12,6 +12,8 @@ const RequiredView := preload("res://scripts/ui/required_view.gd")
 const SuitButton := preload("res://scripts/ui/suit_button.gd")
 const OfflineGame := preload("res://scripts/game/offline_game.gd")
 const Fx := preload("res://scripts/ui/fx.gd")
+const SuitReveal := preload("res://scripts/ui/suit_reveal.gd")
+const CardLights := preload("res://scripts/ui/card_lights.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const AvatarView := preload("res://scripts/ui/avatar_view.gd")
 const UI := preload("res://scripts/ui/ui_kit.gd")
@@ -49,6 +51,8 @@ var opp_views: Dictionary = {}
 var hand_views: Array = []
 var bank_view: Control
 var stack_view: Control
+var suit_lights: Control # chasing lights on the pile's top card while it is the one that changed the suit
+var _lights_card_id := -1
 var required_view: Control
 var you_last: Control
 var you_avatar: Control
@@ -164,6 +168,10 @@ func _build() -> void:
 	stack_view.visible = false
 	stack_view.z_index = 5 # slid-under 2s travel beneath it
 	add_child(stack_view)
+	suit_lights = CardLights.new()
+	suit_lights.visible = false
+	suit_lights.z_index = 6
+	add_child(suit_lights)
 
 	you_last = CardView.new()
 	you_last.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1021,6 +1029,8 @@ func _set_floor(card: Dictionary, pop: bool) -> void:
 	stack_view.set_card(card, true)
 	stack_view.visible = true
 	_last_floor_id = card["id"]
+	if card["id"] != _lights_card_id:
+		suit_lights.hide_lights() # a new card covers the one that had the lights
 	_update_peek()
 	if pop and not Settings.reduce():
 		stack_view.scale = Vector2(1.14, 1.14)
@@ -1084,6 +1094,15 @@ func _refresh() -> void:
 			required_view.scale = Vector2(1.25, 1.25)
 			create_tween().tween_property(required_view, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			# Suit change: sparks + ring in the suit's colour around the spinning 3D suit.
+			# A different suit is now wanted: show it big, like a collectible.
+			if st["required"]["kind"] == "suit" and (_shown_required.get("kind", "") != "suit" or _shown_required["suit"] != st["required"]["suit"]):
+				# Wait for the card that caused it to reach and land on the pile first.
+				var cause_id: int = st["stack"][st["stack"].size() - 1]["id"]
+				SuitReveal.new().start(fx, st["required"]["suit"], REACH + FLY + 0.45, stack_view, func():
+					# Only if that card is still on top (nobody has covered it during the delay).
+					if _last_floor_id == cause_id:
+						_lights_card_id = cause_id
+						suit_lights.show_on(stack_view, SuitReveal.DUR)) # ends with the suit animation
 			if st["required"]["kind"] != "free":
 				var fx_col: Color = Color(1.0, 0.82, 0.2)
 				if st["required"]["kind"] == "suit":
