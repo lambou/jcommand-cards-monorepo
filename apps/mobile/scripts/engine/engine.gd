@@ -112,8 +112,6 @@ static func is_playable(s: Dictionary, hand: Array, card: Dictionary) -> bool:
 	if int(s["pending"]) > 0:
 		return Rules.penalty_of(card["rank"]) > 0
 	var rule := Rules.rule_of(card["rank"])
-	if rule.get("cannotFinishWhenTwoPlayersLeft", false) and hand.size() == 1 and _unfinished_count(s) <= 2:
-		return false
 	var stack: Array = s["stack"]
 	var floor_card: Dictionary = stack[stack.size() - 1]
 	if rule.get("playOnLion", false) and floor_card["rank"] == "LION":
@@ -212,7 +210,10 @@ static func _check_over(s: Dictionary, events: Array) -> bool:
 	# Anything else - more than one card, or a card they cannot play - and they have lost outright.
 	if left.size() == 1 and bool(s["settings"].get("finalTurn", false)) and not bool(s.get("finalTurn", false)):
 		var lp: Dictionary = left[0]
-		if lp["hand"].size() == 1 and is_playable(s, lp["hand"], lp["hand"][0]):
+		var lone: Dictionary = lp["hand"][0] if lp["hand"].size() == 1 else {}
+		# A Stop cannot take the last player out, so it does not earn a final turn.
+		if not lone.is_empty() and is_playable(s, lp["hand"], lone) \
+				and not Rules.rule_of(lone["rank"]).get("cannotFinishWhenTwoPlayersLeft", false):
 			s["finalTurn"] = true
 			events.append({"type": "finalTurn", "playerId": lp["id"]})
 			return false
@@ -295,7 +296,10 @@ static func _do_play(s: Dictionary, cur: Dictionary, action: Dictionary, events:
 	s["pending"] = int(s["pending"]) + penalty
 	events.append({"type": "play", "playerId": cur["id"], "card": card, "chosenSuit": chosen})
 
-	if hand.is_empty():
+	# A Stop can be played as the last card in a 1v1, but it does not take you out: you hold no cards,
+	# keep the turn (the opponent is skipped) and must draw.
+	var cannot_finish: bool = bool(rule.get("cannotFinishWhenTwoPlayersLeft", false)) and _unfinished_count(s) <= 2
+	if hand.is_empty() and not cannot_finish:
 		if penalty > 0:
 			cur["status"] = "provisional"
 			s["provisionalOrder"].append(cur["id"])

@@ -339,28 +339,28 @@
     "settings": {
       "matchRank": false
     },
-    "maxSteps": 1500,
+    "maxSteps": 3000,
     "expect": {
-      "steps": 571,
+      "steps": 2110,
       "over": true,
-      "loser": "A",
+      "loser": "B",
       "finishedOrder": [
-        "B",
-        "A"
+        "A",
+        "B"
       ],
       "places": {
-        "A": 2,
-        "B": 1
+        "A": 1,
+        "B": 2
       },
       "handSizes": {
-        "A": 15,
-        "B": 0
+        "A": 0,
+        "B": 12
       },
       "pending": 0,
-      "required": "H",
-      "current": "B",
-      "stackTop": "10H",
-      "stackSize": 23,
+      "required": "S",
+      "current": "A",
+      "stackTop": "4S",
+      "stackSize": 26,
       "bankSize": 16
     }
   }

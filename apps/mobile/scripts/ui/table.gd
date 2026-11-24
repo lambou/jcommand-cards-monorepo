@@ -1320,8 +1320,16 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 			banner_label.text = "Block with a 7 or Lion, or take %d cards" % int(st["pending"])
 		elif bool(st.get("finalTurn", false)):
 			banner_label.text = "LAST CHANCE! Play your last card or you lose"
+		elif me["hand"].is_empty():
+			banner_label.text = "No cards left - draw from the bank"
 		elif _in_check(me):
-			banner_label.text = "CHECK! Play your last card to go out"
+			var last_rule: Dictionary = Rules.rule_of(me["hand"][0]["rank"])
+			var stop_blocked: bool = bool(last_rule.get("cannotFinishWhenTwoPlayersLeft", false)) \
+					and CardEngine._unfinished_count(st) <= 2
+			if stop_blocked:
+				banner_label.text = "A Stop can't take you out - play it, then draw"
+			else:
+				banner_label.text = "CHECK! Play your last card to go out"
 		else:
 			banner_label.text = "Your turn"
 	else:
