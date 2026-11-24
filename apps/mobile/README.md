@@ -33,7 +33,7 @@ deterministic, so the log is enough to **resume** an unfinished game (menu: Resu
     godot --path apps/mobile -- --exportsounds=out_dir                              # write every sound as a .wav so you can listen
     godot --path apps/mobile -- --reduce --selftest                                 # run with Reduce motion on (not saved)
     godot --path apps/mobile -- --settingsshot=out.png                              # screenshot of the settings screen
-    godot --headless --path apps/mobile -s res://scripts/tests/sim_tune.gd -- 300 2     # tune the experimental 'hard' bot vs 'normal'
+    godot --headless --path apps/mobile -s res://scripts/tests/sim_learn.gd -- train 30 24 200   # retrain the 'hard' bot's knowledge (data/hard_knowledge.json) by self-play vs 'normal'
     godot --headless --path apps/mobile -s res://scripts/tests/sim_choices.gd -- 100   # how often a turn offers a real choice
 
 ## 3D suits

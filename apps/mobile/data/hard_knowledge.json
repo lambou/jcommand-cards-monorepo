@@ -1,0 +1,31 @@
+{
+  "generation": 29,
+  "trained_by": "tests/sim_learn.gd",
+  "version": 1,
+  "weights": {
+    "ace": 8.135,
+    "ace1v1": 5.799,
+    "ace_late": 2.064,
+    "blocker": -1.706,
+    "blockers_left": -0.417,
+    "cover": -0.202,
+    "dump_big": 1.038,
+    "fin1": 33.141,
+    "fin2": 10.805,
+    "follow": -0.233,
+    "jsuit": 1.357,
+    "keep2": -7.158,
+    "keepJ": -2.948,
+    "pen": 1.926,
+    "pen_raw": -1.302,
+    "r2": -1.067,
+    "r7": 0.941,
+    "rA": 0.554,
+    "rJ": 1.713,
+    "rJOKER": -0.679,
+    "samesuit": 0.942,
+    "sj_urgent": 1.054,
+    "stuck": 9.423,
+    "two_pending": 0.449
+  }
+}

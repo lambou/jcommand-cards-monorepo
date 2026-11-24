@@ -1,11 +1,11 @@
 extends RefCounted
 ## Bot players. Pure functions over an engine state; deterministic given the rng.
-## Difficulties: "easy" (mostly random) and "normal" (heuristic) are offered in the menu.
-## "hard" (counts unseen cards, remembers suits players could not match, models the next player,
-## plans its last cards) is kept for experiments but is NOT offered: in 400-game 1v1 matches it wins
-## 47-51% against "normal" whatever the weights (tests/sim_tune.gd). Only with the opponent's real
-## hand (Bot.oracle, experiment only) does it reach 62-63%: information is the lever, and memory of
-## played cards cannot provide it. Only ~1/3 of turns offer a real choice (tests/sim_choices.gd).
+## Difficulties: "easy" (mostly random), "normal" (heuristic) and "hard" (counts unseen cards, remembers
+## suits players could not match, models the next player, plans its last cards). Hard scores each play
+## as a weighted sum of features; the weights in data/hard_knowledge.json were learned by self-play
+## (tests/sim_learn.gd): ~55% in 1v1 against "normal" (chance 50%), ~37% with 3 players (33%), ~27% with 4
+## (25%). The edge is small because only ~1/3 of turns offer a real choice
+## (tests/sim_choices.gd), and even seeing the opponent's real hand (Bot.oracle) only reaches ~62%.
 
 const Cards := preload("res://scripts/engine/cards.gd")
 const CardEngine := preload("res://scripts/engine/engine.gd")
@@ -85,7 +85,7 @@ static func _score(hand: Array, card: Dictionary, chosen: String, next_hand: int
 			s = 2.0 + (8.0 if rest.size() <= 2 else 0.0)
 		"J":
 			s = 6.0 + 3.0 * float(suits.get(chosen, 0))
-		"7", "LION":
+		"7", "JOKER":
 			var blockers := 0
 			for c in rest:
 				if Rules.penalty_of(c["rank"]) > 0:
@@ -95,7 +95,7 @@ static func _score(hand: Array, card: Dictionary, chosen: String, next_hand: int
 				s += 8.0
 			if blockers == 0:
 				s -= 3.0 # last defence against incoming penalties
-			if card["rank"] == "LION":
+			if card["rank"] == "JOKER":
 				var col := 0
 				for c in rest:
 					if c["color"] == card["color"]:
@@ -195,14 +195,42 @@ static func update_memory(memory: Dictionary, state: Dictionary, action: Diction
 ## (an upper bound for what perfect card memory could ever be worth). Never set in the game.
 static var oracle := false
 
-## Tunable weights for "hard" (the sim_tune script overrides these).
-static var P := {
-	"stuck": 12.0, "pen": 2.2, "ace": 7.0, "ace1v1": 6.0, "keep2": 7.0, "keepJ": 3.0,
-	"blocker": 3.0, "follow": 1.8, "fin1": 38.0, "fin2": 9.0, "cover": 0.0,
+## Where the learned weights live (written by tests/sim_learn.gd, loaded lazily).
+const KNOWLEDGE_PATH := "res://data/hard_knowledge.json"
+
+## Feature names in the order _features() returns them. W maps name -> weight; a missing name is 0.
+const FEATURES := [
+	"stuck", "pen", "ace", "ace1v1", "keep2", "keepJ", "blocker", "follow", "fin1", "fin2", "cover",
+	"samesuit", "jsuit", "blockers_left", "two_pending", "sj_urgent", "pen_raw",
+	"r2", "rJ", "r7", "rJOKER", "rA", "ace_late", "dump_big",
+]
+
+## Hand-tuned starting point (what the experiments in sim_tune.gd settled on); training starts here.
+const DEFAULT_W := {
+	"stuck": 12.0, "pen": 2.2, "ace": 7.0, "ace1v1": 6.0, "keep2": -7.0, "keepJ": -3.0,
+	"blocker": -3.0, "follow": 1.8, "fin1": 38.0, "fin2": 9.0, "cover": 0.0,
 }
+
+## Active weights. sim_learn.gd overrides this while training.
+static var W: Dictionary = {}
+static var _loaded := false
+
+
+static func load_knowledge() -> void:
+	_loaded = true
+	W = DEFAULT_W.duplicate()
+	if FileAccess.file_exists(KNOWLEDGE_PATH):
+		var f := FileAccess.open(KNOWLEDGE_PATH, FileAccess.READ)
+		var d = JSON.parse_string(f.get_as_text())
+		if d is Dictionary and d.has("weights"):
+			W = {}
+			for k in d["weights"]:
+				W[k] = float(d["weights"][k])
 
 
 static func _hard(state: Dictionary, player_id: String, plays: Array, rng: RandomNumberGenerator, memory: Dictionary) -> Dictionary:
+	if not _loaded:
+		load_knowledge()
 	var me := _player(state, player_id)
 	var hand: Array = me["hand"]
 	var nx := _next_player(state)
@@ -222,15 +250,42 @@ static func _hard(state: Dictionary, player_id: String, plays: Array, rng: Rando
 static func _hard_score(state: Dictionary, hand: Array, card: Dictionary, chosen: String, active: int,
 		nx: Dictionary, pool: Array, rng: RandomNumberGenerator) -> float:
 	var rest: Array = hand.filter(func(c): return c["id"] != card["id"])
+	var total_pen := int(state["pending"]) + Rules.penalty_of(card["rank"])
+	if rest.is_empty():
+		# Out of cards. A penalty card only wins if the next player cannot answer it.
+		if total_pen == 0:
+			return 1000.0
+		return 300.0 + 700.0 * (1.0 - _p_block(pool, nx["hand"].size()))
+	var f := _features(state, hand, rest, card, chosen, active, nx, pool)
+	var s := 10.0
+	for k in f:
+		s += float(W.get(k, 0.0)) * float(f[k])
+	return s + rng.randf() * 0.4
+
+
+static func _p_block(pool: Array, n_opp: int) -> float:
+	var pen_cards := 0
+	for c in pool:
+		if Rules.penalty_of(c["rank"]) > 0:
+			pen_cards += 1
+	var share := float(pen_cards) / maxf(float(pool.size()), 1.0)
+	return 1.0 - pow(1.0 - share, float(maxi(n_opp, 0)))
+
+
+## Describes playing `card` (leaving `rest` in hand) as name -> value. All the "knowledge" is in how
+## the weights W combine these.
+static func _features(state: Dictionary, hand: Array, rest: Array, card: Dictionary, chosen: String,
+		active: int, nx: Dictionary, pool: Array) -> Dictionary:
 	var rule := Rules.rule_of(card["rank"])
 	var pen := int(rule.get("penalty", 0))
 	var total_pen := int(state["pending"]) + pen
 	var n_opp: int = nx["hand"].size()
+	var rank: String = card["rank"]
 
 	# What the table will require after this play.
 	var req_suit := ""
 	var req_color := ""
-	var floor_rank: String = card["rank"]
+	var floor_rank: String = rank
 	match rule.get("sets", "suit"):
 		"suit":
 			req_suit = card["suit"]
@@ -245,70 +300,73 @@ static func _hard_score(state: Dictionary, hand: Array, card: Dictionary, chosen
 			var stack: Array = state["stack"]
 			floor_rank = stack[stack.size() - 1]["rank"]
 
-	var p_block := 0.0
-	if total_pen > 0:
-		var pen_cards := 0
-		for c in pool:
-			if Rules.penalty_of(c["rank"]) > 0:
-				pen_cards += 1
-		var share := float(pen_cards) / maxf(float(pool.size()), 1.0)
-		p_block = 1.0 - pow(1.0 - share, float(maxi(n_opp, 0)))
-		if oracle:
-			p_block = 1.0 if pen_cards > 0 else 0.0
-
-	if rest.is_empty():
-		# Out of cards. A penalty card only wins if the next player cannot answer it.
-		return 1000.0 if total_pen == 0 else 300.0 + 700.0 * (1.0 - p_block)
-
-	var s := 10.0
 	var urgency := 1.0 if n_opp <= 2 else (0.7 if n_opp <= 4 else 0.45)
+	var f := {}
+	var big := rest.size() > 2
 
 	# Pressure on the next player.
 	if total_pen > 0:
-		s += urgency * float(P["pen"]) * float(total_pen) * (1.0 - p_block)
-	elif card["rank"] == "A":
-		s += urgency * float(P["ace"]) + (float(P["ace1v1"]) if active == 2 else 0.0)
+		f["pen"] = urgency * float(total_pen) * (1.0 - _p_block(pool, n_opp))
+		f["pen_raw"] = float(total_pen)
+	elif rank == "A":
+		f["ace"] = urgency
+		f["ace1v1"] = 1.0 if active == 2 else 0.0
 	else:
-		s += urgency * float(P["stuck"]) * (1.0 - _p_can_play(pool, req_suit, req_color, floor_rank, n_opp))
+		f["stuck"] = urgency * (1.0 - _p_can_play(pool, req_suit, req_color, floor_rank, n_opp))
 
-	# Keep flexible cards for later unless the hand is nearly gone.
-	match card["rank"]:
+	# Which card it is (flexible cards are worth keeping while the hand is big).
+	match rank:
 		"2":
-			s -= float(P["keep2"]) if rest.size() > 2 else 0.0
+			f["r2"] = 1.0
+			f["keep2"] = 1.0 if big else 0.0
+			if int(state["pending"]) > 0:
+				f["two_pending"] = 1.0
 		"J":
-			s -= float(P["keepJ"]) if rest.size() > 2 else 0.0
-		"7", "LION":
-			var blockers := 0
-			for c in rest:
-				if Rules.penalty_of(c["rank"]) > 0:
-					blockers += 1
-			if blockers == 0:
-				s -= float(P["blocker"]) # no defence left against incoming penalties
+			f["rJ"] = 1.0
+			f["keepJ"] = 1.0 if big else 0.0
+			f["jsuit"] = float(_suit_counts(rest).get(chosen, 0))
+		"7", "JOKER":
+			f["r7" if rank == "7" else "rJOKER"] = 1.0
+			f["sj_urgent"] = urgency
+		"A":
+			f["rA"] = 1.0
+			if rest.size() <= 3:
+				f["ace_late"] = 1.0
+	var blockers := 0
+	for c in rest:
+		if Rules.penalty_of(c["rank"]) > 0:
+			blockers += 1
+	if (rank == "7" or rank == "JOKER") and blockers == 0:
+		f["blocker"] = 1.0
+	f["blockers_left"] = float(blockers)
+	if rank != "2" and rank != "J" and pen == 0 and rank != "A":
+		f["dump_big"] = float(rest.size())
 
 	# Cards in hand that can follow this play (same suit/colour, or the same rank to switch).
 	var follow := 0
+	var samesuit := 0
+	var seen := {}
+	var twos := 0
 	for c in rest:
 		if _playable_on(c, req_suit, req_color, floor_rank, true):
 			follow += 1
-	s += float(P["follow"]) * float(follow)
-
-	# Coverage: distinct suits left in hand (+1 for a 2), i.e. how likely I can play next turn.
-	if float(P["cover"]) != 0.0:
-		var seen := {}
-		var twos := 0
-		for c in rest:
-			if c["rank"] == "2":
-				twos += 1
-			elif c["suit"] != "":
-				seen[c["suit"]] = true
-		s += float(P["cover"]) * (float(seen.size()) + (1.0 if twos > 0 else 0.0))
+		if req_suit != "" and c["suit"] == req_suit:
+			samesuit += 1
+		if c["rank"] == "2":
+			twos += 1
+		elif c["suit"] != "":
+			seen[c["suit"]] = true
+	f["follow"] = float(follow)
+	f["samesuit"] = float(samesuit)
+	f["cover"] = float(seen.size() + (1 if twos > 0 else 0))
 
 	# Endgame: what is left must be able to finish.
 	if rest.size() == 1:
-		s += float(P["fin1"]) * _finish_quality(rest[0], active)
+		f["fin1"] = _finish_quality(rest[0], active)
 	elif rest.size() == 2:
-		s += float(P["fin2"]) * (_finish_quality(rest[0], active) + _finish_quality(rest[1], active))
-	return s + rng.randf() * 0.4
+		f["fin2"] = _finish_quality(rest[0], active) + _finish_quality(rest[1], active)
+	return f
+
 
 
 ## How reliably a last card can be played out (2 always; an Ace can never finish a 1v1).
@@ -322,7 +380,7 @@ static func _finish_quality(c: Dictionary, active: int) -> float:
 			return -0.6 if active == 2 else 0.7
 		"7":
 			return 0.5
-		"LION":
+		"JOKER":
 			return 0.45
 	return 0.5
 

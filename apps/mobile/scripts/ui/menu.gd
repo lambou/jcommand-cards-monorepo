@@ -26,7 +26,7 @@ J - you choose the next suit. A J can go on another J.
 Ace (Stop) - skips the next player. An Ace can go on another Ace.
 
 SCORING
-Points for your finishing place, multiplied for more opponents and for Normal difficulty. Finish without ever drawing from the bank (a CLEAN FINISH) for 3000 bonus points. Forced penalty draws do not count against you.
+Points for your finishing place, multiplied for more opponents and for the difficulty (Easy less, Hard more). Finish without ever drawing from the bank (a CLEAN FINISH) for 3000 bonus points. Forced penalty draws do not count against you.
 
 ENDING
 In a 2-player game you cannot finish on an Ace, and a last 7 or Joker only wins if the opponent cannot answer it."""
@@ -52,7 +52,7 @@ func _ready() -> void:
 	card[1].add_child(UI.choice_row(["1", "2", "3"], 1, func(i): bots = i + 1))
 	card[1].add_child(UI.spacer(6))
 	card[1].add_child(UI.heading("Difficulty"))
-	card[1].add_child(UI.choice_row(["Easy", "Normal"], 1, func(i): difficulty = ["easy", "normal"][i]))
+	card[1].add_child(UI.choice_row(["Easy", "Normal", "Hard"], 1, func(i): difficulty = ["easy", "normal", "hard"][i]))
 
 	box.add_child(UI.spacer(10))
 	if notice != "":
