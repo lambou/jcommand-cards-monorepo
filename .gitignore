@@ -23,3 +23,6 @@ apps/mobile/assets/joker/*.png
 # Review / preview exports that the game never loads
 tools/avatars/previews/
 sounds-preview/
+
+# Preview GIF of the crown loop (the game only loads crown.png + crown.json)
+apps/mobile/assets/crown/crown.gif

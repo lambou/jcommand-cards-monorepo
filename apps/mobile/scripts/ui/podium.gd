@@ -4,6 +4,7 @@ extends Control
 
 const TextFx := preload("res://scripts/ui/text_fx.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
+const Settings := preload("res://scripts/game/settings.gd")
 
 signal first_landed
 
@@ -104,13 +105,24 @@ func _draw() -> void:
 
 		# The avatar rides on top of its block.
 		var ar := (68.0 if place == 0 else 56.0) * u
-		var ac := Vector2(centers[place], top - ar - 8.0 * u)
+		var crown_clear := 62.0 * u   # how far above the avatar the YOU tag must sit
+		ar = roundf(ar)
+		var ac := Vector2(centers[place], top - ar - 8.0 * u).round()   # whole pixels: crisp avatar disc + ring
+		if place == 0 and rise > 0.5:
+			var k := 0.0 if Settings.reduce() else sin(float(Time.get_ticks_msec()) / 1000.0 * 2.0)
+			var hr := ar * (2.5 + 0.12 * k)
+			var ha := clampf((rise - 0.5) / 0.5, 0.0, 1.0) * (0.85 + 0.15 * k)
+			draw_texture_rect(_halo(), Rect2(ac - Vector2(hr, hr), Vector2(hr, hr) * 2.0), false, Color(1, 1, 1, ha))
 		var ring := col.lightened(0.2)
 		Avatar.draw_avatar(self, Avatar.index_for(id), ac, ar, ring, 7.0 * u, place == 0)
 		if place == 0 and rise > 0.9:
-			_crown(ac + Vector2(0, -ar + 2.0 * u), 64.0 * u)
+			var cc := ac + Vector2(0, -ar + 2.0 * u)
+			if _crown_sprite(cc, 64.0 * u):
+				crown_clear = 140.0 * u
+			else:
+				_crown(cc, 64.0 * u)
 		if id == me and rise > 0.5:
-			var tag_y := ac.y - ar - (62.0 * u if place == 0 else 14.0 * u)
+			var tag_y := ac.y - ar - (crown_clear if place == 0 else 14.0 * u)
 			TextFx.draw(self, font, Vector2(centers[place] - 80.0, tag_y), "YOU", HORIZONTAL_ALIGNMENT_CENTER, 160.0, int(38.0 * u), Color(1.0, 0.9, 0.35))
 
 	# 4th place: a small row under the podium.
@@ -124,6 +136,51 @@ func _draw() -> void:
 		var col4 := Color(1, 1, 1, r3)
 		TextFx.draw(self, font, Vector2(cx - 100.0 * u, y4 + 12.0 * u), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(40.0 * u), col4)
 		Avatar.draw_avatar(self, Avatar.index_for(id4), Vector2(cx - 150.0 * u, y4), ar4, Color(1, 1, 1, 0.5 * r3), 3.0)
+
+
+# Soft gold halo behind the winner: one radial gradient, drawn pulsing slowly.
+static var _halo_tex: GradientTexture2D
+
+
+static func _halo() -> GradientTexture2D:
+	if _halo_tex == null:
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
+		g.colors = PackedColorArray([Color(1.0, 0.86, 0.35, 0.75), Color(1.0, 0.8, 0.25, 0.28), Color(1.0, 0.75, 0.2, 0.0)])
+		_halo_tex = GradientTexture2D.new()
+		_halo_tex.gradient = g
+		_halo_tex.fill = GradientTexture2D.FILL_RADIAL
+		_halo_tex.fill_from = Vector2(0.5, 0.5)
+		_halo_tex.fill_to = Vector2(1.0, 0.5)
+		_halo_tex.width = 256
+		_halo_tex.height = 256
+	return _halo_tex
+
+
+# Animated 3D crown (tools/blender/make_crown.py + pack_crown.py): a looping sway on a spritesheet.
+static var _crown_tex: Texture2D
+static var _crown_meta: Dictionary = {}
+static var _crown_tried := false
+
+
+## Draws the animated 3D crown sitting on `c` (bottom-centre) at half width `w`; false if the sheet is missing.
+func _crown_sprite(c: Vector2, w: float) -> bool:
+	if not _crown_tried:
+		_crown_tried = true
+		if ResourceLoader.exists("res://assets/crown/crown.png") and FileAccess.file_exists("res://assets/crown/crown.json"):
+			var f := FileAccess.open("res://assets/crown/crown.json", FileAccess.READ)
+			_crown_meta = JSON.parse_string(f.get_as_text())
+			_crown_tex = load("res://assets/crown/crown.png")
+	if _crown_tex == null or _crown_meta.is_empty():
+		return false
+	var n: int = _crown_meta["frames"]
+	var cols: int = _crown_meta["cols"]
+	var px: float = _crown_meta["frame_px"]
+	var i := int(float(Time.get_ticks_msec()) / 1000.0 * float(_crown_meta["fps"]) * 0.6) % n   # relaxed 60% speed
+	var src := Rect2(float(i % cols) * px, float(i / cols) * px, px, px)
+	var s := w * 2.7                                    # frame size: the crown fills ~72% of it
+	draw_texture_rect_region(_crown_tex, Rect2(c.x - s * 0.5, c.y - s * 0.9, s, s), src)
+	return true
 
 
 ## Gold crown: soft rounded peaks with ball tips, gradient body, outline, gemmed band.

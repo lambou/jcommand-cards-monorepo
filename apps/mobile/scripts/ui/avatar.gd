@@ -98,7 +98,7 @@ static func _shoulders(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void
 static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Color = Color.WHITE, ring_w: float = 0.0, happy: bool = false) -> void:
 	if _draw_sprite(ci, idx, c, r, happy):
 		if ring_w > 0.0:
-			ci.draw_arc(c, r, 0.0, TAU, 48, ring, ring_w, true)
+			ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size
 		return
 	var st: Dictionary = STYLES[idx % STYLES.size()]
 	var skin: Color = st["skin"]
@@ -175,4 +175,4 @@ static func draw_avatar(ci: CanvasItem, idx: int, c: Vector2, r: float, ring: Co
 	ci.draw_arc(hc + Vector2(0, hr * (0.22 if happy else 0.3)), smile, 0.12 * PI, 0.88 * PI, 14, DARK, maxf(2.0, hr * 0.07), true)
 
 	if ring_w > 0.0:
-		ci.draw_arc(c, r, 0.0, TAU, 48, ring, ring_w, true)
+		ci.draw_arc(c, r, 0.0, TAU, 160, ring, ring_w, true)   # 160 segments: a true circle at any size
