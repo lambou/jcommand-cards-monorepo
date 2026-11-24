@@ -62,7 +62,7 @@ func _ready() -> void:
 	inner.add_child(UI.heading("Table"))
 	var tables := HBoxContainer.new()
 	tables.alignment = BoxContainer.ALIGNMENT_CENTER
-	tables.add_theme_constant_override("separation", 16)
+	tables.add_theme_constant_override("separation", 12)
 	inner.add_child(tables)
 	for i in TableBg.STYLES.size():
 		tables.add_child(_table_choice(i))
@@ -103,7 +103,10 @@ func _on_hand_color() -> void:
 
 ## One tappable preview: the real table background scaled down, with its name underneath.
 func _table_choice(i: int) -> Control:
-	var thumb := Vector2(233, 414)
+	var gap := 12
+	var n := TableBg.STYLES.size()
+	var tw := floorf((UI.MAX_CONTENT_W - gap * (n - 1)) / float(n))
+	var thumb := Vector2(tw, floorf(tw * 16.0 / 9.0))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	var btn := Button.new()
@@ -158,7 +161,9 @@ func _table_choice(i: int) -> Control:
 	var name_label := Label.new()
 	name_label.text = TableBg.STYLES[i]
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", UI.FONT_CAPTION)
+	name_label.add_theme_font_size_override("font_size", 24)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.custom_minimum_size.x = thumb.x
 	box.add_child(name_label)
 	_table_names.append(name_label)
 	return box

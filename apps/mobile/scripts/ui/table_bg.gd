@@ -2,7 +2,7 @@ class_name TableBg
 extends Control
 ## Table background, drawn in code. Set `style` (index into STYLES) before adding to the tree.
 
-const STYLES := ["Classic Felt", "Royal Velvet", "Burgundy Lounge", "Dark Wood"]
+const STYLES := ["Classic Felt", "Royal Velvet", "Burgundy Lounge", "Dark Wood", "Black Marble"]
 const GOLD := Color(0.91, 0.75, 0.31)
 const Settings := preload("res://scripts/game/settings.gd")
 
@@ -17,6 +17,8 @@ const THEMES := [
 		"back": Color(0.12, 0.21, 0.52), "lattice": Color(0.30, 0.46, 0.85, 0.55)},
 	{"panel": Color(0.05, 0.22, 0.14), "button": Color(0.15, 0.62, 0.40), "ink": Color(0.06, 0.10, 0.08),
 		"back": Color(0.12, 0.21, 0.52), "lattice": Color(0.30, 0.46, 0.85, 0.55)},
+	{"panel": Color(0.05, 0.05, 0.07), "button": Color(0.62, 0.47, 0.14), "ink": Color(0.02, 0.02, 0.03),
+		"back": Color(0.04, 0.36, 0.34), "lattice": Color(0.22, 0.72, 0.66, 0.55)}, # teal back reads on black stone
 ]
 
 
@@ -30,6 +32,7 @@ var style := 0
 var _glow: GradientTexture2D
 var _weave: ImageTexture
 var _fade: GradientTexture2D
+static var _marble: ImageTexture # generated once, shared by every Black Marble table
 
 
 func _init() -> void:
@@ -49,6 +52,12 @@ func _ready() -> void:
 			_glow = _radial([Color(0.56, 0.12, 0.20), Color(0.16, 0.03, 0.07)], Vector2(0.5, 0.45), Vector2(1.0, 1.0))
 		3:
 			_glow = _radial([Color(0.12, 0.50, 0.31), Color(0.03, 0.22, 0.14)], Vector2(0.5, 0.45), Vector2(0.9, 0.9))
+		4:
+			_glow = _radial([Color(0.19, 0.19, 0.21), Color(0.02, 0.02, 0.03)], Vector2(0.5, 0.4), Vector2(1.0, 1.0))
+			_fade = _radial([Color(0.15, 0.15, 0.17, 0.62), Color(0.05, 0.05, 0.06, 0.0)], Vector2(0.5, 0.45), Vector2(1.0, 0.8))
+			if _marble == null:
+				_marble = _make_marble()
+			texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		_:
 			_glow = _radial([Color(0.16, 0.62, 0.38), Color(0.01, 0.12, 0.07)], Vector2(0.5, 0.45), Vector2(1.0, 1.0), 0.6, Color(0.07, 0.38, 0.23))
 			_weave = _make_weave(true)
@@ -60,7 +69,28 @@ func _draw() -> void:
 		1: _draw_velvet()
 		2: _draw_burgundy()
 		3: _draw_wood()
+		4: _draw_marble()
 		_: _draw_classic()
+
+
+func _draw_marble() -> void:
+	var r := Rect2(Vector2.ZERO, size)
+	draw_texture_rect(_glow, r, false)
+	# soft diagonal sheen, like light on polished stone
+	var w := size.x
+	var h := size.y
+	draw_colored_polygon(PackedVector2Array([Vector2(w * 0.05, 0), Vector2(w * 0.55, 0), Vector2(w * 0.05 + w * 0.2, h), Vector2(-w * 0.3, h)]), Color(1, 1, 1, 0.035))
+	draw_texture_rect(_marble, r, false) # gold and grey veins
+	draw_texture_rect(_fade, r, false) # keep the middle calm for the cards
+	var m := minf(w, h) * 0.04
+	_rim(Rect2(Vector2(m, m), size - Vector2(m, m) * 2.0), m * 0.5, Color(GOLD, 0.7), maxf(2.0, m * 0.12))
+	var m2 := m * 1.45
+	_rim(Rect2(Vector2(m2, m2), size - Vector2(m2, m2) * 2.0), m * 0.3, Color(GOLD, 0.28), maxf(1.0, m * 0.06))
+	# little gold diamonds on the four inner corners
+	var c := m * 0.72
+	for p in [Vector2(m, m), Vector2(w - m, m), Vector2(m, h - m), Vector2(w - m, h - m)]:
+		var q: Vector2 = p
+		draw_colored_polygon(PackedVector2Array([q + Vector2(0, -c * 0.55), q + Vector2(c * 0.55, 0), q + Vector2(0, c * 0.55), q + Vector2(-c * 0.55, 0)]), Color(GOLD, 0.9))
 
 
 func _draw_classic() -> void:
@@ -212,6 +242,30 @@ func _radial(colors: Array, center: Vector2, edge: Vector2, mid_at := -1.0, mid 
 	t.width = 256
 	t.height = 256
 	return t
+
+
+## Veins from ridged noise, at a quarter of the game resolution and smoothed when stretched.
+func _make_marble() -> ImageTexture:
+	var wn := 270
+	var hn := 480
+	var img := Image.create(wn, hn, false, Image.FORMAT_RGBA8)
+	var gold := FastNoiseLite.new()
+	gold.seed = 21
+	gold.frequency = 0.0075
+	gold.fractal_octaves = 4
+	var grey := FastNoiseLite.new()
+	grey.seed = 5
+	grey.frequency = 0.012
+	grey.fractal_octaves = 3
+	for y in hn:
+		for x in wn:
+			var g := 1.0 - clampf(absf(gold.get_noise_2d(x, y)) / 0.028, 0.0, 1.0)
+			var s := 1.0 - clampf(absf(grey.get_noise_2d(x * 1.0, y * 1.0)) / 0.04, 0.0, 1.0)
+			var col := Color(0.93, 0.78, 0.36, g * g * 0.8)
+			if s * s * 0.28 > col.a:
+				col = Color(0.85, 0.87, 0.92, s * s * 0.28)
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
 
 
 func _make_weave(crosshatch: bool) -> ImageTexture:
