@@ -16,8 +16,16 @@ You play against 1-3 bots, fully offline.
 - `scripts/main.gd` - root; also hosts debug flags (below)
 - `data/rules.json` - synced copy of `packages/rules-spec/rules.json` (`pnpm sync-rules`)
 
+## Game records
+Every game is logged to `user://games/<id>.jsonl` (header with seed/players/difficulty/rules hash, one line per action
+with the bot RNG state, optional stickers, a footer once finished; see `scripts/game/recorder.gd`). The engine is
+deterministic, so the log is enough to **resume** an unfinished game (menu: Resume game) or **replay** a finished one
+(menu: History). One unfinished game and the last 20 finished ones are kept. Debug runs (any `--` flag) never record.
+
 ## Tests and tools (all headless-friendly)
     godot --headless --path apps/mobile -s res://scripts/tests/run_conformance.gd   # shared scenarios vs TS engine
+    godot --headless --path apps/mobile -s res://scripts/tests/test_record_replay.gd   # record / resume / replay determinism
+    godot --path apps/mobile -- --replayshot=out.png                                # replay UI of the newest record the test left behind
     godot --headless --path apps/mobile -- --selftest                               # plays full games through the real UI handlers
     godot --headless --path apps/mobile -s res://scripts/tests/sim_bots.gd -- 100   # bot-vs-bot win rates / game length
     godot --path apps/mobile -- --shot=out.png --bots=2                             # out_a/_b/_c.png: mid-deal, a card mid-flight, settled

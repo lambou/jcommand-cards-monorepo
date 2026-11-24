@@ -6,6 +6,10 @@ const CardEngine := preload("res://scripts/engine/engine.gd")
 const Bot := preload("res://scripts/ai/bot.gd")
 const Rules := preload("res://scripts/engine/rules.gd")
 const Scoring := preload("res://scripts/game/scoring.gd")
+const Recorder := preload("res://scripts/game/recorder.gd")
+
+## Bump when bot behaviour changes: a resumed game then plays on with different bots (replays are unaffected).
+const BOT_VERSION := 1
 
 signal updated(events: Array)
 
@@ -42,17 +46,38 @@ var _bonus_events: Array = [] # "bonus" events queued by _track_chain, appended 
 var _serial := 0
 var _passes := 0
 
+var recorder: Recorder = null # null = not recording (replays, tests, debug runs)
+var replay_mode := false # a recorded game being watched: no input, no bots
+var replay_cursor := 0 # actions of `replay_record` applied so far
+var replay_record: Dictionary = {}
+var _silent := false # restoring: apply actions without emitting `updated`
+
 
 func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
-	_serial += 1
-	difficulty = diff
-	var ids: Array = [HUMAN_ID]
-	names = {HUMAN_ID: "You"}
-	for i in range(1, bot_count + 1):
-		ids.append("bot%d" % i)
-		names["bot%d" % i] = BOT_NAMES[(i - 1) % BOT_NAMES.size()]
 	if seed_value == 0:
 		seed_value = (randi() % 2000000000) + 1
+	var ids: Array = [HUMAN_ID]
+	var nm := {HUMAN_ID: "You"}
+	for i in range(1, bot_count + 1):
+		ids.append("bot%d" % i)
+		nm["bot%d" % i] = BOT_NAMES[(i - 1) % BOT_NAMES.size()]
+	_setup(ids, nm, diff, seed_value)
+	_close_recorder()
+	if Recorder.enabled:
+		Recorder.prune()
+		recorder = Recorder.new()
+		recorder.begin({"started_at": int(Time.get_unix_time_from_system()), "seed": seed_value, "difficulty": diff,
+			"player_ids": ids, "names": nm, "settings": state["settings"],
+			"rules_hash": Recorder.rules_hash(Rules.spec()), "bot_version": BOT_VERSION})
+	updated.emit([])
+	_bot_loop()
+
+
+## Resets every piece of session state for a fresh deal of `seed_value`.
+func _setup(ids: Array, nm: Dictionary, diff: String, seed_value: int) -> void:
+	_serial += 1
+	difficulty = diff
+	names = nm
 	rng.seed = seed_value
 	_passes = 0
 	stats = {}
@@ -65,13 +90,122 @@ func start(bot_count: int, diff: String, seed_value: int = 0) -> void:
 	_bonus_events = []
 	_chain_player = ""
 	memory = {}
+	replay_mode = false
 	state = CardEngine.create_game({"playerIds": ids, "seed": seed_value, "settings": {"finalTurn": true}})
+
+
+## Rebuilds the game from a record by feeding its first `upto` actions (all when -1) through the
+## engine without emitting anything, then puts the bot RNG back where it was.
+## Returns {ok:true} or {ok:false, error, index}.
+func restore(rec: Dictionary, upto: int = -1) -> Dictionary:
+	var h: Dictionary = rec["header"]
+	var ids: Array = h["player_ids"]
+	_setup(ids, h["names"], str(h["difficulty"]), int(h["seed"]))
+	var acts: Array = rec["actions"]
+	var n := acts.size() if upto < 0 else mini(upto, acts.size())
+	_silent = true
+	var last_rng := ""
+	var failed := -1
+	for i in n:
+		if not _apply(acts[i]["action"]):
+			failed = i
+			break
+		last_rng = str(acts[i]["rng"])
+	_silent = false
+	if failed >= 0:
+		return {"ok": false, "error": "action %d no longer applies (game version changed?)" % failed, "index": failed}
+	if last_rng != "":
+		rng.state = int(last_rng)
+	return {"ok": true}
+
+
+## Continues an unfinished record where it stopped; new actions are appended to the same file.
+func resume(rec: Dictionary) -> Dictionary:
+	if str(rec["header"].get("rules_hash", "")) != Recorder.rules_hash(Rules.spec()):
+		return {"ok": false, "error": "this game was saved under different rules"}
+	var res := restore(rec)
+	if not res["ok"]:
+		return res
+	_close_recorder()
+	if not state["over"] and Recorder.enabled:
+		recorder = Recorder.new()
+		recorder.reopen(rec)
 	updated.emit([])
 	_bot_loop()
+	return res
+
+
+## Starts watching a record. Actions are stepped with replay_next / replay_seek; nothing is recorded.
+func start_replay(rec: Dictionary) -> Dictionary:
+	var res := restore(rec, 0)
+	if not res["ok"]:
+		return res
+	_close_recorder()
+	replay_record = rec
+	replay_cursor = 0
+	replay_mode = true
+	updated.emit([])
+	return res
+
+
+func replay_count() -> int:
+	return (replay_record["actions"] as Array).size()
+
+
+## Applies the next recorded action with its events, so the table animates it. False at the end.
+func replay_next() -> bool:
+	if not replay_mode or replay_cursor >= replay_count():
+		return false
+	var a: Dictionary = replay_record["actions"][replay_cursor]
+	var ok := _apply(a["action"])
+	if ok:
+		replay_cursor += 1
+		rng.state = int(str(a["rng"])) # keep the bot RNG where the recording had it
+	return ok
+
+
+## Stickers sent after `n` actions and before the next one: [{from, id, delay}], delay in ms.
+func replay_reactions_after(n: int) -> Array:
+	var acts: Array = replay_record["actions"]
+	if n < 1:
+		return []
+	var t0 := int(acts[n - 1]["t"])
+	var t1 := int(acts[n]["t"]) if n < acts.size() else 1 << 60
+	var out: Array = []
+	for r in replay_record["reactions"]:
+		var t := int(r["t"])
+		if t > t0 and t <= t1:
+			out.append({"from": r["from"], "id": r["id"], "delay": t - t0})
+	return out
+
+
+## Jumps to the state after `n` actions (no animation).
+func replay_seek(n: int) -> void:
+	n = clampi(n, 0, replay_count())
+	if n == replay_cursor + 1:
+		replay_next()
+		return
+	restore(replay_record, n)
+	replay_mode = true
+	replay_cursor = n
+	updated.emit([])
+
+
+## Cosmetic only: logged so a replay can show the same stickers, never fed to the engine.
+func record_reaction(from: String, id: String) -> void:
+	if recorder != null:
+		recorder.add_reaction(from, id)
+
+
+func _close_recorder() -> void:
+	if recorder != null:
+		recorder.close()
+		recorder = null
 
 
 func stop() -> void:
 	_serial += 1
+	_close_recorder() # an unfinished record stays on disk and can be resumed
 
 
 func current_id() -> String:
@@ -79,7 +213,7 @@ func current_id() -> String:
 
 
 func is_human_turn() -> bool:
-	return not state["over"] and current_id() == HUMAN_ID
+	return not replay_mode and not state["over"] and current_id() == HUMAN_ID
 
 
 func human_play(card_id: int, chosen_suit: String = "") -> bool:
@@ -109,6 +243,8 @@ func _apply(action: Dictionary) -> bool:
 	if not res["ok"]:
 		return false
 	state = res["state"]
+	if recorder != null:
+		recorder.add_action(action, rng.state)
 	# Safety valve: if everybody keeps passing with an exhausted bank, end the game.
 	var extra: Array = []
 	for e in res["events"]:
@@ -128,7 +264,12 @@ func _apply(action: Dictionary) -> bool:
 		_force_end(res["events"])
 	if state["over"]:
 		_rank_by_points()
-	updated.emit(res["events"])
+		if recorder != null:
+			recorder.finish({"placing": state["finishedOrder"], "points": points, "is_draw": is_draw,
+				"human_place": int(_player(HUMAN_ID)["place"]), "human_out": (_player(HUMAN_ID)["hand"] as Array).is_empty()})
+			recorder = null
+	if not _silent:
+		updated.emit(res["events"])
 	return true
 
 

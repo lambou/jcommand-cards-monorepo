@@ -99,6 +99,16 @@ var _react_turn_ms := 0
 var _hurried := false
 var _hold_layout := 0.0 # seconds the hand fan waits before closing a gap
 
+const REPLAY_STEP := 1.3 # seconds per action at 1x
+const REPLAY_SPEEDS := [0.5, 1.0, 2.0, 4.0]
+var replay_bar: Control
+var _replay_play: Button
+var _replay_speed_btn: Button
+var _replay_label: Label
+var _replay_playing := false
+var _replay_speed := 1
+var _replay_accum := 0.0
+
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -111,6 +121,27 @@ func start(p_bots: int, p_difficulty: String) -> void:
 	_build()
 	game.bot_delay = 1.15
 	game.start(bots, difficulty)
+
+
+## Continues a saved, unfinished game. Returns {ok} or {ok:false, error}.
+func resume(rec: Dictionary) -> Dictionary:
+	bots = (rec["header"]["player_ids"] as Array).size() - 1
+	difficulty = str(rec["header"]["difficulty"])
+	_build()
+	game.bot_delay = 1.15
+	return game.resume(rec)
+
+
+## Watches a recorded game: no input, transport controls at the top.
+func replay(rec: Dictionary) -> Dictionary:
+	bots = (rec["header"]["player_ids"] as Array).size() - 1
+	difficulty = str(rec["header"]["difficulty"])
+	_build()
+	var res: Dictionary = game.start_replay(rec)
+	if res["ok"]:
+		_build_replay_bar()
+		_relayout()
+	return res
 
 
 # ---------------------------------------------------------------- build
@@ -221,6 +252,60 @@ func _build() -> void:
 
 	_build_picker()
 	_relayout()
+
+
+func _build_replay_bar() -> void:
+	replay_bar = HBoxContainer.new()
+	replay_bar.add_theme_constant_override("separation", 10)
+	var hb := replay_bar as HBoxContainer
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	for spec in [["|<", 90, func(): _replay_pause(); game.replay_seek(0); _replay_update()],
+			["<", 90, func(): _replay_pause(); game.replay_seek(game.replay_cursor - 1); _replay_update()]]:
+		hb.add_child(_replay_button(spec[0], spec[1], spec[2]))
+	_replay_play = _replay_button("PLAY", 170, func():
+		_replay_playing = not _replay_playing
+		if _replay_playing and game.replay_cursor >= game.replay_count():
+			game.replay_seek(0)
+		_replay_update())
+	hb.add_child(_replay_play)
+	hb.add_child(_replay_button(">", 90, func(): _replay_pause(); _replay_step(); _replay_update()))
+	_replay_speed_btn = _replay_button("1x", 100, func():
+		_replay_speed = (_replay_speed + 1) % REPLAY_SPEEDS.size()
+		_replay_update())
+	hb.add_child(_replay_speed_btn)
+	_replay_label = _label(34, Color(1, 1, 1, 0.9))
+	_replay_label.custom_minimum_size = Vector2(140, 90)
+	remove_child(_replay_label)
+	hb.add_child(_replay_label)
+	add_child(replay_bar)
+	_replay_update()
+
+
+func _replay_button(text: String, w: float, on_press: Callable) -> Button:
+	var b := UI.pill(text, false, Vector2(w, 90), 40)
+	b.pressed.connect(on_press)
+	return b
+
+
+func _replay_pause() -> void:
+	_replay_playing = false
+
+
+## One action forward with animation, plus the stickers that were sent right after it.
+func _replay_step() -> void:
+	if not game.replay_next():
+		return
+	var speed: float = REPLAY_SPEEDS[_replay_speed]
+	for r in game.replay_reactions_after(game.replay_cursor):
+		var who := str(r["from"])
+		var id := str(r["id"])
+		get_tree().create_timer(minf(float(r["delay"]) / 1000.0, 2.0) / speed).timeout.connect(func(): show_reaction(who, id))
+
+
+func _replay_update() -> void:
+	_replay_play.text = "PAUSE" if _replay_playing else "PLAY"
+	_replay_speed_btn.text = "%sx" % str(REPLAY_SPEEDS[_replay_speed])
+	_replay_label.text = "%d/%d" % [game.replay_cursor, game.replay_count()]
 
 
 func _label(font_size: int, color: Color) -> Label:
@@ -358,6 +443,9 @@ func _relayout() -> void:
 	var w := size.x
 	var h := size.y
 	menu_button.position = Vector2(20, 14)
+	if replay_bar != null:
+		replay_bar.position = Vector2(UI.ICON_BTN + 40.0, 24.0)
+		replay_bar.size = Vector2(w - 2.0 * (UI.ICON_BTN + 40.0), 90.0)
 	settings_button.position = Vector2(w - 20.0 - UI.ICON_BTN, 14)
 
 	# Opponents.
@@ -539,7 +627,8 @@ func _on_updated(events: Array) -> void:
 	if first:
 		_animate_deal(st)
 		return
-	_react_to_events(events)
+	if not game.replay_mode: # a replay shows the stickers that were really sent
+		_react_to_events(events)
 	for e in events:
 		match e["type"]:
 			"play":
@@ -1128,18 +1217,29 @@ func _refresh() -> void:
 	message_label.text = "\n".join(_log.slice(maxi(_log.size() - 2, 0)))
 	_rebuild_hand(st, human_turn)
 	_update_banner(st, human_turn)
-	var can_react: bool = Settings.show_reactions and not st["over"]
+	var can_react: bool = Settings.show_reactions and not st["over"] and not game.replay_mode
 	react_menu.visible = can_react
 	if not can_react:
 		react_menu.close()
 	if st["over"] and not _shown_over:
 		_shown_over = true
-		_show_over(st)
+		if game.replay_mode:
+			_flash("Game over")
+		else:
+			_show_over(st)
 
 
 ## Cards glide to their slots instead of snapping when the hand changes or is swiped.
 func _process(delta: float) -> void:
 	_watch_human_turn()
+	if _replay_playing:
+		_replay_accum += delta * float(REPLAY_SPEEDS[_replay_speed])
+		if _replay_accum >= REPLAY_STEP:
+			_replay_accum = 0.0
+			_replay_step()
+			if game.replay_cursor >= game.replay_count():
+				_replay_playing = false
+			_replay_update()
 	var k := 1.0 - exp(-delta * 14.0)
 	for v in hand_views:
 		if not v.has_meta("tp"):
@@ -1173,6 +1273,8 @@ func show_reaction(who: String, id: String) -> bool:
 	if now - int(_react_last_ms.get(who, -100000)) < int(Reactions.COOLDOWN * 1000.0):
 		return false
 	_react_last_ms[who] = now
+	if not game.replay_mode:
+		game.record_reaction(who, id)
 	var old = _react_bubbles.get(who)
 	if old != null and is_instance_valid(old):
 		old.queue_free()
@@ -1345,6 +1447,8 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 				banner_label.text = "CHECK! Play your last card to go out"
 		else:
 			banner_label.text = "Your turn"
+	elif game.replay_mode:
+		banner_label.text = "%s to move" % _who(game.current_id())
 	else:
 		banner_label.text = "%s is thinking..." % _who(game.current_id())
 

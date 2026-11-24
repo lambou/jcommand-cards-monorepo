@@ -2,10 +2,14 @@ extends Control
 ## Start screen: pick the number of bots and their difficulty.
 
 signal start_requested(bots: int, difficulty: String)
+signal resume_requested(path: String)
+signal replay_requested(path: String)
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const LeaderboardPanel := preload("res://scripts/ui/leaderboard_panel.gd")
+const HistoryPanel := preload("res://scripts/ui/history_panel.gd")
+const Recorder := preload("res://scripts/game/recorder.gd")
 
 const RULES_TEXT := """GOAL
 Be the first to play all your cards.
@@ -29,6 +33,7 @@ In a 2-player game you cannot finish on an Ace, and a last 7 or Lion only wins i
 
 var bots := 2
 var difficulty := "normal"
+var notice := "" # shown above the buttons, e.g. why a game could not be resumed
 
 
 func _ready() -> void:
@@ -50,8 +55,15 @@ func _ready() -> void:
 	card[1].add_child(UI.choice_row(["Easy", "Normal"], 1, func(i): difficulty = ["easy", "normal"][i]))
 
 	box.add_child(UI.spacer(10))
+	if notice != "":
+		box.add_child(UI.hint(notice, 900))
+	var saved := Recorder.in_progress()
+	if not saved.is_empty():
+		var path: String = saved["path"]
+		box.add_child(UI.button("Resume game", UI.Variant.PRIMARY, func(): resume_requested.emit(path), true))
 	box.add_child(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
 	box.add_child(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
+	box.add_child(UI.button("History", UI.Variant.SECONDARY, _show_history))
 	box.add_child(UI.button("How to play", UI.Variant.SECONDARY, _show_rules))
 	box.add_child(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
 
@@ -71,6 +83,13 @@ func _show_rules() -> void:
 func _show_leaderboard() -> void:
 	var p := LeaderboardPanel.new()
 	p.closed.connect(p.queue_free)
+	add_child(p)
+
+
+func _show_history() -> void:
+	var p := HistoryPanel.new()
+	p.closed.connect(p.queue_free)
+	p.replay_requested.connect(func(path): replay_requested.emit(path))
 	add_child(p)
 
 

@@ -10,6 +10,7 @@ extends Control
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty
+##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
@@ -17,6 +18,7 @@ const Menu := preload("res://scripts/ui/menu.gd")
 const Table := preload("res://scripts/ui/table.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
+const Recorder := preload("res://scripts/game/recorder.gd")
 
 var _current: Control
 
@@ -24,6 +26,8 @@ var _current: Control
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	Settings.load_settings()
+	# Debug runs (selftest, screenshots) must not touch the player's saved games.
+	Recorder.enabled = OS.get_cmdline_user_args().is_empty()
 	add_child(Sfx.new())
 	var shot := ""
 	var podium_path := ""
@@ -56,6 +60,9 @@ func _ready() -> void:
 			return
 		elif a == "--modelview":
 			_swap(preload("res://scripts/ui/model_view.gd").new())
+			return
+		elif a.begins_with("--replayshot="):
+			_replayshot(a.substr(13))
 			return
 		elif a.begins_with("--modelviewshot="):
 			_modelviewshot(a.substr(16))
@@ -117,10 +124,40 @@ func _swap(node: Control) -> void:
 	add_child(node)
 
 
-func _show_menu() -> void:
+func _show_menu(notice: String = "") -> void:
 	var m := Menu.new()
+	m.notice = notice
 	m.start_requested.connect(_start_game)
+	m.resume_requested.connect(_resume_game)
+	m.replay_requested.connect(_replay_game)
 	_swap(m)
+
+
+func _resume_game(path: String) -> void:
+	var rec := Recorder.load_record(path)
+	if not rec["ok"]:
+		_show_menu("Could not resume: %s" % rec["error"])
+		return
+	var t := Table.new()
+	t.quit_to_menu.connect(_show_menu)
+	_swap(t)
+	var res := t.resume(rec)
+	if not res["ok"]:
+		Recorder.delete(path)
+		_show_menu("Could not resume: %s. The saved game was removed." % res["error"])
+
+
+func _replay_game(path: String) -> void:
+	var rec := Recorder.load_record(path)
+	if not rec["ok"]:
+		_show_menu("Could not replay: %s" % rec["error"])
+		return
+	var t := Table.new()
+	t.quit_to_menu.connect(_show_menu)
+	_swap(t)
+	var res := t.replay(rec)
+	if not res["ok"]:
+		_show_menu("Could not replay: %s" % res["error"])
 
 
 func _start_game(bots: int, difficulty: String) -> Table:
@@ -413,6 +450,33 @@ func _checkshot(path: String) -> void:
 		await get_tree().create_timer(m).timeout
 		_save(path, "_%d" % i)
 		i += 1
+	get_tree().quit()
+
+
+func _replayshot(path: String) -> void:
+	Recorder.dir = "user://games_test"
+	var recs := Recorder.list().filter(func(r): return r["finished"])
+	if recs.is_empty():
+		push_error("no records: run tests/test_record_replay.gd first")
+		get_tree().quit(1)
+		return
+	var rec: Dictionary = recs[0]
+	var t := Table.new()
+	_swap(t)
+	t.replay(rec)
+	await get_tree().create_timer(1.2).timeout
+	_save(path, "_0")
+	var n: int = t.game.replay_count()
+	for i in n / 2:
+		t._replay_step()
+		await get_tree().create_timer(0.05).timeout
+	t._replay_update()
+	await get_tree().create_timer(1.0).timeout
+	_save(path, "_mid")
+	t.game.replay_seek(n)
+	t._replay_update()
+	await get_tree().create_timer(1.0).timeout
+	_save(path, "_end")
 	get_tree().quit()
 
 
