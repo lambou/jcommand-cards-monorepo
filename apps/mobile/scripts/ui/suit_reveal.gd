@@ -46,7 +46,8 @@ func start(parent: Control, suit_id: String, delay: float = 0.0, card: Control =
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if delay > 0.0:
 		await parent.get_tree().create_timer(delay).timeout
-		if not parent.is_inside_tree():
+		# The table may have been freed (or taken out) during the wait, e.g. leaving the game mid-reveal.
+		if not is_instance_valid(parent) or not parent.is_inside_tree():
 			free()
 			return
 	parent.add_child(self)
