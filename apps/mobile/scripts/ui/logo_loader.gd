@@ -32,14 +32,13 @@ const FRAME := Color(0.86, 0.66, 0.26)
 
 ## Logo geometry, in the 1024 px logo's pixels relative to the heart's centre.
 const LOGO_PX := 1024.0
-const GAP := 6.0
-const SPLIT_Y := -36.0      # the line between the lobes and the lower halves
-const LOBE_R := 189.0
-const LOBE_TOP := -337.0
-const LOWER_TOP := -26.0
-const LOWER_EDGE_X := 352.0 # how far the lower halves reach out
+const GAP := 5.0           # half the width of the grooves between pieces
+const SPLIT_Y := -30.0     # the cut between the lobes and the lower halves
+const LOBE_R := 212.0      # lobe circle radius
+const LOBE_D := 170.0      # lobe circle centres sit at x = +-LOBE_D (they overlap, giving the dip)
+const LOBE_CY := -125.0    # lobe circle centre height
 const TIP_Y := 336.0
-const PIP := {"H": Vector2(-132, -150), "D": Vector2(133, -160), "S": Vector2(96, 92), "C": Vector2(-100, 92)}
+const PIP := {"H": Vector2(-180, -125), "D": Vector2(180, -125), "S": Vector2(118, 78), "C": Vector2(-118, 78)}
 const PIP_SIZE := 78.0
 
 ## Seconds for one lap of the spinner.
@@ -65,11 +64,13 @@ var _pieces := {}           # suit -> PackedVector2Array (logo px, relative to h
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var heart := _heart_outline()
+	var far := 1000.0
 	_pieces = {
-		"H": _lobe(-1.0),
-		"D": _lobe(1.0),
-		"C": _lower(-1.0),
-		"S": _lower(1.0),
+		"H": _cut(heart, -far, -GAP, -far, SPLIT_Y - GAP),
+		"D": _cut(heart, GAP, far, -far, SPLIT_Y - GAP),
+		"C": _cut(heart, -far, -GAP, SPLIT_Y + GAP, far),
+		"S": _cut(heart, GAP, far, SPLIT_Y + GAP, far),
 	}
 
 
@@ -105,39 +106,33 @@ func reset() -> void:
 
 # ---------------------------------------------------------------- shapes
 
-## A top lobe: a half disc with straight sides down to the split line. `side` -1 = left, 1 = right.
-func _lobe(side: float) -> PackedVector2Array:
-	var cx := side * (GAP + LOBE_R)
-	var cy := LOBE_TOP + LOBE_R
-	var pts := PackedVector2Array()
-	var bottom := SPLIT_Y - GAP
-	pts.append(Vector2(cx - LOBE_R, bottom))
-	for i in 25:
-		var a := PI + PI * float(i) / 24.0
-		pts.append(Vector2(cx + cos(a) * LOBE_R, cy + sin(a) * LOBE_R))
-	pts.append(Vector2(cx + LOBE_R, bottom))
+## The whole heart outline: two overlapping circles, and from each a straight line tangent to it down to
+## the tip, so the sides flow out of the lobes without a kink. Clockwise from the tip.
+func _heart_outline() -> PackedVector2Array:
+	var cl := Vector2(-LOBE_D, LOBE_CY)
+	var tip := Vector2(0.0, TIP_Y)
+	var v := tip - cl
+	var a_tan := atan2(v.y, v.x) + acos(LOBE_R / v.length())   # outer tangent point, lower left of the circle
+	var a_dip := atan2(-sqrt(LOBE_R * LOBE_R - LOBE_D * LOBE_D), LOBE_D) + TAU  # where the circles cross at x = 0
+	var left := PackedVector2Array()
+	for i in 49:
+		var a := lerpf(a_tan, a_dip, float(i) / 48.0)
+		left.append(cl + Vector2(cos(a), sin(a)) * LOBE_R)
+	var pts := PackedVector2Array([tip])
+	pts.append_array(left)
+	for i in range(left.size() - 2, -1, -1):   # the right lobe mirrors the left (skip the shared dip point)
+		pts.append(Vector2(-left[i].x, left[i].y))
 	return pts
 
 
-## A lower half: a triangle from the split line to the tip, its outer edge bowed out a little.
-func _lower(side: float) -> PackedVector2Array:
-	var top := LOWER_TOP + GAP
-	var inner := side * GAP
-	var outer := Vector2(side * LOWER_EDGE_X, top)
-	var tip := Vector2(inner, TIP_Y)
-	var ctrl := (outer + tip) / 2.0 + Vector2(side * 34.0, 30.0)
-	var pts := PackedVector2Array([Vector2(inner, top)])
-	for i in 21:
-		var u := float(i) / 20.0
-		pts.append(outer.lerp(ctrl, u).lerp(ctrl.lerp(tip, u), u))
-	return pts if side < 0.0 else _reversed(pts)
-
-
-func _reversed(p: PackedVector2Array) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for i in range(p.size() - 1, -1, -1):
-		out.append(p[i])
-	return out
+## Cuts the heart into its four pieces along a cross, leaving a GAP-wide groove on each side of the cuts.
+func _cut(heart: PackedVector2Array, x0: float, x1: float, y0: float, y1: float) -> PackedVector2Array:
+	var rect := PackedVector2Array([Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, y1), Vector2(x0, y1)])
+	var best := PackedVector2Array()
+	for poly in Geometry2D.intersect_polygons(heart, rect):
+		if poly.size() > best.size():
+			best = poly
+	return best
 
 
 func _centroid(p: PackedVector2Array) -> Vector2:
