@@ -20,6 +20,8 @@ extends Control
 ##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
 ##   --flipplay              playground for the bank draw: a real card lifted off the pile and flipped (ui/flip_playground.gd)
 ##   --flipshot=<file.png>   <file>_00.. slow-motion frames of one playground draw
+##   --loaderplay            playground for the logo loader: spinning / progress / finish (ui/logo_loader.gd)
+##   --loadershot=<file.png> <file>_spin0..3 / _p30/_p60/_p100 / _bare.png of the loader playground
 ##   --dealplay              playground for the opening deal: flying cards / dealer hand / packets (ui/deal_playground.gd)
 ##   --dealshot=<file.png>   <file>_00.. frames of one playground deal ([--dealmode=0..2] [--players=N] [--cards=N])
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
@@ -82,6 +84,14 @@ func _ready() -> void:
 			var fp := preload("res://scripts/ui/flip_playground.gd").new()
 			_swap(fp)
 			fp.capture(a.substr(11))
+			return
+		elif a == "--loaderplay":
+			_swap(preload("res://scripts/ui/loader_playground.gd").new())
+			return
+		elif a.begins_with("--loadershot="):
+			var lp := preload("res://scripts/ui/loader_playground.gd").new()
+			_swap(lp)
+			lp.capture(a.substr(13))
 			return
 		elif a == "--dealplay":
 			_swap(preload("res://scripts/ui/deal_playground.gd").new())
