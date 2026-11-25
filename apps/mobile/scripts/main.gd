@@ -227,6 +227,7 @@ func _resume_game(path: String) -> void:
 		return
 	var t := Table.new()
 	t.quit_to_menu.connect(_go.bind(_show_menu))
+	t.play_again_requested.connect(func(b, d): _go(_start_game.bind(b, d)))
 	_swap(t)
 	var res := t.resume(rec)
 	if not res["ok"]:
@@ -241,6 +242,7 @@ func _replay_game(path: String) -> void:
 		return
 	var t := Table.new()
 	t.quit_to_menu.connect(_go.bind(_show_menu))
+	t.play_again_requested.connect(func(b, d): _go(_start_game.bind(b, d)))
 	_swap(t)
 	var res := t.replay(rec)
 	if not res["ok"]:
@@ -250,6 +252,7 @@ func _replay_game(path: String) -> void:
 func _start_game(bots: int, difficulty: String) -> Table:
 	var t := Table.new()
 	t.quit_to_menu.connect(_go.bind(_show_menu))
+	t.play_again_requested.connect(func(b, d): _go(_start_game.bind(b, d)))
 	_swap(t)
 	t.start(bots, difficulty)
 	return t
@@ -259,6 +262,7 @@ func _start_game(bots: int, difficulty: String) -> Table:
 func _start_tutorial(chapter: int) -> Table:
 	var t := Table.new()
 	t.quit_to_menu.connect(_go.bind(_show_menu))
+	t.play_again_requested.connect(func(b, d): _go(_start_game.bind(b, d)))
 	t.tutorial_chapter_requested.connect(func(ch): _go(_start_tutorial.bind(ch)))
 	t.tutorial_play_requested.connect(_go.bind(_start_game.bind(1, "easy")))
 	_swap(t)

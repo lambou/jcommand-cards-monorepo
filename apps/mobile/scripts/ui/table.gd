@@ -33,6 +33,7 @@ const Tutorial := preload("res://scripts/game/tutorial.gd")
 const Coach := preload("res://scripts/ui/coach.gd")
 
 signal quit_to_menu
+signal play_again_requested(bots: int, difficulty: String) # results screen; Main restarts through the screen transition
 signal tutorial_chapter_requested(index: int) # chapter-end buttons: next chapter / replay this one
 signal tutorial_play_requested # after the last chapter: start a real game
 
@@ -145,6 +146,15 @@ func start(p_bots: int, p_difficulty: String) -> void:
 	game.bot_delay_max = 2.0
 	game.start(bots, difficulty)
 
+
+
+## Results screen "Play again": Main swaps in a fresh table behind the transition. Without a listener
+## (debug runs) the table just restarts in place.
+func _play_again() -> void:
+	if play_again_requested.get_connections().is_empty():
+		start(bots, difficulty)
+	else:
+		play_again_requested.emit(bots, difficulty)
 
 ## Plays tutorial chapter `index` (0-based) against Rex, with Rex coaching. Nothing is recorded or scored.
 func start_tutorial(index: int) -> void:
@@ -2069,7 +2079,7 @@ func _show_over(st: Dictionary) -> void:
 
 	box.add_child(_score_panel(result, rank))
 	var footer_box: VBoxContainer = page["footer_box"]
-	for b in [UI.button("Play again", UI.Variant.PRIMARY, func(): start(bots, difficulty)),
+	for b in [UI.button("Play again", UI.Variant.PRIMARY, _play_again),
 			UI.button("Menu", UI.Variant.SECONDARY, func(): quit_to_menu.emit())]:
 		var c := CenterContainer.new()
 		c.add_child(b)
