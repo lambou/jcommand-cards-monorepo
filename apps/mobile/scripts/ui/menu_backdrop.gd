@@ -6,12 +6,19 @@ extends Control
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const CardArt := preload("res://scripts/ui/card_art.gd")
 const CardView := preload("res://scripts/ui/card_view.gd")
+const Settings := preload("res://scripts/game/settings.gd")
 
 const PATTERN_STEP := 132.0          # grid spacing of the suit pattern
 const PATTERN_SIZE := 30.0           # suit glyph size in the pattern
 const PATTERN_COL := Color(0.6, 1.0, 0.75, 0.05)
 const CARD_SCALE := 1.15
 const CARD_TINT := Color(0.8, 0.86, 0.82, 0.92)   # shaded so the cards sit back behind the menu
+const SCRIM := Color(0.02, 0.13, 0.08, 0.5)       # felt-dark veil over pattern + cards: the menu stays the focus
+# Random drift: each card wanders on its own noise track (offset, tilt, a slight breathing scale).
+const DRIFT_PX := 26.0
+const DRIFT_DEG := 6.0
+const DRIFT_SCALE := 0.03
+const DRIFT_SPEED := 0.09   # noise units per second: slow enough to stay in the background
 
 ## [x, y] as fractions of the screen (card centre), rotation in degrees, card ("" = back, else rank+suit).
 ## Kept to the margins and corners: the menu column covers roughly x 0.14..0.86.
@@ -31,6 +38,10 @@ const SCATTER := [
 ]
 
 var _cards: Array[Control] = []
+var _noise := FastNoiseLite.new()
+var _seeds: Array[float] = []   # per card: where on the noise track it starts
+var _speeds: Array[float] = []  # per card: how fast it wanders
+var _t := 0.0
 
 
 func _ready() -> void:
@@ -62,15 +73,43 @@ func _ready() -> void:
 		v.modulate = CARD_TINT
 		add_child(v)
 		_cards.append(v)
+		_seeds.append(randf() * 1000.0)
+		_speeds.append(DRIFT_SPEED * randf_range(0.6, 1.4))
+	var scrim := ColorRect.new()
+	scrim.color = SCRIM
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(scrim)
+	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_noise.frequency = 1.0
+	_noise.seed = randi()
 	resized.connect(_layout)
+	_layout()
+	set_process(not Settings.reduce())
+
+
+func _process(delta: float) -> void:
+	_t += delta
 	_layout()
 
 
+## Rest position from SCATTER plus each card's random drift (none with reduce motion: _t stays 0).
 func _layout() -> void:
 	for i in _cards.size():
 		var spec: Array = SCATTER[i]
 		var v := _cards[i]
-		v.position = Vector2(spec[0] * size.x, spec[1] * size.y) - v.size / 2.0
+		var drift := Vector2.ZERO
+		var tilt := 0.0
+		var breathe := 0.0
+		if _t > 0.0:
+			var p := _seeds[i] + _t * _speeds[i]
+			# Separate tracks of the same noise (far-apart y rows) so x, y, tilt and scale move independently.
+			drift = Vector2(_noise.get_noise_2d(p, 0.0), _noise.get_noise_2d(p, 100.0)) * DRIFT_PX * 2.0
+			tilt = _noise.get_noise_2d(p, 200.0) * DRIFT_DEG * 2.0
+			breathe = _noise.get_noise_2d(p, 300.0) * DRIFT_SCALE * 2.0
+		v.position = Vector2(spec[0] * size.x, spec[1] * size.y) - v.size / 2.0 + drift
+		v.rotation = deg_to_rad(spec[2] + tilt)
+		v.scale = Vector2.ONE * CARD_SCALE * (1.0 + breathe)
 
 
 ## Staggered grid of all four suits, barely lighter than the felt.
