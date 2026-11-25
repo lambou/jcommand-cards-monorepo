@@ -19,6 +19,8 @@ extends Control
 ##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
 ##   --flipplay              playground for the bank draw: a real card lifted off the pile and flipped (ui/flip_playground.gd)
 ##   --flipshot=<file.png>   <file>_00.. slow-motion frames of one playground draw
+##   --dealplay              playground for the opening deal: flying cards / dealer hand / packets (ui/deal_playground.gd)
+##   --dealshot=<file.png>   <file>_00.. frames of one playground deal ([--dealmode=0..2] [--players=N] [--cards=N])
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
@@ -75,6 +77,14 @@ func _ready() -> void:
 			var fp := preload("res://scripts/ui/flip_playground.gd").new()
 			_swap(fp)
 			fp.capture(a.substr(11))
+			return
+		elif a == "--dealplay":
+			_swap(preload("res://scripts/ui/deal_playground.gd").new())
+			return
+		elif a.begins_with("--dealshot="):
+			var dp := preload("res://scripts/ui/deal_playground.gd").new()
+			_swap(dp)
+			dp.capture(a.substr(11))
 			return
 		elif a == "--modelview":
 			_swap(preload("res://scripts/ui/model_view.gd").new())

@@ -3,6 +3,7 @@ extends RefCounted
 ## call save() after changing one.
 
 const PATH := "user://settings.cfg"
+const DEAL_STYLES := ["Flying cards", "Dealer hand", "Packets"]
 
 static var sound_enabled := true
 static var volume := 0.8 # 0..1
@@ -12,6 +13,7 @@ static var hand_you := true # 3D hand that plays your cards
 static var hand_bots := true # 3D hands that play the opponents' cards
 static var hand_color := 0 # index into Hand3D.STYLES; opponents get the following ones
 static var table_style := 0 # index into TableBg.STYLES
+static var deal_style := 1 # index into DEAL_STYLES: how the opening cards are dealt (default: the dealer hand)
 static var avatar := 0 # index into Avatar.STYLES; the bots get the other three
 
 static var tutorial_seen := false # the one-time "learn with Rex" prompt has been shown
@@ -35,6 +37,7 @@ static func load_settings() -> void:
 	hand_bots = bool(cfg.get_value("game", "hand_bots", true))
 	hand_color = maxi(int(cfg.get_value("game", "hand_color", 0)), 0)
 	table_style = maxi(int(cfg.get_value("game", "table_style", 0)), 0)
+	deal_style = clampi(int(cfg.get_value("game", "deal_style", 1)), 0, DEAL_STYLES.size() - 1)
 	avatar = maxi(int(cfg.get_value("game", "avatar", 0)), 0)
 	tutorial_seen = bool(cfg.get_value("tutorial", "seen", false))
 	tutorial_done = Array(cfg.get_value("tutorial", "done", []))
@@ -62,6 +65,7 @@ static func save() -> void:
 	cfg.set_value("game", "hand_bots", hand_bots)
 	cfg.set_value("game", "hand_color", hand_color)
 	cfg.set_value("game", "table_style", table_style)
+	cfg.set_value("game", "deal_style", deal_style)
 	cfg.set_value("game", "avatar", avatar)
 	cfg.set_value("tutorial", "seen", tutorial_seen)
 	cfg.set_value("tutorial", "done", tutorial_done)

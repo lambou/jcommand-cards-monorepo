@@ -16,6 +16,7 @@ var _react_btn: Button
 var _hand_you_btn: Button
 var _hand_bots_btn: Button
 var _hand_color_btn: Button
+var _deal_btn: Button
 const TABLE_RADIUS := 22
 
 var _table_frames: Array = []
@@ -62,6 +63,9 @@ func _ready() -> void:
 	_hand_color_btn = UI.button("", UI.Variant.SECONDARY, _on_hand_color)
 	inner.add_child(_hand_color_btn)
 	inner.add_child(UI.hint("3D hands pick up and play the cards: yours from the bottom, the opponents' from the top. They are also off while Reduce motion is on."))
+	_deal_btn = UI.button("", UI.Variant.SECONDARY, _on_deal_style)
+	inner.add_child(_deal_btn)
+	inner.add_child(UI.hint("How the cards are dealt before a game. Dealer hand: the player who moves last deals with their own hand, flicking the cards out one by one. Flying cards: all at once. Packets: each player's whole hand in a quick burst. With Reduce motion on, the hand is skipped."))
 	inner.add_child(UI.heading("Your avatar"))
 	var avs := HBoxContainer.new()
 	avs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -108,6 +112,12 @@ func _on_motion(on: bool) -> void:
 
 func _on_hand_color() -> void:
 	Settings.hand_color = (Settings.hand_color + 1) % Hand3D.STYLES.size()
+	Settings.save()
+	_refresh()
+
+
+func _on_deal_style() -> void:
+	Settings.deal_style = (Settings.deal_style + 1) % Settings.DEAL_STYLES.size()
 	Settings.save()
 	_refresh()
 
@@ -244,6 +254,7 @@ func _on_reactions(on: bool) -> void:
 func _refresh() -> void:
 	_react_btn.text = "Reactions: %s" % ("On" if Settings.show_reactions else "Off")
 	_hand_color_btn.text = "Hand colour: %s" % Hand3D.STYLES[Settings.hand_color % Hand3D.STYLES.size()][0]
+	_deal_btn.text = "Dealing: %s" % Settings.DEAL_STYLES[Settings.deal_style]
 	for i in _table_frames.size():
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0, 0, 0, 0)

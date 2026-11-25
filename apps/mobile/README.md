@@ -29,6 +29,12 @@ deterministic, so the log is enough to **resume** an unfinished game (menu: Resu
     godot --headless --path apps/mobile -s res://scripts/tests/test_tutorial.gd     # every tutorial chapter replays legally through the engine (fails if a rules change breaks a lesson)
     godot --headless --path apps/mobile -- --tutorialtest                           # plays the tutorial chapters through the real UI handlers, wrong taps included
     godot --headless --path apps/mobile -- --taptest                                # the same with real touch and mouse events only (hit-testing, overlay, suit picker)
+    godot --headless --path apps/mobile -s res://scripts/tests/test_deal_plan.gd        # the deal choreography as plain data: order, pacing, dealer, settings
+    godot --headless --fixed-fps 60 --path apps/mobile -s res://scripts/tests/test_hand_flick.gd   # dealer's hand: index+middle fingers extend on a throw, aim, glide, draws unaffected
+    godot --headless --fixed-fps 60 --path apps/mobile -s res://scripts/tests/test_deal_table.gd   # real table: every deal style x 1-3 bots (you / a bot deals), smooth motion, nothing left over, drawing still works
+    godot --headless --path apps/mobile -s res://scripts/tests/test_deal_settings_ui.gd # the "Dealing" setting button
+    godot --headless --path apps/mobile -s res://scripts/tests/test_deal_hitch.gd       # (no --fixed-fps) the first card still leaves with the dealer's throw over a loading hitch
+    godot --path apps/mobile -- --dealplay                                              # playground for the deal (or open scenes/deal_playground.tscn)
     tools/test-formfactors.sh                                                       # the tutorial at phone / tablet / PC / ultrawide window shapes (layout checks + screenshots)
     godot --path apps/mobile -- --tutorialshot=out.png                              # a screenshot of every tutorial step / nudge / chapter end
     godot --headless --path apps/mobile -- --selftest                               # plays full games through the real UI handlers

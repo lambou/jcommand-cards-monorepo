@@ -24,6 +24,7 @@ const Sfx := preload("res://scripts/audio/sfx.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const Hand3D := preload("res://scripts/ui/hand3d.gd")
+const DealPlan := preload("res://scripts/game/deal_plan.gd")
 const CardFlip := preload("res://scripts/ui/card_flip.gd")
 const Reactions := preload("res://scripts/game/reactions.gd")
 const ReactionBubble := preload("res://scripts/ui/reaction_bubble.gd")
@@ -889,34 +890,123 @@ func _is_fresh_deal(st: Dictionary) -> bool:
 	return true
 
 
+## The opening deal. WHAT happens and WHEN is the plan (game/deal_plan.gd, style from Settings.deal_style);
+## this only carries it out with the table's own flights. It never touches the draw animation: it calls the same
+## `_fly` / `_fly_flip` helpers and nothing in the draw code calls back into it.
 func _animate_deal(st: Dictionary) -> void:
+	var style := Settings.deal_style
+	var glove := style == DealPlan.DEALER and _deal_glove_ok()
+	var seats: Array = st["players"]
+	var first := int(st["current"])
+	var by_id := {}
+	var ids: Array = []
+	for p in seats:
+		by_id[p["id"]] = p
+		ids.append(p["id"])
+	var dealer: String = DealPlan.dealer_of(ids, first)
+	var plan := DealPlan.build(style, DealPlan.turn_order(ids, first), int(st["settings"]["handSize"]), glove)
 	var bank_c := _center(bank_view)
 	var bank_w := bank_view.size.x
-	var hand_size := int(st["settings"]["handSize"])
-	var idx := 0
-	for r in hand_size:
-		for p in st["players"]:
-			var card: Dictionary = p["hand"][r]
-			var delay := STAGGER * idx
-			if p["id"] == ME:
-				var hv := _hand_view(card["id"])
-				if hv != null:
-					var cid: int = card["id"]
-					_fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, delay, FLY, func():
-						_unhide(cid)
-						Sfx.play("deal", 0.45))
-			else:
-				_fly({}, false, false, bank_c, bank_w, _seat_center(p["id"]), 70.0, delay, FLY, func(): Sfx.play("deal", 0.3))
-			idx += 1
+	for step in plan["steps"]:
+		var seat := String(step["seat"])
+		var card: Dictionary = by_id[seat]["hand"][step["round"]]
+		if glove and float(step["grab"]) >= 0.0:
+			# The hand's own throw launches the card (one clock), so the fingers and the card never drift apart.
+			_dealer_throw(float(step["grab"]), float(step["send"]) - float(step["grab"]), dealer, plan["flick"],
+					_deal_aim(_deal_target_x(seat, card), bank_c.x), bank_c, bank_w,
+					func(): _deal_flight(seat, card, bank_c, bank_w, 0.0, style))
+		else:
+			_deal_flight(seat, card, bank_c, bank_w, float(step["send"]), style)
 	# Then the starting card is turned over onto the stack.
 	var floor_card: Dictionary = st["stack"][st["stack"].size() - 1]
-	var d := STAGGER * idx + 0.1
-	_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, d, FLY + 0.1, func():
+	var send := float(plan["start"]["send"])
+	var land := func():
 		_floor_held = -1
 		_set_floor(floor_card, false)
 		_stack_note = "Starting card"
-		_update_captions())
-	_lock_until = Time.get_ticks_msec() + int((d + FLY + 0.2) * 1000.0)
+		_update_captions()
+	if glove:
+		_dealer_throw(float(plan["start"]["grab"]), send - float(plan["start"]["grab"]), dealer, plan["flick"],
+				_deal_aim(_center(stack_view).x, bank_c.x), bank_c, bank_w, func():
+					_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, 0.0, FLY + 0.1, land)
+					get_tree().create_timer(0.15).timeout.connect(func():
+						if is_instance_valid(hand3d):
+							hand3d.deal_end()))
+	else:
+		_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, send, FLY + 0.1, land)
+	_lock_until = Time.get_ticks_msec() + int((send + FLY + (0.5 if glove else 0.2)) * 1000.0)
+
+
+## The dealer's own hand is shown unless motion is reduced or both 3D-hand settings are off.
+func _deal_glove_ok() -> bool:
+	return hand3d != null and not Settings.reduce() and (Settings.hands(false) or Settings.hands(true))
+
+
+## One dealt card flying from the bank to `seat` at time `send`. Yours is shown face-up as it lands.
+func _deal_flight(seat: String, card: Dictionary, bank_c: Vector2, bank_w: float, send: float, style: int) -> Control:
+	if seat == ME:
+		var hv := _hand_view(card["id"])
+		if hv == null:
+			return null
+		var cid: int = card["id"]
+		var landed := func():
+			_unhide(cid)
+			Sfx.play("deal", 0.45)
+		if style == DealPlan.FLY:
+			return _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, send, FLY, landed)
+		return _fly_flip(card, bank_c, bank_w, _center(hv), hv.size.x, send, landed, false, hv) # peeled and turned, like a draw
+	var flyer := _fly({}, false, false, bank_c, bank_w, _seat_center(seat), 70.0, send, FLY, func(): Sfx.play("deal", 0.3))
+	if style != DealPlan.FLY and flyer != null and not Settings.reduce(): # a little flick as it leaves the hand
+		var spin := _react_rng.randf_range(-0.35, 0.35)
+		var tw := flyer.create_tween()
+		tw.tween_interval(send)
+		tw.tween_method(func(t: float): flyer.rotation = spin * sin(t * PI), 0.0, 1.0, FLY)
+	return flyer
+
+
+## The dealer's hand reaches for the top card of the bank at time `at` (taking `reach` s), pinches it and throws it
+## toward `aim` (-1..1, see _deal_aim); `launch` starts the card's flight at the moment of the throw. It comes
+## from the dealer's own side: the top for a bot (over its seat), the bottom for you.
+func _dealer_throw(at: float, reach: float, dealer: String, flick: float, aim: float, bank_c: Vector2, bank_w: float,
+		launch: Callable) -> void:
+	var tw := create_tween()
+	tw.tween_interval(maxf(at, 0.001))
+	tw.tween_callback(func():
+		if not is_instance_valid(hand3d):
+			launch.call() # no hand: the card is still dealt
+			return
+		var held := _bank_standin(bank_c, bank_w) # the card the hand grips; the real flight takes over at the throw
+		hand3d.deal_step(held, reach, flick, dealer != ME, _hand_style(dealer), _seat_center(dealer).x, aim, func():
+			if is_instance_valid(held):
+				held.queue_free()
+			launch.call()))
+
+
+## A face-down card lying on the bank, for the dealer's hand to grip.
+func _bank_standin(bank_c: Vector2, bank_w: float) -> Control:
+	var v := CardView.new()
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.set_card({}, false)
+	v.size = Vector2(bank_w, bank_w * CardView.BASE.y / CardView.BASE.x)
+	v.pivot_offset = v.size / 2.0
+	v.position = bank_c - v.size / 2.0
+	v.set_meta("standin", true) # not a flight: the card under the dealer's fingers (tests tell it from the real flyer)
+	fx.add_child(v)
+	return v
+
+
+## Where a dealt card lands horizontally: its slot in your hand, or a bot's seat.
+func _deal_target_x(seat: String, card: Dictionary) -> float:
+	if seat == ME:
+		var hv := _hand_view(card["id"])
+		if hv != null:
+			return _center(hv).x
+	return _seat_center(seat).x
+
+
+## How far to one side of the bank a card is thrown, as -1 (far left) .. 1 (far right).
+func _deal_aim(target_x: float, bank_x: float) -> float:
+	return clampf((target_x - bank_x) / maxf(size.x * 0.35, 1.0), -1.0, 1.0)
 
 
 func _animate_play(e: Dictionary, old_rects: Dictionary, prev_req: Dictionary) -> void:
