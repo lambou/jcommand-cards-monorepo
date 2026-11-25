@@ -14,6 +14,7 @@ const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const LeaderboardPanel := preload("res://scripts/ui/leaderboard_panel.gd")
 const HistoryPanel := preload("res://scripts/ui/history_panel.gd")
 const Recorder := preload("res://scripts/game/recorder.gd")
+const MenuBackdrop := preload("res://scripts/ui/menu_backdrop.gd")
 
 const RULES_TEXT := """GOAL
 Be the first to play all your cards.
@@ -42,34 +43,42 @@ var notice := "" # shown above the buttons, e.g. why a game could not be resumed
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(UI.background())
+	add_child(MenuBackdrop.new())
 
-	var box := UI.column()
+	var saved := Recorder.in_progress()
+	# A saved game adds a second big button; tighten the gaps so it all still fits without scrolling.
+	var box := UI.column(UI.SPACE_M if saved.is_empty() else UI.SPACE_S + 4)
 	add_child(box)
-	box.add_child(UI.title("J-COMMAND", UI.FONT_DISPLAY))
+	box.add_child(UI.brand_header("J-COMMAND"))
 	box.add_child(UI.tagline("Shed your cards. Stop the others."))
-	box.add_child(UI.spacer(20))
+	box.add_child(UI.spacer(20 if saved.is_empty() else 0))
 
 	var card := UI.panel()
+	card[0].custom_minimum_size.x = UI.MENU_W
+	card[0].size_flags_horizontal = Control.SIZE_SHRINK_CENTER   # the logo + title row is wider; keep the menu block narrower
 	box.add_child(card[0])
 	card[1].add_child(UI.heading("Opponents"))
-	card[1].add_child(UI.choice_row(["1", "2", "3"], 1, func(i): bots = i + 1))
+	card[1].add_child(UI.choice_row(["1", "2", "3"], 1, func(i): bots = i + 1, true))
 	card[1].add_child(UI.spacer(6))
 	card[1].add_child(UI.heading("Difficulty"))
-	card[1].add_child(UI.choice_row(["Easy", "Normal", "Hard"], 1, func(i): difficulty = ["easy", "normal", "hard"][i]))
+	card[1].add_child(UI.choice_row(["Easy", "Normal", "Hard"], 1, func(i): difficulty = ["easy", "normal", "hard"][i], true))
 
 	box.add_child(UI.spacer(10))
 	if notice != "":
-		box.add_child(UI.hint(notice, 900))
-	var saved := Recorder.in_progress()
+		box.add_child(UI.hint(notice, UI.MENU_W))
+	var buttons: Array[Button] = []
 	if not saved.is_empty():
 		var path: String = saved["path"]
-		box.add_child(UI.button("Resume game", UI.Variant.PRIMARY, func(): resume_requested.emit(path), true))
-	box.add_child(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
-	box.add_child(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
-	box.add_child(UI.button("History", UI.Variant.SECONDARY, _show_history))
-	box.add_child(UI.button("How to play", UI.Variant.SECONDARY, _show_howto))
-	box.add_child(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
+		buttons.append(UI.button("Resume game", UI.Variant.PRIMARY, func(): resume_requested.emit(path), true))
+	buttons.append(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
+	buttons.append(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
+	buttons.append(UI.button("History", UI.Variant.SECONDARY, _show_history))
+	buttons.append(UI.button("How to play", UI.Variant.SECONDARY, _show_howto))
+	buttons.append(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
+	for b in buttons:
+		b.custom_minimum_size.x = UI.MENU_W
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(b)
 	# First launch only (debug runs and screenshots skip it): offer the tutorial once, never force it.
 	if Recorder.enabled and not Settings.tutorial_seen:
 		Settings.tutorial_seen = true

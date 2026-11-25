@@ -51,6 +51,9 @@ const PILL_H := 110
 const ICON_BTN := 110       # icon-only HUD button (touch target)
 const MARGIN_SCREEN := 50  # edge margin for full-screen content
 const MAX_CONTENT_W := 980  # widest a page's content gets (1080 minus margins); wider screens just get more side margin
+const MENU_W := 800         # start menu: options panel and every button share this width
+const LOGO := "res://assets/branding/logo.png"
+const LOGO_TITLE := 150     # logo edge next to the FONT_DISPLAY title
 
 enum Variant { PRIMARY, SECONDARY, TERTIARY, DANGER }
 
@@ -249,6 +252,24 @@ static func title(text: String, font_size: int = FONT_H1) -> Label:
 	return l
 
 
+## The game's name with the app logo on its left, centred as one unit (logo hidden if the file is missing).
+static func brand_header(text: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 24)
+	if ResourceLoader.exists(LOGO):
+		var logo := TextureRect.new()
+		logo.texture = load(LOGO)
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		logo.custom_minimum_size = Vector2(LOGO_TITLE, LOGO_TITLE)
+		logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(logo)
+	row.add_child(title(text, FONT_DISPLAY))
+	return row
+
+
 static func tagline(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -330,14 +351,16 @@ static func pill(text: String, selected: bool, size: Vector2 = Vector2(PILL_W, P
 	return b
 
 
-## Row of mutually exclusive pills. on_pick(index) fires on selection.
-static func choice_row(labels: Array, selected: int, on_pick: Callable) -> HBoxContainer:
+## Row of mutually exclusive pills. on_pick(index) fires on selection. stretch=true shares the row's full width.
+static func choice_row(labels: Array, selected: int, on_pick: Callable, stretch: bool = false) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 20)
 	var group := ButtonGroup.new()
 	for i in labels.size():
 		var b := pill(labels[i], i == selected)
+		if stretch:
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.button_group = group
 		b.pressed.connect(on_pick.bind(i))
 		row.add_child(b)

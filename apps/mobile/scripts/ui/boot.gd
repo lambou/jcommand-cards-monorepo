@@ -9,7 +9,7 @@ const UI := preload("res://scripts/ui/ui_kit.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 
-const LOGO := "res://assets/branding/logo.png"
+const LOGO := UI.LOGO
 const SPLASH_LOGO := 360.0   # logo edge length on the 1080-wide canvas
 const SPLASH_IN := 0.7
 const SPLASH_HOLD := 0.9
