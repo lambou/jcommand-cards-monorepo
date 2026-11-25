@@ -1,26 +1,20 @@
 extends Control
 ## Start-up sequence: a splash (logo fades in, holds, fades out; tap to skip), then a loading
 ## screen that pulls the avatar sheets and suit art into the resource cache with threaded loads
-## so the menu and table never hitch on first use. The loading screen shows the logo loader
-## (ui/logo_loader.gd): its suit pieces assemble, fill up with the real progress and the heart beats
-## when everything is in. Emits `finished` when the menu can show.
+## so the menu and table never hitch on first use. Emits `finished` when the menu can show.
 
 signal finished
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const Settings := preload("res://scripts/game/settings.gd")
-const Loader := preload("res://scripts/ui/logo_loader.gd")
 
 const LOGO := UI.LOGO
 const SPLASH_LOGO := 360.0   # logo edge length on the 1080-wide canvas
 const SPLASH_IN := 0.7
 const SPLASH_HOLD := 0.9
 const SPLASH_OUT := 0.5
-const MIN_LOADING := 1.0   # fill time when everything is cached (the assembly adds to how long it shows)
-const LOADER_SIZE := 340.0
-const FILL_LEAD := 0.35    # s into the loading screen when the first piece has landed and can fill
-const BEAT_LEAD := 0.4     # s of the finishing heartbeat shown before the screen fades
+const MIN_LOADING := 1.2   # keep the loading screen readable even when everything is cached
 const TIPS := [
 	"Aces skip the next player.",
 	"Answer a 7 or a Joker with another to pass the penalty on.",
@@ -31,7 +25,7 @@ const TIPS := [
 
 var _splash: Control
 var _loading: Control
-var _loader: Loader
+var _bar: ProgressBar
 var _status: Label
 var _paths: PackedStringArray = []
 var _done := 0
@@ -85,14 +79,25 @@ func _build_loading() -> void:
 	_loading.add_child(box)
 	box.add_child(UI.title("J-COMMAND", UI.FONT_DISPLAY))
 	box.add_child(UI.tagline("Shed your cards. Stop the others."))
-	box.add_child(UI.spacer(60))
+	box.add_child(UI.spacer(120))
 
-	_loader = Loader.new()
-	_loader.progress = 0.0
-	_loader.assemble_time = 0.6
-	_loader.custom_minimum_size = Vector2(LOADER_SIZE, LOADER_SIZE)
-	_loader.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.add_child(_loader)
+	_bar = ProgressBar.new()
+	_bar.custom_minimum_size = Vector2(800, 44)
+	_bar.min_value = 0.0
+	_bar.max_value = 1.0
+	_bar.step = 0.0
+	_bar.show_percentage = false
+	var track := StyleBoxFlat.new()
+	track.bg_color = UI.SURFACE
+	track.border_color = UI.SURFACE_BORDER
+	track.set_border_width_all(3)
+	track.set_corner_radius_all(22)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UI.AMBER
+	fill.set_corner_radius_all(22)
+	_bar.add_theme_stylebox_override("background", track)
+	_bar.add_theme_stylebox_override("fill", fill)
+	box.add_child(_bar)
 
 	_status = UI.hint("Loading...", 800)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -169,18 +174,13 @@ func _process(delta: float) -> void:
 			done += 1  # loaded, or failed (the game falls back to vector art)
 	_done = done
 	var real := 1.0 if _paths.is_empty() else float(done) / float(_paths.size())
-	# The fill starts as the first piece (the heart, which fills first) lands, and never runs ahead of
-	# the minimum display time, so the pieces always fill smoothly. The loads themselves started already.
-	var fill_clock := maxf(_elapsed - FILL_LEAD, 0.0)
-	_loader.progress = minf(real, fill_clock / MIN_LOADING)   # the loader eases its pieces toward this
-	var full := _loader.progress >= 1.0 and _loader.shown_progress() >= 0.999
-	_status.text = "Ready!" if full else "Loading..."
-	if full:
+	# Never run ahead of the minimum display time, so the bar always fills smoothly.
+	var shown := minf(real, _elapsed / MIN_LOADING)
+	_bar.value = move_toward(_bar.value, shown, delta * 1.5)
+	_status.text = "Loading..." if _bar.value < 1.0 else "Ready!"
+	if real >= 1.0 and _elapsed >= MIN_LOADING and _bar.value >= 1.0:
 		_phase = 2
-		_loader.complete()   # the heart beats; the screen fades out during the second beat
-		var t := create_tween()
-		t.tween_interval(0.0 if Settings.reduce() else BEAT_LEAD)
-		t.tween_callback(_finish)
+		_finish()
 
 
 func _finish() -> void:
@@ -188,5 +188,6 @@ func _finish() -> void:
 		if ResourceLoader.load_threaded_get_status(p) == ResourceLoader.THREAD_LOAD_LOADED:
 			ResourceLoader.load_threaded_get(p) # keep the loaded resource in the cache
 	var t := create_tween()
+	t.tween_interval(0.25)
 	t.tween_property(self, "modulate:a", 0.0, 0.3)
 	t.tween_callback(func(): finished.emit())
