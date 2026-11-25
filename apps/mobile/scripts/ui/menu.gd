@@ -79,11 +79,33 @@ func _ready() -> void:
 		b.custom_minimum_size.x = UI.MENU_W
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(b)
+		b.modulate.a = 0.0   # hidden until the entrance animation lifts it in
+	_pill_up.call_deferred(buttons)
 	# First launch only (debug runs and screenshots skip it): offer the tutorial once, never force it.
 	if Recorder.enabled and not Settings.tutorial_seen:
 		Settings.tutorial_seen = true
 		Settings.save()
 		_show_welcome.call_deferred()
+
+
+## Opening animation: the buttons (Resume/PLAY down to Settings) rise one after another from the
+## bottom of the screen and settle into place with a small overshoot. Waits a frame so the column
+## has laid them out, then tweens each from below the screen edge back to its resting position.
+func _pill_up(buttons: Array[Button]) -> void:
+	await get_tree().process_frame
+	var screen_h := get_viewport_rect().size.y
+	for i in buttons.size():
+		var b := buttons[i]
+		if not is_instance_valid(b):
+			continue
+		var rest := b.position.y
+		b.position.y = rest + screen_h - b.global_position.y + 40.0   # start just below the bottom edge
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var delay := 0.08 * i
+		var t := b.create_tween().set_parallel()
+		t.tween_property(b, "position:y", rest, 0.55).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(b, "modulate:a", 1.0, 0.25).set_delay(delay)
+		t.chain().tween_callback(func(): b.mouse_filter = Control.MOUSE_FILTER_STOP)
 
 
 ## "How to play": learn by playing the tutorial chapters with Rex, or read the rules.
