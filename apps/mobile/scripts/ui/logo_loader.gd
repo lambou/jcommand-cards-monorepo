@@ -51,6 +51,8 @@ const PIP_SIZE := 78.0
 @export var show_tile := true
 ## Run the assemble-in animation when the loader enters the tree.
 @export var assemble_on_ready := true
+## Seconds the assemble-in takes (the screen transition uses a quicker one).
+@export var assemble_time := 0.75
 ## Override Settings.reduce_motion (-1 = follow the setting, 0 = off, 1 = on).
 var reduce_override := -1
 
@@ -89,12 +91,35 @@ func assemble() -> void:
 	queue_redraw()
 
 
-## Finish: fills whatever is left, beats twice, then emits `completed`.
+## Finish: fills whatever is left, beats twice, then emits `completed` (at once with Reduce motion).
 func complete() -> void:
 	if progress >= 0.0:
 		progress = 1.0
 		_shown = 1.0
+	if _reduce():
+		_beat = -1.0
+		completed.emit.call_deferred()
+		return
 	_beat = 0.0
+
+
+## Shows the finished heart at once: progress 1, all pieces filled, no pops (a static logo).
+func show_full() -> void:
+	progress = 1.0
+	_shown = 1.0
+	_pop = [0.0, 0.0, 0.0, 0.0]
+	_beat = -1.0
+	queue_redraw()
+
+
+## The progress the pieces currently show (it eases toward `progress`), so a caller can wait for it.
+func shown_progress() -> float:
+	return _shown
+
+
+## True once the assemble-in has finished.
+func is_assembled() -> bool:
+	return _assemble >= 1.0
 
 
 func reset() -> void:
@@ -149,7 +174,7 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	if _assemble < 1.0:
-		_assemble = minf(_assemble + delta / 0.75, 1.0)
+		_assemble = minf(_assemble + delta / maxf(assemble_time, 0.01), 1.0)
 	if progress >= 0.0:
 		var before := _shown
 		_shown = move_toward(_shown, progress, delta * maxf(0.6, absf(progress - _shown) * 4.0))

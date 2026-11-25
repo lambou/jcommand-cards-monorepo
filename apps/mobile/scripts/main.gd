@@ -170,18 +170,23 @@ func _ready() -> void:
 			_swap(b)
 			await get_tree().create_timer(1.0).timeout
 			_save(a.substr(11), "_splash")
-			await get_tree().create_timer(2.2).timeout
-			_save(a.substr(11), "_loading")
+			# Then the loading screen from the moment it appears until it hands over: <file>_l00.. 0.15 s apart.
+			await get_tree().create_timer(1.15).timeout
+			for i in 24:
+				_save(a.substr(11), "_l%02d" % i)
+				if i == 7:
+					_save(a.substr(11), "_loading")
+				await get_tree().create_timer(0.15).timeout
 			get_tree().quit()
 			return
 		elif a.begins_with("--transitionshot="):
-			# Menu -> game through the iris: <file>_0.. frames 0.1 s apart (cover, logo, reveal).
+			# Menu -> game through the iris: <file>_00.. frames 0.05 s apart (cover, logo, reveal).
 			_show_menu()
 			await get_tree().create_timer(1.2).timeout
 			_go(_start_game.bind(2, "normal"))
-			for i in 12:
-				_save(a.substr(17), "_%d" % i)
-				await get_tree().create_timer(0.1).timeout
+			for i in 24:
+				_save(a.substr(17), "_%02d" % i)
+				await get_tree().create_timer(0.05).timeout
 			get_tree().quit()
 			return
 		elif a.begins_with("--menushot="):

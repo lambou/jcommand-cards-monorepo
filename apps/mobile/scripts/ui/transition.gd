@@ -1,6 +1,7 @@
 extends CanvasLayer
-## Screen-to-screen transition: a felt-green diamond iris closes over the old screen, the logo
-## pops in the middle while the new screen is built underneath, then the iris opens on it.
+## Screen-to-screen transition: a felt-green diamond iris closes over the old screen, the logo tile
+## pops in the middle and its four suit pieces fly together (ui/logo_loader.gd) while the new screen
+## is built underneath, then the iris opens on it.
 ## Input is swallowed for the whole run, so a double tap can't start two screens.
 ## With Reduce motion on it is a plain quick fade instead.
 ## Main owns one of these; call `go(swap)` where `swap` builds the next screen.
@@ -8,11 +9,13 @@ extends CanvasLayer
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Settings := preload("res://scripts/game/settings.gd")
 const Sfx := preload("res://scripts/audio/sfx.gd")
+const Loader := preload("res://scripts/ui/logo_loader.gd")
 
 const CLOSE_TIME := 0.36
 const HOLD_TIME := 0.06
 const OPEN_TIME := 0.44
 const LOGO_SIZE := 260.0
+const ASSEMBLE_TIME := 0.4   # the pieces fly together while the tile pops in
 
 const SHADER := """
 shader_type canvas_item;
@@ -47,7 +50,7 @@ void fragment() {
 
 var _cover: ColorRect
 var _mat: ShaderMaterial
-var _logo: TextureRect
+var _logo: Loader
 var _busy := false
 
 
@@ -67,11 +70,10 @@ func _ready() -> void:
 	_cover.resized.connect(func(): _mat.set_shader_parameter("rect_size", _cover.size))
 	add_child(_cover)
 
-	_logo = TextureRect.new()
-	if ResourceLoader.exists(UI.LOGO):
-		_logo.texture = load(UI.LOGO)
-	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_logo = Loader.new()
+	_logo.assemble_on_ready = false
+	_logo.assemble_time = ASSEMBLE_TIME
+	_logo.show_full()   # a finished heart: no spinner hops in the short hold, only the assembly
 	_logo.custom_minimum_size = Vector2(LOGO_SIZE, LOGO_SIZE)
 	_logo.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_logo.offset_left = -LOGO_SIZE / 2.0
@@ -105,6 +107,7 @@ func go(swap: Callable) -> void:
 	var t := create_tween()
 	t.tween_method(_set_progress, 0.0, 1.0, 0.2 if fade else CLOSE_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	if not fade:
+		t.tween_callback(_logo.assemble)
 		t.tween_property(_logo, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await t.finished
 
@@ -114,6 +117,10 @@ func go(swap: Callable) -> void:
 	await get_tree().process_frame
 	if not fade:
 		await get_tree().create_timer(HOLD_TIME).timeout
+		var waited := 0.0
+		while not _logo.is_assembled() and waited < ASSEMBLE_TIME:   # let the pieces click together before the iris opens
+			waited += get_process_delta_time()
+			await get_tree().process_frame
 		Sfx.play("whoosh", 0.55)
 
 	t = create_tween().set_parallel()
