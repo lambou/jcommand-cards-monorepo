@@ -41,6 +41,7 @@ func _ready() -> void:
 	# Debug runs (selftest, screenshots) must not touch the player's saved games.
 	Recorder.enabled = OS.get_cmdline_user_args().is_empty()
 	add_child(Sfx.new())
+	add_child(preload("res://scripts/ui/ui_feel.gd").new())
 	var shot := ""
 	var podium_path := ""
 	var bots := 2
@@ -161,7 +162,7 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--menushot="):
 			_show_menu()
-			await get_tree().create_timer(0.4).timeout
+			await get_tree().create_timer(1.4).timeout   # let the buttons finish rising in
 			get_viewport().get_texture().get_image().save_png(a.substr(11))
 			get_tree().quit()
 			return

@@ -2,7 +2,7 @@ extends Node
 ## Sound effects, synthesised in code (sine tones, filtered noise, sweeps) so the game needs no
 ## audio assets yet. Add one instance to the tree, then call `Sfx.play("name")` from anywhere.
 ##
-## Names: combo_2..combo_5, jackpot, play, draw, deal, slide, thump, roar (recorded), penalty, stop, check, turn, nope, win, lose.
+## Names: combo_2..combo_5, jackpot, play, draw, deal, slide, thump, roar (recorded), penalty, stop, check, turn, nope, win, lose, ui_hover, ui_click.
 
 const Settings := preload("res://scripts/game/settings.gd")
 
@@ -139,6 +139,20 @@ func _build() -> void:
 	for i in down.size():
 		_tone(b, 0.2 * float(i), down[i], 0.55, 0.32, 5.0, [1.0, 0.25])
 	_streams["lose"] = _stream(b)
+
+	# UI hover: a soft, short wooden tick (quiet: it plays a lot).
+	b = _buf(0.07)
+	_tone(b, 0.0, 1568.0, 0.06, 0.16, 70.0, [1.0, 0.15])
+	_noise(b, 0.0, 0.02, 0.08, 150.0, 0.7)
+	_streams["ui_hover"] = _stream(b)
+
+	# UI press: a poker-chip clack, two quick knocks with a bright body.
+	b = _buf(0.16)
+	_noise(b, 0.0, 0.03, 0.5, 110.0, 0.65)
+	_tone(b, 0.0, 1046.5, 0.08, 0.3, 45.0, [1.0, 0.45, 0.2])
+	_noise(b, 0.032, 0.025, 0.28, 130.0, 0.55)
+	_tone(b, 0.032, 1396.9, 0.1, 0.2, 40.0, [1.0, 0.3])
+	_streams["ui_click"] = _stream(b)
 
 	_build_combos()
 	_build_reactions()
