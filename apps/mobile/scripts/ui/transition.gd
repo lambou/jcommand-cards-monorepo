@@ -15,7 +15,9 @@ const CLOSE_TIME := 0.36
 const HOLD_TIME := 0.06
 const OPEN_TIME := 0.44
 const LOGO_SIZE := 260.0
-const ASSEMBLE_TIME := 0.4   # the pieces fly together while the tile pops in
+const ASSEMBLE_TIME := 0.5   # the pieces fly together while the tile pops in
+const COMPOSED_HOLD := 0.25  # the finished logo stays a moment before the iris opens
+const ASSEMBLE_CAP := 2.0    # safety: never wait longer than this for the pieces (e.g. a hitch)
 
 const SHADER := """
 shader_type canvas_item;
@@ -117,10 +119,12 @@ func go(swap: Callable) -> void:
 	await get_tree().process_frame
 	if not fade:
 		await get_tree().create_timer(HOLD_TIME).timeout
+		# Let every piece click into place, then show the complete logo before the iris opens.
 		var waited := 0.0
-		while not _logo.is_assembled() and waited < ASSEMBLE_TIME:   # let the pieces click together before the iris opens
+		while not _logo.is_assembled() and waited < ASSEMBLE_CAP:
 			waited += get_process_delta_time()
 			await get_tree().process_frame
+		await get_tree().create_timer(COMPOSED_HOLD).timeout
 		Sfx.play("whoosh", 0.55)
 
 	t = create_tween().set_parallel()
