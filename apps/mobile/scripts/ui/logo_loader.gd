@@ -169,9 +169,11 @@ func _centroid(p: PackedVector2Array) -> Vector2:
 
 # ---------------------------------------------------------------- animation
 
-func _process(delta: float) -> void:
+func _process(frame_delta: float) -> void:
 	if not is_visible_in_tree():
 		return
+	# A hitch (a heavy screen being built) slows the animation for a frame instead of making it jump.
+	var delta := minf(frame_delta, 1.0 / 30.0)
 	_t += delta
 	if _assemble < 1.0:
 		_assemble = minf(_assemble + delta / maxf(assemble_time, 0.01), 1.0)

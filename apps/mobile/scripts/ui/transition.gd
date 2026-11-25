@@ -113,18 +113,26 @@ func go(swap: Callable) -> void:
 		t.tween_property(_logo, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await t.finished
 
+	# Let every piece click into place BEFORE building the next screen: building it (and its first
+	# frames) blocks for a few hundred ms, which would make pieces still in flight jump.
+	var composed_at := 0
+	if not fade:
+		var waited := 0.0
+		while not _logo.is_assembled() and waited < ASSEMBLE_CAP:
+			waited += get_process_delta_time()
+			await get_tree().process_frame
+		composed_at = Time.get_ticks_msec()
+
 	swap.call()
 	# Let the new screen lay out and build its first frame (3D hands, fonts) while still hidden.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if not fade:
 		await get_tree().create_timer(HOLD_TIME).timeout
-		# Let every piece click into place, then show the complete logo before the iris opens.
-		var waited := 0.0
-		while not _logo.is_assembled() and waited < ASSEMBLE_CAP:
-			waited += get_process_delta_time()
-			await get_tree().process_frame
-		await get_tree().create_timer(COMPOSED_HOLD).timeout
+		# Show the complete logo a moment; time spent building the screen counts toward it.
+		var left := COMPOSED_HOLD - float(Time.get_ticks_msec() - composed_at) / 1000.0
+		if left > 0.0:
+			await get_tree().create_timer(left).timeout
 		Sfx.play("whoosh", 0.55)
 
 	t = create_tween().set_parallel()
