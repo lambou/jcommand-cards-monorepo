@@ -8,6 +8,7 @@ extends Control
 ##   --tutorialshot=<file.png>   the same, saving <file>_c<chapter>_s<step>[_nudge|_picker] / _outro screenshots
 ##   --howtoshot=<file.png> / --welcomeshot=<file.png>   the "How to play" chooser / the first-launch invitation
 ##   --menushot=<file.png>   screenshot of the menu
+##   --transitionshot=<file.png>   frames of the menu -> game screen transition
 ##   --bootshot=<file.png>   <file>_splash.png / _loading.png of the start-up sequence
 ##   --boardshot=<file.png>  leaderboard screen with sample scores (writes user://leaderboard.cfg)
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
@@ -33,6 +34,7 @@ const Recorder := preload("res://scripts/game/recorder.gd")
 const Tutorial := preload("res://scripts/game/tutorial.gd")
 
 var _current: Control
+var _transition: Node   # the iris wipe between screens (player navigation only; debug runs swap instantly)
 
 
 func _ready() -> void:
@@ -42,6 +44,8 @@ func _ready() -> void:
 	Recorder.enabled = OS.get_cmdline_user_args().is_empty()
 	add_child(Sfx.new())
 	add_child(preload("res://scripts/ui/ui_feel.gd").new())
+	_transition = preload("res://scripts/ui/transition.gd").new()
+	add_child(_transition)
 	var shot := ""
 	var podium_path := ""
 	var bots := 2
@@ -160,6 +164,16 @@ func _ready() -> void:
 			_save(a.substr(11), "_loading")
 			get_tree().quit()
 			return
+		elif a.begins_with("--transitionshot="):
+			# Menu -> game through the iris: <file>_0.. frames 0.1 s apart (cover, logo, reveal).
+			_show_menu()
+			await get_tree().create_timer(1.2).timeout
+			_go(_start_game.bind(2, "normal"))
+			for i in 12:
+				_save(a.substr(17), "_%d" % i)
+				await get_tree().create_timer(0.1).timeout
+			get_tree().quit()
+			return
 		elif a.begins_with("--menushot="):
 			_show_menu()
 			await get_tree().create_timer(1.4).timeout   # let the buttons finish rising in
@@ -180,7 +194,7 @@ func _ready() -> void:
 ## Splash + loading screen, then the menu.
 func _boot() -> void:
 	var b := Boot.new()
-	b.finished.connect(_show_menu)
+	b.finished.connect(_go.bind(_show_menu))
 	_swap(b)
 
 
@@ -191,13 +205,18 @@ func _swap(node: Control) -> void:
 	add_child(node)
 
 
+## Player navigation: the transition covers the screen, `build` swaps in the next one, then it opens.
+func _go(build: Callable) -> void:
+	_transition.go(build)
+
+
 func _show_menu(notice: String = "") -> void:
 	var m := Menu.new()
 	m.notice = notice
-	m.start_requested.connect(_start_game)
-	m.resume_requested.connect(_resume_game)
-	m.replay_requested.connect(_replay_game)
-	m.tutorial_requested.connect(_start_tutorial)
+	m.start_requested.connect(func(b, d): _go(_start_game.bind(b, d)))
+	m.resume_requested.connect(func(path): _go(_resume_game.bind(path)))
+	m.replay_requested.connect(func(path): _go(_replay_game.bind(path)))
+	m.tutorial_requested.connect(func(ch): _go(_start_tutorial.bind(ch)))
 	_swap(m)
 
 
@@ -207,7 +226,7 @@ func _resume_game(path: String) -> void:
 		_show_menu("Could not resume: %s" % rec["error"])
 		return
 	var t := Table.new()
-	t.quit_to_menu.connect(_show_menu)
+	t.quit_to_menu.connect(_go.bind(_show_menu))
 	_swap(t)
 	var res := t.resume(rec)
 	if not res["ok"]:
@@ -221,7 +240,7 @@ func _replay_game(path: String) -> void:
 		_show_menu("Could not replay: %s" % rec["error"])
 		return
 	var t := Table.new()
-	t.quit_to_menu.connect(_show_menu)
+	t.quit_to_menu.connect(_go.bind(_show_menu))
 	_swap(t)
 	var res := t.replay(rec)
 	if not res["ok"]:
@@ -230,7 +249,7 @@ func _replay_game(path: String) -> void:
 
 func _start_game(bots: int, difficulty: String) -> Table:
 	var t := Table.new()
-	t.quit_to_menu.connect(_show_menu)
+	t.quit_to_menu.connect(_go.bind(_show_menu))
 	_swap(t)
 	t.start(bots, difficulty)
 	return t
@@ -239,9 +258,9 @@ func _start_game(bots: int, difficulty: String) -> Table:
 ## Tutorial chapter `chapter` (0-based) with Rex. Its chapter-end buttons come back here.
 func _start_tutorial(chapter: int) -> Table:
 	var t := Table.new()
-	t.quit_to_menu.connect(_show_menu)
-	t.tutorial_chapter_requested.connect(_start_tutorial)
-	t.tutorial_play_requested.connect(_start_game.bind(1, "easy"))
+	t.quit_to_menu.connect(_go.bind(_show_menu))
+	t.tutorial_chapter_requested.connect(func(ch): _go(_start_tutorial.bind(ch)))
+	t.tutorial_play_requested.connect(_go.bind(_start_game.bind(1, "easy")))
 	_swap(t)
 	t.start_tutorial(chapter)
 	return t

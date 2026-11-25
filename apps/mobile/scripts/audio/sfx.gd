@@ -154,6 +154,16 @@ func _build() -> void:
 	_tone(b, 0.032, 1396.9, 0.1, 0.2, 40.0, [1.0, 0.3])
 	_streams["ui_click"] = _stream(b)
 
+	# Screen transition: an airy swell of noise that brightens as it rises, then falls away.
+	b = _buf(0.45)
+	var lp := 0.0
+	for i in int(0.42 * RATE):
+		var x := float(i) / (0.42 * RATE)
+		var amt := lerpf(0.04, 0.35, sin(x * PI))         # the filter opens with the swell
+		lp += (_rng.randf() * 2.0 - 1.0 - lp) * amt
+		b[i] += 0.55 * pow(sin(x * PI), 1.6) * lp
+	_streams["whoosh"] = _stream(b)
+
 	_build_combos()
 	_build_reactions()
 

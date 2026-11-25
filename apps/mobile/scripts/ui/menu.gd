@@ -113,7 +113,7 @@ func _show_howto() -> void:
 	var overlay := Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(UI.background())
-	var page := UI.scroll_page("How to play", "Close", overlay.queue_free)
+	var page := UI.scroll_page("How to play", "Close", func(): UI.slide_out(overlay))
 	overlay.add_child(page["scroll"])
 	overlay.add_child(page["header"])
 	overlay.add_child(page["footer"])
@@ -135,6 +135,7 @@ func _show_howto() -> void:
 	rules.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	content.add_child(rules)
 	add_child(overlay)
+	UI.slide_in(overlay)
 
 
 ## The first chapter that is not finished yet (the highlighted one in the chooser).
@@ -196,28 +197,32 @@ func _show_rules() -> void:
 	var overlay := Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(UI.background())
-	var page := UI.scroll_page("How to play", "Close", overlay.queue_free)
+	var page := UI.scroll_page("How to play", "Close", func(): UI.slide_out(overlay))
 	overlay.add_child(page["scroll"])
 	overlay.add_child(page["header"])
 	overlay.add_child(page["footer"])
 	page["content"].add_child(UI.body(RULES_TEXT, 900))
 	add_child(overlay)
+	UI.slide_in(overlay)
 
 
 func _show_leaderboard() -> void:
 	var p := LeaderboardPanel.new()
-	p.closed.connect(p.queue_free)
+	p.closed.connect(UI.slide_out.bind(p))
 	add_child(p)
+	UI.slide_in(p)
 
 
 func _show_history() -> void:
 	var p := HistoryPanel.new()
-	p.closed.connect(p.queue_free)
+	p.closed.connect(UI.slide_out.bind(p))
 	p.replay_requested.connect(func(path): replay_requested.emit(path))
 	add_child(p)
+	UI.slide_in(p)
 
 
 func _show_settings() -> void:
 	var p := SettingsPanel.new()
-	p.closed.connect(p.queue_free)
+	p.closed.connect(UI.slide_out.bind(p))
 	add_child(p)
+	UI.slide_in(p)

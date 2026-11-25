@@ -108,6 +108,30 @@ static func background() -> TextureRect:
 	return bg
 
 
+## A full-screen page arriving: it slides in from the right edge (a quick fade with Reduce motion).
+## Call right after adding the page to the tree.
+static func slide_in(page: Control) -> void:
+	if preload("res://scripts/game/settings.gd").reduce_motion:
+		page.modulate.a = 0.0
+		page.create_tween().tween_property(page, "modulate:a", 1.0, 0.15)
+		return
+	page.position.x = page.get_viewport_rect().size.x
+	page.create_tween().tween_property(page, "position:x", 0.0, 0.38).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## The page leaving: it slides back out to the right, then frees itself. Safe to call twice.
+static func slide_out(page: Control) -> void:
+	if page.has_meta("closing"):
+		return
+	page.set_meta("closing", true)
+	var t := page.create_tween()
+	if preload("res://scripts/game/settings.gd").reduce_motion:
+		t.tween_property(page, "modulate:a", 0.0, 0.12)
+	else:
+		t.tween_property(page, "position:x", page.get_viewport_rect().size.x, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.tween_callback(page.queue_free)
+
+
 ## Vertical scroll area with an invisible scroll bar (drag or wheel to scroll).
 static func scroll_area() -> ScrollContainer:
 	var s := preload("res://scripts/ui/drag_scroll.gd").new()
