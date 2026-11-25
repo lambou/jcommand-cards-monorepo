@@ -13,12 +13,14 @@ const PATTERN_SIZE := 30.0           # suit glyph size in the pattern
 const PATTERN_COL := Color(0.6, 1.0, 0.75, 0.05)
 const CARD_SCALE := 1.15
 const CARD_TINT := Color(0.8, 0.86, 0.82, 0.92)   # shaded so the cards sit back behind the menu
-const SCRIM := Color(0.02, 0.13, 0.08, 0.5)       # felt-dark veil over pattern + cards: the menu stays the focus
-# Random drift: each card wanders on its own noise track (offset, tilt, a slight breathing scale).
-const DRIFT_PX := 26.0
-const DRIFT_DEG := 6.0
-const DRIFT_SCALE := 0.03
-const DRIFT_SPEED := 0.09   # noise units per second: slow enough to stay in the background
+const SCRIM := Color(0.015, 0.1, 0.06, 0.7)       # felt-dark veil over pattern + cards: the menu stays the focus
+# Floating: every card bobs, sways and tilts on its own blend of two slow sine waves (random periods and
+# phases), so the motion never stops or jerks and no two cards move in step.
+const FLOAT_PX := 22.0        # peak offset on each axis
+const FLOAT_DEG := 5.0        # peak extra tilt
+const FLOAT_SCALE := 0.025    # peak breathing scale
+const FLOAT_PERIOD := Vector2(7.0, 13.0)   # main wave period range in seconds (a faster, smaller wave rides on it)
+const EASE_IN := 1.5          # seconds for the motion to grow from rest, so nothing pops on the first frame
 
 ## [x, y] as fractions of the screen (card centre), rotation in degrees, card ("" = back, else rank+suit).
 ## Kept to the margins and corners: the menu column covers roughly x 0.14..0.86.
@@ -38,9 +40,7 @@ const SCATTER := [
 ]
 
 var _cards: Array[Control] = []
-var _noise := FastNoiseLite.new()
-var _seeds: Array[float] = []   # per card: where on the noise track it starts
-var _speeds: Array[float] = []  # per card: how fast it wanders
+var _waves: Array[PackedFloat32Array] = []   # per card, 4 channels (x, y, tilt, scale) x [w1, phase1, w2, phase2]
 var _t := 0.0
 
 
@@ -73,16 +73,16 @@ func _ready() -> void:
 		v.modulate = CARD_TINT
 		add_child(v)
 		_cards.append(v)
-		_seeds.append(randf() * 1000.0)
-		_speeds.append(DRIFT_SPEED * randf_range(0.6, 1.4))
+		var w := PackedFloat32Array()
+		for ch in 4:
+			var main := TAU / randf_range(FLOAT_PERIOD.x, FLOAT_PERIOD.y)
+			w.append_array([main, randf() * TAU, main * randf_range(2.1, 2.9), randf() * TAU])
+		_waves.append(w)
 	var scrim := ColorRect.new()
 	scrim.color = SCRIM
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(scrim)
-	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_noise.frequency = 1.0
-	_noise.seed = randi()
 	resized.connect(_layout)
 	_layout()
 	set_process(not Settings.reduce())
@@ -93,23 +93,23 @@ func _process(delta: float) -> void:
 	_layout()
 
 
-## Rest position from SCATTER plus each card's random drift (none with reduce motion: _t stays 0).
+## Rest position from SCATTER plus each card's float (none with reduce motion: _t stays 0).
 func _layout() -> void:
+	var amp := smoothstep(0.0, EASE_IN, _t)
 	for i in _cards.size():
 		var spec: Array = SCATTER[i]
 		var v := _cards[i]
-		var drift := Vector2.ZERO
-		var tilt := 0.0
-		var breathe := 0.0
-		if _t > 0.0:
-			var p := _seeds[i] + _t * _speeds[i]
-			# Separate tracks of the same noise (far-apart y rows) so x, y, tilt and scale move independently.
-			drift = Vector2(_noise.get_noise_2d(p, 0.0), _noise.get_noise_2d(p, 100.0)) * DRIFT_PX * 2.0
-			tilt = _noise.get_noise_2d(p, 200.0) * DRIFT_DEG * 2.0
-			breathe = _noise.get_noise_2d(p, 300.0) * DRIFT_SCALE * 2.0
+		var drift := Vector2(_wave(i, 0), _wave(i, 1)) * FLOAT_PX * amp
 		v.position = Vector2(spec[0] * size.x, spec[1] * size.y) - v.size / 2.0 + drift
-		v.rotation = deg_to_rad(spec[2] + tilt)
-		v.scale = Vector2.ONE * CARD_SCALE * (1.0 + breathe)
+		v.rotation = deg_to_rad(spec[2] + _wave(i, 2) * FLOAT_DEG * amp)
+		v.scale = Vector2.ONE * CARD_SCALE * (1.0 + _wave(i, 3) * FLOAT_SCALE * amp)
+
+
+## Channel `ch` of card `i` at the current time, in -1..1: a main sine plus a quarter-strength faster one.
+func _wave(i: int, ch: int) -> float:
+	var w := _waves[i]
+	var k := ch * 4
+	return (sin(_t * w[k] + w[k + 1]) + 0.25 * sin(_t * w[k + 2] + w[k + 3])) / 1.25
 
 
 ## Staggered grid of all four suits, barely lighter than the felt.
