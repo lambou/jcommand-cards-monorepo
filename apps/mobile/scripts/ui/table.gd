@@ -93,6 +93,7 @@ var _turn_queue: Array = []
 var _turn_gate_ms := 0 # when the last queued turn change is due
 var _turn_serial := 0 # bumped on reset so stale timers do nothing
 var _hidden: Dictionary = {} # card id -> true: hand cards still "in flight"
+var _incoming: Dictionary = {} # bot id -> cards still flying to its seat (not yet counted in its seat's card count)
 var _last_played: Dictionary = {} # player id -> card
 var _stack_note := ""
 var _sliding := 0 # 2s currently sliding under the pile
@@ -218,6 +219,7 @@ func _build() -> void:
 	hand_views.clear()
 	_log.clear()
 	_hidden.clear()
+	_incoming.clear()
 	_last_played.clear()
 	_last_floor_id = -1
 	_floor_held = -1
@@ -686,6 +688,16 @@ func _on_updated(events: Array) -> void:
 			new_ids.append(c["id"])
 			_hidden[c["id"]] = true
 
+	# A bot's drawn / dealt cards are not counted on its seat until their flights land (see _land_bot).
+	if first:
+		for p in st["players"]:
+			if p["id"] != ME:
+				_incoming[p["id"]] = (p["hand"] as Array).size()
+	else:
+		for e in events:
+			if (e["type"] == "draw" or e["type"] == "penaltyTaken") and e["playerId"] != ME and int(e["count"]) > 0:
+				_incoming[e["playerId"]] = int(_incoming.get(e["playerId"], 0)) + int(e["count"])
+
 	# The new top card appears on the stack only when its flight lands.
 	_floor_held = -1
 	if first:
@@ -931,9 +943,9 @@ func _animate_deal(st: Dictionary) -> void:
 			# The hand's own throw launches the card (one clock), so the fingers and the card never drift apart.
 			_dealer_throw(float(step["grab"]), float(step["send"]) - float(step["grab"]), dealer, plan["flick"],
 					_deal_aim(_deal_target_x(seat, card), bank_c.x), bank_c, bank_w,
-					func(): _deal_flight(seat, card, bank_c, bank_w, 0.0, style))
+					func(): _deal_flight(seat, card, bank_c, bank_w, 0.0, style, int(step["round"])))
 		else:
-			_deal_flight(seat, card, bank_c, bank_w, float(step["send"]), style)
+			_deal_flight(seat, card, bank_c, bank_w, float(step["send"]), style, int(step["round"]))
 	# Then the starting card is turned over onto the stack.
 	var floor_card: Dictionary = st["stack"][st["stack"].size() - 1]
 	var send := float(plan["start"]["send"])
@@ -978,7 +990,7 @@ func _deal_glove_ok() -> bool:
 
 ## One dealt card flying from the bank to `seat` at time `send`. Yours is shown face-up as it lands.
 ## Its one sound plays as it leaves (see _deal_tick), not on landing, so it is on the dealer's throw.
-func _deal_flight(seat: String, card: Dictionary, bank_c: Vector2, bank_w: float, send: float, style: int) -> Control:
+func _deal_flight(seat: String, card: Dictionary, bank_c: Vector2, bank_w: float, send: float, style: int, round_index: int = 0) -> Control:
 	if seat == ME:
 		var hv := _hand_view(card["id"])
 		if hv == null:
@@ -992,7 +1004,9 @@ func _deal_flight(seat: String, card: Dictionary, bank_c: Vector2, bank_w: float
 			mine = _fly_flip(card, bank_c, bank_w, _center(hv), hv.size.x, send, landed, false, hv) # peeled and turned, like a draw
 		_deal_tick(mine, send)
 		return mine
-	var flyer := _fly({}, false, false, bank_c, bank_w, _seat_center(seat), 70.0, send, FLY, Callable())
+	var opp: Control = opp_views[seat]
+	var slot: Vector2 = opp.position + opp.slot_center(round_index)
+	var flyer := _fly({}, false, false, bank_c, bank_w, slot, opp.fan_card_width(), send, FLY, func(): _land_bot(seat, 1))
 	_deal_tick(flyer, send)
 	if style != DealPlan.FLY and flyer != null and not Settings.reduce(): # a little flick as it leaves the hand
 		var spin := _react_rng.randf_range(-0.35, 0.35)
@@ -1197,8 +1211,14 @@ func _animate_draw(who: String, count: int, new_ids: Array, is_penalty: bool) ->
 			slide_to.y = minf(slide_to.y - _hand_card_size().y * 0.1, size.y - 210.0)
 			slide_t = maxf(STAGGER * float(n - 1), 0.25) + 0.15
 	else:
+		# Each card lands in the very slot it will occupy in the seat's fan (no snap when it joins the others).
+		var seat: Control = opp_views[who]
+		var base := (_find(game.state, who)["hand"] as Array).size() - count
 		for i in n:
-			var flight := _fly({}, false, false, bank_c, bank_w, _seat_center(who), 70.0, lead + STAGGER * i, FLY, func(): Sfx.play("draw", 0.45), false, grab and i == 0)
+			var slot: Vector2 = seat.position + seat.slot_center(base + i)
+			var flight := _fly({}, false, false, bank_c, bank_w, slot, seat.fan_card_width(), lead + STAGGER * i, FLY, func():
+				Sfx.play("draw", 0.45)
+				_land_bot(who, (count - (n - 1)) if i == n - 1 else 1), false, grab and i == 0)
 			if i == 0:
 				first = flight
 	if grab and first != null:
@@ -1552,9 +1572,17 @@ func _update_seats(st: Dictionary) -> void:
 			status = "Last card played!"
 		var last: Dictionary = _last_played.get(p["id"], {})
 		var on_top: bool = not last.is_empty() and last["id"] == _last_floor_id
-		v.update_info(_who(p["id"]), p["hand"].size(), (cur_id == p["id"]) and not st["over"], status, last, on_top, _in_check(p) and not st["over"])
+		var shown_n := maxi((p["hand"] as Array).size() - int(_incoming.get(p["id"], 0)), 0)
+		v.update_info(_who(p["id"]), shown_n, (cur_id == p["id"]) and not st["over"], status, last, on_top, _in_check(p) and not st["over"])
 	_update_captions()
 	_update_check_state(st)
+
+
+## `k` cards flying to a bot's seat have landed: count them now.
+func _land_bot(who: String, k: int) -> void:
+	_incoming[who] = maxi(int(_incoming.get(who, 0)) - k, 0)
+	if game != null and not game.state.is_empty() and is_inside_tree():
+		_update_seats(game.state)
 
 
 ## Is it your turn AS THE TABLE SHOWS IT? The engine says "your turn" the instant a move is applied (and from the very

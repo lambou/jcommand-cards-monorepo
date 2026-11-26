@@ -38,7 +38,7 @@ func _bot_answer_time(gate_in: float) -> float:
 	var answered := [-1.0]
 	g.updated.connect(func(_e): if answered[0] < 0.0: answered[0] = float(Time.get_ticks_msec() - t0) / 1000.0)
 	match act["type"]:
-		"play": g.human_play(act["cardId"], "hearts")
+		"play": g.human_play(act["cardId"], "H")
 		"draw": g.human_draw()
 		_: g.human_take_penalty()
 	answered[0] = -1.0 # ignore the human's own update; wait for the next one

@@ -11,6 +11,10 @@ const Settings := preload("res://scripts/game/settings.gd")
 var player_name := ""
 var avatar_index := 0
 var count := 0
+var lay_n := 0.0 # the card count the fan is laid out for: glides toward `count`, so the cards slide to make room
+var _fan_seen := false
+const FAN_MAX := 8
+const FAN_SPEED := 7.0 # cards per second the fan's layout glides
 var active := false
 var status := ""
 var has_last := false
@@ -82,6 +86,9 @@ func update_info(p_name: String, p_count: int, p_active: bool, p_status: String,
 	set_process(true) # avatar idle animation + CHECK pulse
 	player_name = p_name
 	count = p_count
+	if not _fan_seen: # the first look at a seat (or a resumed game) shows the fan as it is, no glide
+		_fan_seen = true
+		lay_n = float(count)
 	active = p_active
 	status = p_status
 	_set_out(p_status != "" and p_status != "Last card played!")
@@ -189,8 +196,41 @@ func _pts_width(font: Font, text: String) -> float:
 	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 
 
-func _process(_delta: float) -> void:
-	queue_redraw() # drives the CHECK pulse
+## Where card `index` of the fan sits (in this seat's own coordinates) once it has just arrived, and how wide it
+## is: the table flies a drawn / dealt card to exactly there, so it lands in its slot without a snap.
+func slot_center(index: int) -> Vector2:
+	var fan_w := mini_rect().position.x - 28.0
+	var i := clampi(index, 0, FAN_MAX - 1)
+	var cw := _fan_card_w(fan_w)
+	return Vector2(_fan_x(i, float(i + 1), fan_w) + cw / 2.0, _fan_y(fan_w) + cw * 1.42 / 2.0)
+
+
+func fan_card_width() -> float:
+	return _fan_card_w(mini_rect().position.x - 28.0)
+
+
+func _fan_card_w(fan_w: float) -> float:
+	return minf(56.0, fan_w * 0.3)
+
+
+## Left edge of card `i` when the fan is laid out for `n` cards (n may be fractional while it glides).
+func _fan_x(i: int, n: float, fan_w: float) -> float:
+	var cw := _fan_card_w(fan_w)
+	var nn := clampf(n, 1.0, float(FAN_MAX))
+	var spread := minf(cw * 0.55, (fan_w - cw) / maxf(nn - 1.0, 1.0))
+	var total_w := cw + spread * (nn - 1.0)
+	return 14.0 + (fan_w - total_w) / 2.0 + spread * float(i)
+
+
+func _fan_y(fan_w: float) -> float:
+	var chh := _fan_card_w(fan_w) * 1.42
+	return 64.0 + (maxf(size.y - 64.0 - 52.0, chh) - chh) / 2.0
+
+
+func _process(delta: float) -> void:
+	if not is_equal_approx(lay_n, float(count)):
+		lay_n = float(count) if Settings.reduce() else move_toward(lay_n, float(count), delta * FAN_SPEED)
+	queue_redraw() # drives the CHECK pulse and the fan's glide
 	if out:
 		stamp.queue_redraw() # the crown's sway
 
@@ -262,16 +302,13 @@ func _draw() -> void:
 	var mr := mini_rect()
 	var fan_w := mr.position.x - 28.0
 
-	# Fan of card backs (at most 8 drawn), left of the last-played preview.
-	var shown := mini(count, 8)
-	var cw := minf(56.0, fan_w * 0.3)
+	# Fan of card backs (at most FAN_MAX drawn), left of the last-played preview. A card that just arrived sits in the
+	# slot the flying card landed in; the others glide to their new places as `lay_n` catches up with `count`.
+	var cw := _fan_card_w(fan_w)
 	var chh := cw * 1.42
-	var spread := minf(cw * 0.55, (fan_w - cw) / maxf(float(shown - 1), 1.0))
-	var total_w := cw + spread * float(maxi(shown - 1, 0))
-	var x0 := 14.0 + (fan_w - total_w) / 2.0
-	var y0 := 64.0 + (maxf(size.y - 64.0 - 52.0, chh) - chh) / 2.0
-	for i in shown:
-		var r := Rect2(Vector2(x0 + spread * i, y0), Vector2(cw, chh))
+	var y0 := _fan_y(fan_w)
+	for i in mini(count, FAN_MAX):
+		var r := Rect2(Vector2(_fan_x(i, maxf(lay_n, float(i + 1)), fan_w), y0), Vector2(cw, chh))
 		CardView.draw_back(self, r)
 
 	var label := "%d card%s" % [count, "" if count == 1 else "s"]
