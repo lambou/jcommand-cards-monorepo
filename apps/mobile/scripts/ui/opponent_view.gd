@@ -141,10 +141,37 @@ func _draw_stamp() -> void:
 	sb.border_color = col
 	stamp.draw_style_box(sb, r)
 	if won:
-		_draw_crown(stamp, Vector2(0, -h / 2.0 - 3.0), 1.9)
+		if not _crown_sprite(stamp, Vector2(0, -h / 2.0 + 10.0), 42.0):
+			_draw_crown(stamp, Vector2(0, -h / 2.0 - 3.0), 1.9)
 	stamp.draw_string_outline(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(0.25, 0.12, 0.0) if won else Color(0.1, 0, 0))
 	stamp.draw_string(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	stamp.draw_set_transform(Vector2.ZERO)
+
+
+# The animated 3D crown the podium wears (assets/crown: a looping sway on a spritesheet).
+static var _crown_tex: Texture2D
+static var _crown_meta: Dictionary = {}
+static var _crown_tried := false
+
+
+## Draws the 3D crown sitting on `c` (bottom-centre) at half width `w`; false if the sheet is missing.
+static func _crown_sprite(ci: CanvasItem, c: Vector2, w: float) -> bool:
+	if not _crown_tried:
+		_crown_tried = true
+		if ResourceLoader.exists("res://assets/crown/crown.png") and FileAccess.file_exists("res://assets/crown/crown.json"):
+			var f := FileAccess.open("res://assets/crown/crown.json", FileAccess.READ)
+			_crown_meta = JSON.parse_string(f.get_as_text())
+			_crown_tex = load("res://assets/crown/crown.png")
+	if _crown_tex == null or _crown_meta.is_empty():
+		return false
+	var n: int = _crown_meta["frames"]
+	var cols: int = _crown_meta["cols"]
+	var px: float = _crown_meta["frame_px"]
+	var i := 0 if Settings.reduce() else int(float(Time.get_ticks_msec()) / 1000.0 * float(_crown_meta["fps"]) * 0.6) % n
+	var src := Rect2(float(i % cols) * px, float(i / cols) * px, px, px)
+	var s := w * 2.7 # frame size: the crown fills ~72% of it
+	ci.draw_texture_rect_region(_crown_tex, Rect2(c.x - s * 0.5, c.y - s * 0.9, s, s), src)
+	return true
 
 
 ## Gold crown centred on `base` (its bottom edge), scaled by `k`.
@@ -164,6 +191,8 @@ func _pts_width(font: Font, text: String) -> float:
 
 func _process(_delta: float) -> void:
 	queue_redraw() # drives the CHECK pulse
+	if out:
+		stamp.queue_redraw() # the crown's sway
 
 
 ## Three bouncing dots in a pill right after the name: "it's this player's turn".
