@@ -1,4 +1,4 @@
-# J-Command Cards — Game Design Document
+# Zapko — Game Design Document
 
 Status: Draft v0.2 (rules confirmed with the designer; items in section 14 still need confirmation)
 

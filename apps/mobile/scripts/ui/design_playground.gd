@@ -107,7 +107,7 @@ func _build() -> void:
 		c.add_child(l)
 
 	_section(c, "Text", "brand_header / title / tagline / heading / body / hint")
-	c.add_child(UI.brand_header("J-COMMAND"))
+	c.add_child(UI.brand_header("ZAPKO"))
 	c.add_child(UI.title("Screen title"))
 	c.add_child(UI.tagline("Shed your cards. Stop the others."))
 	c.add_child(UI.heading("Section heading"))
@@ -226,7 +226,7 @@ func _build() -> void:
 ## The start menu's composition (logo, options card, PLAY, the secondary stack, Settings), to judge a theme on a real screen.
 func _menu_preview(c: VBoxContainer) -> void:
 	_section(c, "Start menu preview", "The real menu layout in this theme: one accent (PLAY), one structural colour, one tone of it.")
-	c.add_child(UI.brand_header("J-COMMAND"))
+	c.add_child(UI.brand_header("ZAPKO"))
 	c.add_child(UI.tagline("Shed your cards. Stop the others."))
 	var card := UI.panel()
 	card[0].custom_minimum_size.x = UI.MENU_W
@@ -394,7 +394,7 @@ func _table_popup() -> Control:
 	box.add_theme_constant_override("separation", UI.SPACE_M)
 	pop.add_child(box)
 	box.add_child(UI.title("New here?", 80))
-	var text := UI.body("I'm Rex. Learn J-Command by playing a few quick hands with me.", 640)
+	var text := UI.body("I'm Rex. Learn Zapko by playing a few quick hands with me.", 640)
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(text)
 	box.add_child(UI.button("Let's play", UI.Variant.PRIMARY, func(): pass))

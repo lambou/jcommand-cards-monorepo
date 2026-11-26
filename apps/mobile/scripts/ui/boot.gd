@@ -77,7 +77,7 @@ func _build_loading() -> void:
 	var box := UI.column(UI.SPACE_M)
 	box.custom_minimum_size = Vector2(800, 0)
 	_loading.add_child(box)
-	box.add_child(UI.title("J-COMMAND", UI.FONT_DISPLAY))
+	box.add_child(UI.title("ZAPKO", UI.FONT_DISPLAY))
 	box.add_child(UI.tagline("Shed your cards. Stop the others."))
 	box.add_child(UI.spacer(120))
 

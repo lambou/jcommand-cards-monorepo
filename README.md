@@ -1,4 +1,4 @@
-# J-Command Cards
+# Zapko
 
 See [GDD.md](GDD.md) for the game design.
 

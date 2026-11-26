@@ -1,4 +1,4 @@
-# J-Command design system
+# Zapko design system
 
 All menus, overlays and HUD controls are built from `scripts/ui/ui_kit.gd`:
 

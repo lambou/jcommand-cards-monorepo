@@ -49,7 +49,7 @@ func _ready() -> void:
 	# A saved game adds a second big button; tighten the gaps so it all still fits without scrolling.
 	var box := UI.column(UI.SPACE_M if saved.is_empty() else UI.SPACE_S + 4)
 	add_child(box)
-	box.add_child(UI.brand_header("J-COMMAND"))
+	box.add_child(UI.brand_header("ZAPKO"))
 	box.add_child(UI.tagline("Shed your cards. Stop the others."))
 	box.add_child(UI.spacer(20 if saved.is_empty() else 0))
 
@@ -175,7 +175,7 @@ func _show_welcome() -> void:
 	face.set_process(true)
 	box.add_child(face)
 	box.add_child(UI.title("New here?", 80))
-	var text := UI.body("I'm Rex. Learn J-Command by playing a few quick hands with me - about 3 minutes.", 760)
+	var text := UI.body("I'm Rex. Learn Zapko by playing a few quick hands with me - about 3 minutes.", 760)
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(text)
 	box.add_child(UI.spacer(UI.SPACE_S))

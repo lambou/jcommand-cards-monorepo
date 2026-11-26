@@ -153,7 +153,7 @@ static func chapters() -> Array:
 			"bank": ["3H", "9S", "10C", "4D", "KS", "8D"],
 			"rex_script": [{"play": "10H"}, {"play": "8H"}, {"draw": true}],
 			"steps": [
-				_step("Hi, I'm Rex! Let's learn J-Command. The goal is simple: be the first to get rid of all your cards."),
+				_step("Hi, I'm Rex! Let's learn Zapko. The goal is simple: be the first to get rid of all your cards."),
 				_step("This is the pile. The badge says hearts, so you must play a heart - or a card with the same number as the one on top.", "required"),
 				_step("You have one heart: the 9. Tap it to play it.", "card:9H", _play("9H"), "Not that one - tap the glowing 9 of hearts."),
 				_step("Hearts are still wanted, and you have none. No match means you draw. Tap the bank.", "bank", {"type": "draw"}, "Tap the bank to draw a card."),
