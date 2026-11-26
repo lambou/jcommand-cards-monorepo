@@ -15,6 +15,7 @@ extends Control
 ##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
+##   --outshot=<file.png>    the table with one bot already out (how a finished seat looks)
 ##   --penalty=N             a 2-bot game where you take an N-card penalty on your first turn, then play on (to try the draw animation)
 ##   --drawshot=<file.png>   <file>_0.. of the 3D hand dealing a 4-card penalty (--pending=N sets the size, 0 = a one-card draw; --frames=N)
 ##   --replayshot=<file.png> <file>_0/_mid/_end.png: replay of the newest record in user://games_test (made by tests/test_record_replay.gd)
@@ -76,6 +77,8 @@ func _ready() -> void:
 			podium_path = a.substr(13)
 		elif a.begins_with("--checkshot="):
 			_checkshot(a.substr(12))
+		elif a.begins_with("--outshot="):
+			_outshot(a.substr(10))
 			return
 		elif a == "--flipplay":
 			_swap(preload("res://scripts/ui/flip_playground.gd").new())
@@ -757,6 +760,24 @@ func _checkshot(path: String) -> void:
 		await get_tree().create_timer(m).timeout
 		_save(path, "_%d" % i)
 		i += 1
+	get_tree().quit()
+
+
+## Two bots: Luna has gone out (her last card shown), Rex is still playing.
+func _outshot(path: String) -> void:
+	var t := _start_game(2, "normal")
+	t.game.bot_delay = 99.0 # freeze the bots
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(1.0).timeout
+	var st: Dictionary = t.game.state
+	var luna: Dictionary = st["players"][2]
+	t._last_played[luna["id"]] = luna["hand"][0]
+	luna["hand"] = []
+	luna["status"] = "finished"
+	t.game.updated.emit([])
+	await get_tree().create_timer(0.6).timeout
+	_save(path, "")
 	get_tree().quit()
 
 
