@@ -120,18 +120,34 @@ func _draw_stamp() -> void:
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var w := tw + 40.0
 	var h := 62.0
-	var c := Vector2((mini_rect().position.x + 14.0) / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 6.0)
-	stamp.draw_set_transform(c, deg_to_rad(-10.0), Vector2.ONE)
-	var col := Color(0.95, 0.22, 0.2, 0.95)
+	var c := Vector2((mini_rect().position.x + 14.0) / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 10.0)
+	# Going out is a win: a gold stamp with a crown. Only "LOST" gets the red one.
+	var won := status == "Out"
+	stamp.draw_set_transform(c, deg_to_rad(-8.0), Vector2.ONE)
+	var col := Color(1.0, 0.82, 0.2) if won else Color(0.95, 0.22, 0.2, 0.95)
 	var r := Rect2(-w / 2.0, -h / 2.0, w, h)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.02, 0.02, 0.55)
+	sb.bg_color = Color(0.25, 0.17, 0.02, 0.85) if won else Color(0.12, 0.02, 0.02, 0.55)
 	sb.set_corner_radius_all(10)
 	sb.set_border_width_all(5)
 	sb.border_color = col
 	stamp.draw_style_box(sb, r)
+	if won:
+		_draw_crown(stamp, Vector2(0, -h / 2.0 + 4.0), 1.4)
+	stamp.draw_string_outline(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(0.25, 0.12, 0.0) if won else Color(0.1, 0, 0))
 	stamp.draw_string(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	stamp.draw_set_transform(Vector2.ZERO)
+
+
+## Gold crown centred on `base` (its bottom edge), scaled by `k`.
+static func _draw_crown(ci: CanvasItem, base: Vector2, k: float) -> void:
+	var pts := PackedVector2Array()
+	for p in [Vector2(-12, 0), Vector2(-12, -20), Vector2(-6, -11), Vector2(0, -24), Vector2(6, -11), Vector2(12, -20), Vector2(12, 0)]:
+		pts.append(base + p * k)
+	ci.draw_colored_polygon(pts, Color(1.0, 0.82, 0.2))
+	var outline := pts.duplicate()
+	outline.append(pts[0])
+	ci.draw_polyline(outline, Color(0.42, 0.24, 0.02), 2.5)
 
 
 func _pts_width(font: Font, text: String) -> float:
