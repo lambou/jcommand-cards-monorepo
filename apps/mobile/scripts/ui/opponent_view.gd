@@ -28,7 +28,7 @@ const OUT_SHADER := """
 shader_type canvas_item;
 void fragment() {
 	float g = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
-	COLOR.rgb = mix(vec3(g), COLOR.rgb, 0.4) * 0.88;
+	COLOR.rgb = mix(vec3(g), COLOR.rgb, 0.4) * 0.8;
 }
 """
 static var _out_material: ShaderMaterial
@@ -104,7 +104,6 @@ func _set_out(v: bool) -> void:
 		_out_material = ShaderMaterial.new()
 		_out_material.shader = sh
 	material = _out_material if out else null
-	modulate.a = 0.85 if out else 1.0
 	stamp.visible = out
 	stamp.queue_redraw()
 	_layout_mini()
@@ -131,6 +130,7 @@ func _draw_stamp() -> void:
 		frame.shadow_color = Color(1.0, 0.82, 0.2, 0.18)
 		frame.shadow_size = 8
 		stamp.draw_style_box(frame, Rect2(Vector2.ZERO, size))
+	_draw_points(stamp, font)
 	stamp.draw_set_transform(c, 0.0 if won else deg_to_rad(-8.0), Vector2.ONE)
 	var col := Color(1.0, 0.82, 0.2) if won else Color(0.95, 0.22, 0.2, 0.95)
 	var r := Rect2(-w / 2.0, -h / 2.0, w, h)
@@ -162,14 +162,6 @@ func _pts_width(font: Font, text: String) -> float:
 	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 
 
-## Tiny gold crown; `c` = bottom-left corner.
-func _mini_crown(c: Vector2) -> void:
-	var pts := PackedVector2Array([c, c + Vector2(0, -20), c + Vector2(6, -11), c + Vector2(12, -24),
-		c + Vector2(18, -11), c + Vector2(24, -20), c + Vector2(24, 0)])
-	draw_colored_polygon(pts, Color(1.0, 0.82, 0.2))
-	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[0]]), Color(0.42, 0.24, 0.02), 2.0)
-
-
 func _process(_delta: float) -> void:
 	queue_redraw() # drives the CHECK pulse
 
@@ -188,6 +180,28 @@ func _draw_thinking(font: Font) -> void:
 	for i in 3:
 		var bounce := 0.0 if Settings.reduce() else -maxf(0.0, sin((t * 3.0 - i * 0.45) * TAU * 0.5)) * 7.0
 		draw_circle(Vector2(pill.position.x + 20.0 + 19.0 * i, pill.position.y + 21.0 + bounce), 5.5, Color(0.25, 0.15, 0.02))
+
+
+## Running points: a badge on the top edge; the leader's is gold with a small crown. An out
+## player's badge is drawn by the stamp layer instead, so it stays in colour and sits above
+## the gold frame.
+func _draw_points(ci: CanvasItem, font: Font) -> void:
+	var ptxt := "%d pts" % points
+	var tw := _pts_width(font, ptxt)
+	var bw := tw + 28.0 + (30.0 if leading else 0.0)
+	var pr := Rect2(100.0, -17.0, bw, 36.0)
+	var pb := StyleBoxFlat.new()
+	pb.bg_color = Color(0.25, 0.17, 0.02) if leading else Color(0.08, 0.08, 0.1)
+	pb.set_corner_radius_all(14)
+	pb.set_border_width_all(3)
+	pb.border_color = Color(1.0, 0.82, 0.2) if leading else Color(0.55, 0.55, 0.57)
+	ci.draw_style_box(pb, pr)
+	var tx := pr.position.x + 14.0
+	if leading:
+		_draw_crown(ci, Vector2(tx + 12.0, pr.position.y + 28.0), 1.0)
+		tx += 30.0
+	TextFx.draw(ci, font, Vector2(tx, pr.position.y + 28.0), ptxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 28,
+		Color(1.0, 0.85, 0.3) if leading else Color(1, 1, 1, 0.85))
 
 
 func _draw() -> void:
@@ -213,23 +227,8 @@ func _draw() -> void:
 	TextFx.draw(self, font, Vector2(100, 56), player_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 114.0, 42, Color.WHITE)
 	if active:
 		_draw_thinking(font)
-	# Running points: a badge on the top edge; the leader's is gold with a small crown.
-	var ptxt := "%d pts" % points
-	var tw := _pts_width(font, ptxt)
-	var bw := tw + 28.0 + (30.0 if leading else 0.0)
-	var pr := Rect2(100.0, -17.0, bw, 36.0)
-	var pb := StyleBoxFlat.new()
-	pb.bg_color = Color(0.25, 0.17, 0.02, 0.95) if leading else Color(0.08, 0.08, 0.1, 0.9)
-	pb.set_corner_radius_all(14)
-	pb.set_border_width_all(3)
-	pb.border_color = Color(1.0, 0.82, 0.2) if leading else Color(1, 1, 1, 0.45)
-	draw_style_box(pb, pr)
-	var tx := pr.position.x + 14.0
-	if leading:
-		_mini_crown(Vector2(tx, pr.position.y + 28.0))
-		tx += 30.0
-	TextFx.draw(self, font, Vector2(tx, pr.position.y + 28.0), ptxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 28,
-		Color(1.0, 0.85, 0.3) if leading else Color(1, 1, 1, 0.85))
+	if not out:
+		_draw_points(self, font)
 
 	var mr := mini_rect()
 	var fan_w := mr.position.x - 28.0
