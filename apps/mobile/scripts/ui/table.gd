@@ -85,6 +85,7 @@ var _flash_serial := 0
 var _shown_over := false
 var _dealt := false
 var _lock_until := 0
+var _dealing := false # the opening deal is still running (until the starting card lands): no input
 # Turn indicator queue: the seat highlight / "X is thinking" banner follow the real current player
 # only once the animations of the previous move have finished. Entries are {cur, at (msec)}.
 var _shown_cur := ""
@@ -223,6 +224,7 @@ func _build() -> void:
 	_shown_over = false
 	_dealt = false
 	_lock_until = 0
+	_dealing = false
 	_shown_cur = ""
 	_turn_queue.clear()
 	_turn_gate_ms = 0
@@ -930,7 +932,9 @@ func _animate_deal(st: Dictionary) -> void:
 	# Then the starting card is turned over onto the stack.
 	var floor_card: Dictionary = st["stack"][st["stack"].size() - 1]
 	var send := float(plan["start"]["send"])
+	_dealing = true
 	var land := func():
+		_dealing = false
 		_floor_held = -1
 		_set_floor(floor_card, false)
 		_stack_note = "Starting card"
@@ -1837,7 +1841,7 @@ func _update_banner(st: Dictionary, human_turn: bool) -> void:
 
 func _locked() -> bool:
 	# Test mode (instant bots) never locks.
-	return game.bot_delay >= 0.05 and Time.get_ticks_msec() < _lock_until
+	return game.bot_delay >= 0.05 and (_dealing or Time.get_ticks_msec() < _lock_until)
 
 
 func _flash(text: String) -> void:
@@ -2124,10 +2128,11 @@ func _score_panel(result: Dictionary, rank: int) -> Control:
 	var note := ""
 	if bool(result["clean"]):
 		note = "Clean finish!"
-	if rank == 1:
-		note = (note + " " if note != "" else "") + "New #1 on the leaderboard"
-	elif rank > 0:
-		note = (note + " " if note != "" else "") + "Leaderboard rank #%d" % rank
+	# Leaderboard rank note hidden until online mode:
+	#if rank == 1:
+	#	note = (note + " " if note != "" else "") + "New #1 on the leaderboard"
+	#elif rank > 0:
+	#	note = (note + " " if note != "" else "") + "Leaderboard rank #%d" % rank
 	if note != "":
 		inner.add_child(UI.heading(note))
 	return card[0]

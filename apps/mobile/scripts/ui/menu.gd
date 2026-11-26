@@ -71,8 +71,9 @@ func _ready() -> void:
 		var path: String = saved["path"]
 		buttons.append(UI.button("Resume game", UI.Variant.PRIMARY, func(): resume_requested.emit(path), true))
 	buttons.append(UI.button("PLAY", UI.Variant.PRIMARY, func(): start_requested.emit(bots, difficulty), true))
-	buttons.append(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
-	buttons.append(UI.button("History", UI.Variant.SECONDARY, _show_history))
+	# Hidden for now; bring back with online mode.
+	#buttons.append(UI.button("Leaderboard", UI.Variant.SECONDARY, _show_leaderboard))
+	#buttons.append(UI.button("History", UI.Variant.SECONDARY, _show_history))
 	buttons.append(UI.button("How to play", UI.Variant.SECONDARY, _show_howto))
 	buttons.append(UI.button("Settings", UI.Variant.TERTIARY, _show_settings))
 	for b in buttons:
