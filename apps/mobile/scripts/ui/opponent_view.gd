@@ -18,15 +18,33 @@ var last_is_top := false
 var check := false # exactly one card left
 var points := 0
 var leading := false # currently has the most points
+var out := false # finished: the seat is drawn greyed out and its last card shrinks
 
 var mini: Control
+var stamp: Control # the "OUT" stamp, drawn in colour above the greyed seat
+
+## Greys out everything the seat draws (its own drawing and the last-card chip).
+const OUT_SHADER := """
+shader_type canvas_item;
+void fragment() {
+	float g = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
+	COLOR.rgb = mix(vec3(g), COLOR.rgb, 0.12) * 0.8;
+}
+"""
+static var _out_material: ShaderMaterial
 
 
 func _ready() -> void:
 	mini = CardView.new()
 	mini.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mini.visible = false
+	mini.use_parent_material = true
 	add_child(mini)
+	stamp = Control.new()
+	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamp.visible = false
+	stamp.draw.connect(_draw_stamp)
+	add_child(stamp)
 	_layout_mini()
 
 
@@ -37,8 +55,11 @@ func _notification(what: int) -> void:
 
 
 ## The last-played preview is deliberately small: a chip, not a second pile.
+## Once the player is out it no longer matters, so it shrinks further.
 func mini_size() -> Vector2:
 	var mh := clampf(size.y * 0.62, 70.0, 150.0)
+	if out:
+		mh *= 0.55
 	return Vector2(mh * CardView.BASE.x / CardView.BASE.y, mh)
 
 
@@ -53,6 +74,9 @@ func _layout_mini() -> void:
 	var r := mini_rect()
 	mini.size = r.size
 	mini.position = r.position
+	if stamp != null:
+		stamp.position = Vector2.ZERO
+		stamp.size = size
 
 
 func update_info(p_name: String, p_count: int, p_active: bool, p_status: String, last_card: Dictionary, p_last_top: bool, p_check: bool = false) -> void:
@@ -62,6 +86,7 @@ func update_info(p_name: String, p_count: int, p_active: bool, p_status: String,
 	count = p_count
 	active = p_active
 	status = p_status
+	_set_out(p_status != "" and p_status != "Last card played!")
 	has_last = not last_card.is_empty()
 	last_is_top = p_last_top and has_last
 	if has_last:
@@ -69,6 +94,44 @@ func update_info(p_name: String, p_count: int, p_active: bool, p_status: String,
 		mini.set_flags(false, last_is_top)
 	mini.visible = has_last
 	queue_redraw()
+
+
+func _set_out(v: bool) -> void:
+	if v == out:
+		return
+	out = v
+	if out and _out_material == null:
+		var sh := Shader.new()
+		sh.code = OUT_SHADER
+		_out_material = ShaderMaterial.new()
+		_out_material.shader = sh
+	material = _out_material if out else null
+	modulate.a = 0.78 if out else 1.0
+	stamp.visible = out
+	stamp.queue_redraw()
+	_layout_mini()
+
+
+## A slightly tilted red "OUT" / "LOST" stamp across the card-fan area.
+func _draw_stamp() -> void:
+	var font := preload("res://assets/fonts/LilitaOne-Regular.ttf")
+	var text := status.to_upper()
+	var fs := 44
+	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var w := tw + 40.0
+	var h := 62.0
+	var c := Vector2((mini_rect().position.x + 14.0) / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 6.0)
+	stamp.draw_set_transform(c, deg_to_rad(-10.0), Vector2.ONE)
+	var col := Color(0.95, 0.22, 0.2, 0.95)
+	var r := Rect2(-w / 2.0, -h / 2.0, w, h)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.02, 0.02, 0.55)
+	sb.set_corner_radius_all(10)
+	sb.set_border_width_all(5)
+	sb.border_color = col
+	stamp.draw_style_box(sb, r)
+	stamp.draw_string(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	stamp.draw_set_transform(Vector2.ZERO)
 
 
 func _pts_width(font: Font, text: String) -> float:
@@ -161,8 +224,10 @@ func _draw() -> void:
 
 	var label := "%d card%s" % [count, "" if count == 1 else "s"]
 	var gold := Color(1.0, 0.85, 0.3)
-	if status != "":
+	if status != "" and not out:
 		label = status
+	elif out:
+		label = "" if count == 0 else label
 	TextFx.draw(self, font, Vector2(14, size.y - 14), label, HORIZONTAL_ALIGNMENT_LEFT, fan_w, 36,
 		gold if status != "" else Color(1, 1, 1, 0.85))
 
@@ -174,8 +239,9 @@ func _draw() -> void:
 		empty.set_border_width_all(2)
 		empty.border_color = Color(1, 1, 1, 0.3)
 		draw_style_box(empty, mr)
-	TextFx.draw(self, font, Vector2(mr.position.x - 20, size.y - 14), "ON TOP" if last_is_top else "last",
-		HORIZONTAL_ALIGNMENT_CENTER, mr.size.x + 40, 28, gold if last_is_top else Color(1, 1, 1, 0.6))
+	if not out or last_is_top:
+		TextFx.draw(self, font, Vector2(mr.position.x - 20, size.y - 14), "ON TOP" if last_is_top else "last",
+			HORIZONTAL_ALIGNMENT_CENTER, mr.size.x + 40, 28, gold if last_is_top else Color(1, 1, 1, 0.6))
 
 	if check:
 		var badge := StyleBoxFlat.new()
