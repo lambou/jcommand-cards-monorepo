@@ -55,11 +55,9 @@ func _notification(what: int) -> void:
 
 
 ## The last-played preview is deliberately small: a chip, not a second pile.
-## Once the player is out it no longer matters, so it shrinks further.
+## Once the player is out it no longer matters, so it is not shown at all.
 func mini_size() -> Vector2:
 	var mh := clampf(size.y * 0.62, 70.0, 150.0)
-	if out:
-		mh *= 0.55
 	return Vector2(mh * CardView.BASE.x / CardView.BASE.y, mh)
 
 
@@ -92,7 +90,7 @@ func update_info(p_name: String, p_count: int, p_active: bool, p_status: String,
 	if has_last:
 		mini.set_card(last_card, true)
 		mini.set_flags(false, last_is_top)
-	mini.visible = has_last
+	mini.visible = has_last and not out
 	queue_redraw()
 
 
@@ -120,7 +118,7 @@ func _draw_stamp() -> void:
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var w := tw + 40.0
 	var h := 62.0
-	var c := Vector2((mini_rect().position.x + 14.0) / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 10.0)
+	var c := Vector2(size.x / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 10.0)
 	# Going out is a win: a gold stamp with a crown. Only "LOST" gets the red one.
 	var won := status == "Out"
 	stamp.draw_set_transform(c, deg_to_rad(-8.0), Vector2.ONE)
@@ -248,14 +246,14 @@ func _draw() -> void:
 		gold if status != "" else Color(1, 1, 1, 0.85))
 
 	# Last-played slot.
-	if not has_last:
+	if not has_last and not out:
 		var empty := StyleBoxFlat.new()
 		empty.bg_color = Color(0, 0, 0, 0.18)
 		empty.set_corner_radius_all(12)
 		empty.set_border_width_all(2)
 		empty.border_color = Color(1, 1, 1, 0.3)
 		draw_style_box(empty, mr)
-	if not out or last_is_top:
+	if not out:
 		TextFx.draw(self, font, Vector2(mr.position.x - 20, size.y - 14), "ON TOP" if last_is_top else "last",
 			HORIZONTAL_ALIGNMENT_CENTER, mr.size.x + 40, 28, gold if last_is_top else Color(1, 1, 1, 0.6))
 
