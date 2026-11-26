@@ -28,7 +28,7 @@ const OUT_SHADER := """
 shader_type canvas_item;
 void fragment() {
 	float g = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
-	COLOR.rgb = mix(vec3(g), COLOR.rgb, 0.12) * 0.8;
+	COLOR.rgb = mix(vec3(g), COLOR.rgb, 0.4) * 0.88;
 }
 """
 static var _out_material: ShaderMaterial
@@ -104,7 +104,7 @@ func _set_out(v: bool) -> void:
 		_out_material = ShaderMaterial.new()
 		_out_material.shader = sh
 	material = _out_material if out else null
-	modulate.a = 0.78 if out else 1.0
+	modulate.a = 0.85 if out else 1.0
 	stamp.visible = out
 	stamp.queue_redraw()
 	_layout_mini()
@@ -113,15 +113,25 @@ func _set_out(v: bool) -> void:
 ## A slightly tilted red "OUT" / "LOST" stamp across the card-fan area.
 func _draw_stamp() -> void:
 	var font := preload("res://assets/fonts/LilitaOne-Regular.ttf")
-	var text := status.to_upper()
+	# Going out is a win: a soft gold frame round the seat and a level gold "DONE!" badge with a
+	# crown standing on it. Only a player left holding cards gets the red, tilted "LOST" stamp.
+	var won := status == "Out"
+	var text := "DONE!" if won else status.to_upper()
 	var fs := 44
 	var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var w := tw + 40.0
 	var h := 62.0
-	var c := Vector2(size.x / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + 10.0)
-	# Going out is a win: a gold stamp with a crown. Only "LOST" gets the red one.
-	var won := status == "Out"
-	stamp.draw_set_transform(c, deg_to_rad(-8.0), Vector2.ONE)
+	var c := Vector2(size.x / 2.0, 64.0 + (size.y - 64.0 - 40.0) / 2.0 + (24.0 if won else 10.0))
+	if won:
+		var frame := StyleBoxFlat.new()
+		frame.draw_center = false
+		frame.set_corner_radius_all(22)
+		frame.set_border_width_all(3)
+		frame.border_color = Color(1.0, 0.82, 0.2, 0.75)
+		frame.shadow_color = Color(1.0, 0.82, 0.2, 0.18)
+		frame.shadow_size = 8
+		stamp.draw_style_box(frame, Rect2(Vector2.ZERO, size))
+	stamp.draw_set_transform(c, 0.0 if won else deg_to_rad(-8.0), Vector2.ONE)
 	var col := Color(1.0, 0.82, 0.2) if won else Color(0.95, 0.22, 0.2, 0.95)
 	var r := Rect2(-w / 2.0, -h / 2.0, w, h)
 	var sb := StyleBoxFlat.new()
@@ -131,7 +141,7 @@ func _draw_stamp() -> void:
 	sb.border_color = col
 	stamp.draw_style_box(sb, r)
 	if won:
-		_draw_crown(stamp, Vector2(0, -h / 2.0 + 4.0), 1.4)
+		_draw_crown(stamp, Vector2(0, -h / 2.0 - 3.0), 1.9)
 	stamp.draw_string_outline(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(0.25, 0.12, 0.0) if won else Color(0.1, 0, 0))
 	stamp.draw_string(font, Vector2(-tw / 2.0, fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	stamp.draw_set_transform(Vector2.ZERO)
