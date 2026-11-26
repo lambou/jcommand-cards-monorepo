@@ -87,7 +87,7 @@ func _build_bubble() -> void:
 	_say.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(_say)
 	_hint = UI.body("", 300.0, UI.FONT_HINT)
-	_hint.add_theme_color_override("font_color", UI.RED.lightened(0.25))
+	_hint.add_theme_color_override("font_color", UI.DANGER)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.visible = false
 	col.add_child(_hint)

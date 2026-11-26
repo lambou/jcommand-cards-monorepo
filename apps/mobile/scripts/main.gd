@@ -23,11 +23,15 @@ extends Control
 ##   --flipshot=<file.png>   <file>_00.. slow-motion frames of one playground draw
 ##   --loaderplay            playground for the logo loader: spinning / progress / finish (ui/logo_loader.gd)
 ##   --loadershot=<file.png> <file>_spin0..3 / _p30/_p60/_p100 / _bare.png of the loader playground
+##   --uitheme=<name>        run any screen with another design-system theme: felt / lagoon / sky / dusk / ember (ui/ui_themes.gd)
+##   --dsplay                design-system playground: every ui_kit component, Current vs proposed look (ui/design_playground.gd)
+##   --dsshot=<file.png>     <file>_<theme>_00.. of the whole playground page + _scrollpage, per theme
 ##   --dealplay              playground for the opening deal: flying cards / dealer hand / packets (ui/deal_playground.gd)
 ##   --dealshot=<file.png>   <file>_00.. frames of one playground deal ([--dealmode=0..2] [--players=N] [--cards=N])
 ##   --modelview             free-turn inspector for all 3D models (drag to rotate; see ui/model_view.gd)
 ##   --modelviewshot=<file.png>   <file>_0/_90/_180/_270.png of the inspector at four turn angles
 
+const UI := preload("res://scripts/ui/ui_kit.gd")
 const Boot := preload("res://scripts/ui/boot.gd")
 const Menu := preload("res://scripts/ui/menu.gd")
 const Table := preload("res://scripts/ui/table.gd")
@@ -49,6 +53,9 @@ func _ready() -> void:
 	add_child(preload("res://scripts/ui/ui_feel.gd").new())
 	_transition = preload("res://scripts/ui/transition.gd").new()
 	add_child(_transition)
+	for a in OS.get_cmdline_user_args():   # debug: run with another design-system theme (ui_themes.gd)
+		if a.begins_with("--uitheme="):
+			UI.apply_theme(a.substr(10))
 	var shot := ""
 	var podium_path := ""
 	var bots := 2
@@ -95,6 +102,14 @@ func _ready() -> void:
 			var lp := preload("res://scripts/ui/loader_playground.gd").new()
 			_swap(lp)
 			lp.capture(a.substr(13))
+			return
+		elif a == "--dsplay":
+			_swap(preload("res://scripts/ui/design_playground.gd").new())
+			return
+		elif a.begins_with("--dsshot="):
+			var dsp := preload("res://scripts/ui/design_playground.gd").new()
+			_swap(dsp)
+			dsp.capture(a.substr(9))
 			return
 		elif a == "--dealplay":
 			_swap(preload("res://scripts/ui/deal_playground.gd").new())

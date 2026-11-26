@@ -1,5 +1,5 @@
 extends Control
-## Menu background: the felt gradient, a faint suit pattern woven into it, and a few of the game's own cards
+## Menu background: the theme gradient, a faint suit pattern over it, and a few of the game's own cards
 ## scattered round the edges (tilted, partly off-screen, a little shaded). Purely decorative: ignores input,
 ## and the same layout every launch. Cards are real CardViews so they always match the table art.
 
@@ -10,10 +10,7 @@ const Settings := preload("res://scripts/game/settings.gd")
 
 const PATTERN_STEP := 132.0          # grid spacing of the suit pattern
 const PATTERN_SIZE := 30.0           # suit glyph size in the pattern
-const PATTERN_COL := Color(0.6, 1.0, 0.75, 0.05)
 const CARD_SCALE := 1.15
-const CARD_TINT := Color(0.8, 0.86, 0.82, 0.92)   # shaded so the cards sit back behind the menu
-const SCRIM := Color(0.015, 0.1, 0.06, 0.7)       # felt-dark veil over pattern + cards: the menu stays the focus
 # Floating: every card bobs, sways and tilts on its own blend of two slow sine waves (random periods and
 # phases), so the motion never stops or jerks and no two cards move in step.
 const FLOAT_PX := 22.0        # peak offset on each axis
@@ -70,7 +67,7 @@ func _ready() -> void:
 		v.pivot_offset = v.size / 2.0
 		v.rotation = deg_to_rad(spec[2])
 		v.scale = Vector2.ONE * CARD_SCALE
-		v.modulate = CARD_TINT
+		v.modulate = UI.CARD_TINT   # tinted so the cards sit back behind the menu
 		add_child(v)
 		_cards.append(v)
 		var w := PackedFloat32Array()
@@ -79,7 +76,7 @@ func _ready() -> void:
 			w.append_array([main, randf() * TAU, main * randf_range(2.1, 2.9), randf() * TAU])
 		_waves.append(w)
 	var scrim := ColorRect.new()
-	scrim.color = SCRIM
+	scrim.color = UI.VEIL   # veil over pattern + cards: the menu stays the focus
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(scrim)
@@ -112,7 +109,7 @@ func _wave(i: int, ch: int) -> float:
 	return (sin(_t * w[k] + w[k + 1]) + 0.25 * sin(_t * w[k + 2] + w[k + 3])) / 1.25
 
 
-## Staggered grid of all four suits, barely lighter than the felt.
+## Staggered grid of all four suits, faint against the gradient.
 func _draw_pattern(c: Control) -> void:
 	var suits := ["S", "H", "D", "C"]
 	var row := 0
@@ -121,7 +118,7 @@ func _draw_pattern(c: Control) -> void:
 		var x := PATTERN_STEP * (0.25 if row % 2 == 0 else 0.75)
 		var col_i := 0
 		while x < c.size.x + PATTERN_STEP:
-			CardArt.draw_suit(c, suits[(row + col_i) % 4], Vector2(x, y), PATTERN_SIZE, PATTERN_COL)
+			CardArt.draw_suit(c, suits[(row + col_i) % 4], Vector2(x, y), PATTERN_SIZE, UI.PATTERN)
 			x += PATTERN_STEP
 			col_i += 1
 		y += PATTERN_STEP * 0.87

@@ -3,28 +3,89 @@ extends RefCounted
 ## Every menu / overlay / HUD control must be built from here (no ad-hoc Color()/font sizes).
 ##   const UI := preload("res://scripts/ui/ui_kit.gd")
 
+const Themes := preload("res://scripts/ui/ui_themes.gd")
+
 # ---- Color tokens ---------------------------------------------------------
-const BG_TOP := Color(0.03, 0.2, 0.13)
-const BG_MID := Color(0.07, 0.33, 0.21)      # the felt green; also the table colour
-const BG_BOTTOM := Color(0.12, 0.45, 0.28)
-const SURFACE := Color(0.02, 0.15, 0.09, 0.55)   # translucent panel fill
-const SURFACE_SOLID := Color(0.05, 0.22, 0.15)   # popups on top of the table
-const SURFACE_BORDER := Color(0.55, 1.0, 0.7, 0.35)
-const SCRIM := Color(0, 0, 0, 0.65)               # dim behind modal popups
+## These are set by apply_theme() from ui_themes.gd (static vars, so screens still just write UI.GOLD).
+## Never cache one in a const or at class load: read it when you build the widget.
+static var BG_TOP := Color.WHITE   # screen gradient (UI.background()), top
+static var BG_MID := Color.WHITE   # screen gradient, middle
+static var BG_BOTTOM := Color.WHITE   # screen gradient, bottom
+static var SURFACE := Color.WHITE   # card fill (UI.panel)
+static var SURFACE_SOLID := Color.WHITE   # popup body (UI.popup_style)
+static var SURFACE_BORDER := Color.WHITE   # card border
+static var FRAME := Color.WHITE   # popup frame
+static var BAR := Color.WHITE   # pinned header / footer bars
+static var BAR_BORDER := Color.WHITE   # edge of a bar facing the content
+static var SCRIM := Color.WHITE   # dim behind modal popups
+static var GOLD := Color.WHITE   # selection, 'on', rewards
+static var PRIMARY := Color.WHITE   # primary button face
+static var SECONDARY := Color.WHITE   # secondary button face, steppers
+static var TERTIARY := Color.WHITE   # tertiary button face
+static var DANGER := Color.WHITE   # danger / penalties / destructive
+static var OFF := Color.WHITE   # unselected pill / toggle off
+static var TEXT := Color.WHITE   # on buttons, bars and titles
+static var TEXT_INK := Color.WHITE   # body text on cards and the background
+static var TEXT_DIM := Color.WHITE   # hints, captions
+static var TEXT_HEADING := Color.WHITE   # section headings
+static var TEXT_OFF := Color.WHITE   # unselected pill text
+static var TEXT_ON_GOLD := Color.WHITE   # text on a gold face
+static var TEXT_ACCENT := Color.WHITE   # highlighted numbers on a card
+static var TITLE := Color.WHITE   # screen titles / logo text
+static var TAGLINE := Color.WHITE   # taglines
+static var OUTLINE_DARK := Color.WHITE   # title and button-text outline
+static var PATTERN := Color.WHITE   # menu backdrop: suit pattern
+static var VEIL := Color.WHITE   # menu backdrop: veil over the scattered cards
+static var CARD_TINT := Color.WHITE   # menu backdrop: tint on the scattered cards
 
-const GOLD := Color(1.0, 0.85, 0.3)          # titles, headings, selection, accents
-const GOLD_LIGHT := Color(1.0, 0.87, 0.35)
-const AMBER := Color(1.0, 0.72, 0.15)        # primary button face
-const EMERALD := Color(0.15, 0.62, 0.4)      # secondary button face
-const TEAL := Color(0.1, 0.5, 0.55)          # tertiary button face
-const RED := Color(1.0, 0.32, 0.27)          # danger / penalties / destructive
-const OFF := Color(0.1, 0.3, 0.2)            # unselected pill / toggle off
+static var theme_name := ""
+## Shape / finish options of the active theme (see ui_themes.gd). Writable, e.g. by the design playground.
+static var style := {}
+static var _gloss_seed := 0   # counts glossy buttons so the "mixed" gloss varies from one to the next
 
-const TEXT := Color.WHITE
-const TEXT_MINT := Color(0.8, 0.96, 0.85)    # taglines, unselected pill text
-const TEXT_DIM := Color(1, 1, 1, 0.7)        # hints, captions
-const TEXT_ON_GOLD := Color(0.25, 0.14, 0.02)  # text on a gold/amber face
-const OUTLINE_DARK := Color(0.04, 0.2, 0.12)   # title outline
+
+static func _static_init() -> void:
+	apply_theme(Themes.DEFAULT)
+
+
+## Switch the whole design system to a theme from ui_themes.gd. Screens built afterwards use it; rebuild open screens.
+static func apply_theme(name: String) -> void:
+	if not Themes.NAMES.has(name):
+		name = Themes.DEFAULT
+	theme_name = name
+	var p: Dictionary = Themes.palette(name)
+	BG_TOP = p["BG_TOP"]
+	BG_MID = p["BG_MID"]
+	BG_BOTTOM = p["BG_BOTTOM"]
+	SURFACE = p["SURFACE"]
+	SURFACE_SOLID = p["SURFACE_SOLID"]
+	SURFACE_BORDER = p["SURFACE_BORDER"]
+	FRAME = p["FRAME"]
+	BAR = p["BAR"]
+	BAR_BORDER = p["BAR_BORDER"]
+	SCRIM = p["SCRIM"]
+	GOLD = p["GOLD"]
+	PRIMARY = p["PRIMARY"]
+	SECONDARY = p["SECONDARY"]
+	TERTIARY = p["TERTIARY"]
+	DANGER = p["DANGER"]
+	OFF = p["OFF"]
+	TEXT = p["TEXT"]
+	TEXT_INK = p["TEXT_INK"]
+	TEXT_DIM = p["TEXT_DIM"]
+	TEXT_HEADING = p["TEXT_HEADING"]
+	TEXT_OFF = p["TEXT_OFF"]
+	TEXT_ON_GOLD = p["TEXT_ON_GOLD"]
+	TEXT_ACCENT = p["TEXT_ACCENT"]
+	TITLE = p["TITLE"]
+	TAGLINE = p["TAGLINE"]
+	OUTLINE_DARK = p["OUTLINE_DARK"]
+	PATTERN = p["PATTERN"]
+	VEIL = p["VEIL"]
+	CARD_TINT = p["CARD_TINT"]
+	style = Themes.style(name).duplicate()
+	_gloss_seed = 0
+
 
 # ---- Type scale (viewport is 1080x1920; Lilita One is the project font) ----
 const FONT_DISPLAY := 128   # game logo only
@@ -61,34 +122,141 @@ enum Variant { PRIMARY, SECONDARY, TERTIARY, DANGER }
 # ---- Style primitives ------------------------------------------------------
 static func face_color(v: Variant) -> Color:
 	match v:
-		Variant.PRIMARY: return AMBER
-		Variant.SECONDARY: return EMERALD
-		Variant.TERTIARY: return TEAL
-		_: return RED
+		Variant.PRIMARY: return PRIMARY
+		Variant.SECONDARY: return SECONDARY
+		Variant.TERTIARY: return TERTIARY
+		_: return DANGER
 
 
-## Chunky "candy" surface: flat face + darker lip underneath + soft shadow.
-static func candy(face: Color, radius: int, lip: int = 12) -> StyleBoxFlat:
+## Chunky "candy" surface: flat face + darker lip underneath, plus the active theme's shadow
+## (strong blurry drop shadow, or a thin outline with a tight shadow, or none).
+static func candy(face: Color, radius: int, lip: int = 12, pressed: bool = false) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = face
 	sb.set_corner_radius_all(radius)
 	sb.border_width_bottom = lip
 	sb.border_width_top = 4
 	sb.border_color = face.darkened(0.35)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 14
-	sb.shadow_offset = Vector2(0, 8)
+	match int(style.get("shadow", 0)):
+		1:
+			sb.border_width_left = 3
+			sb.border_width_right = 3
+			sb.shadow_color = Color(OUTLINE_DARK, 0.35)
+			sb.shadow_size = 0 if pressed else 2
+			sb.shadow_offset = Vector2(0, 3)
+		2:
+			sb.shadow_size = 0
+		_:
+			sb.shadow_color = Color(0, 0, 0, 0.35)
+			sb.shadow_size = 4 if pressed else 14
+			sb.shadow_offset = Vector2(0, 8)
 	return sb
+
+
+## Corner radius of a button / pill of height h in the active theme (-1 in the style = fully rounded).
+static func btn_radius(h: float) -> int:
+	var px := int(style.get("btn_radius", -1))
+	return int(h / 3) if px < 0 else mini(px, int(h / 2))
+
+
+static func pill_radius(h: float) -> int:
+	var px := int(style.get("pill_radius", -1))
+	return int(h / 2) if px < 0 else mini(px, int(h / 2))
 
 
 static func _apply_states(b: Button, face: Color, radius: int, lip: int) -> void:
 	b.add_theme_stylebox_override("normal", candy(face, radius, lip))
 	b.add_theme_stylebox_override("hover", candy(face.lightened(0.08), radius, lip))
-	var down := candy(face.darkened(0.08), radius, 4)
+	var down := candy(face.darkened(0.08), radius, 4, true)
 	down.content_margin_top = 8
-	down.shadow_size = 4
 	b.add_theme_stylebox_override("pressed", down)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## Final touches on a candy button, after its styles and font settings are in place: the bold label outline and
+## the gloss. A button draws its own text before its children, so with gloss on the label is handed to an overlay
+## Label added after the gloss (same font size, outline and colours), keeping the text on top of the shine.
+static func _finish(b: Button, face: Color, radius: int, lip: int, outline: bool = true) -> void:
+	if outline and bool(style.get("bold", false)):
+		b.add_theme_constant_override("outline_size", 18)
+		b.add_theme_color_override("font_outline_color", face.darkened(0.62))
+	var mode := int(style.get("gloss", 0))
+	if mode == 0:
+		return
+	if mode == 5:
+		mode = 1 + (_gloss_seed * 7 + 2) % 4   # strip / swoosh / dot / slant, scattered
+	_gloss_seed += 1
+	var art := Control.new()
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.draw.connect(_draw_gloss.bind(art, mode, radius, lip))
+	b.add_child(art)
+	var lbl := Label.new()
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_constant_override("outline_size", b.get_theme_constant("outline_size"))
+	lbl.add_theme_color_override("font_outline_color", b.get_theme_color("font_outline_color"))
+	var normal := b.get_theme_color("font_color")
+	var pressed := b.get_theme_color("font_pressed_color")
+	var update := func():
+		lbl.text = b.text
+		lbl.add_theme_font_size_override("font_size", b.get_theme_font_size("font_size"))
+		lbl.add_theme_color_override("font_color", pressed if b.button_pressed else normal)
+		lbl.offset_top = 4.0 if b.button_pressed else 0.0
+	b.draw.connect(update)
+	update.call()
+	b.add_child(lbl)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, Color(0, 0, 0, 0))
+	b.add_theme_constant_override("outline_size", 0)
+
+
+## Gloss shapes: 1 strip across the top half, 2 swoosh (thick at the left, tapering right), 3 shorter strip plus a
+## small shine dot, 4 two slanted shine bands.
+static func _draw_gloss(art: Control, mode: int, radius: int, lip: int) -> void:
+	var white := Color(1, 1, 1, 0.26)
+	var x0 := 8.0
+	var y0 := 8.0
+	var w := art.size.x - 16.0
+	var face := art.size.y - lip - 16.0       # height of the flat face
+	var r := float(radius)
+	match mode:
+		1:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = white
+			sb.corner_radius_top_left = maxi(radius - 6, 4)
+			sb.corner_radius_top_right = maxi(radius - 6, 4)
+			sb.corner_radius_bottom_left = maxi(radius / 3, 4)
+			sb.corner_radius_bottom_right = maxi(radius / 3, 4)
+			sb.anti_aliasing = true
+			art.draw_style_box(sb, Rect2(x0, y0, w, face * 0.46))
+		2:
+			var pts := PackedVector2Array()
+			var xs := x0 + r * 0.5
+			var xe := x0 + w - r * 0.4
+			for i in 21:
+				var t := i / 20.0
+				pts.append(Vector2(lerpf(xs, xe, t), y0 + (1.0 - sin(t * PI * 0.5)) * face * 0.05))
+			for i in 21:
+				var t := 1.0 - i / 20.0
+				pts.append(Vector2(lerpf(xs, xe, t), y0 + face * 0.08 + face * 0.42 * pow(1.0 - t, 0.55) * (1.0 - pow(t, 1.6))))
+			art.draw_colored_polygon(pts, white)
+		3:
+			var sb2 := StyleBoxFlat.new()
+			sb2.bg_color = white
+			sb2.set_corner_radius_all(maxi(int(face * 0.12), 4))
+			sb2.anti_aliasing = true
+			art.draw_style_box(sb2, Rect2(x0 + r * 1.5, y0 + 2.0, w - r * 2.4, face * 0.26))
+			art.draw_circle(Vector2(x0 + r * 0.75, y0 + face * 0.2), maxf(face * 0.07, 4.0), white)
+		4:
+			for band in [[0.52, 0.12], [0.70, 0.05]]:
+				var xa: float = x0 + w * band[0]
+				var bw: float = w * band[1]
+				var sl := face * 0.45
+				art.draw_colored_polygon(PackedVector2Array([Vector2(xa + sl, y0 + 2.0), Vector2(xa + sl + bw, y0 + 2.0),
+					Vector2(xa + bw, y0 + face - 2.0), Vector2(xa, y0 + face - 2.0)]), white)
 
 
 # ---- Containers -------------------------------------------------------------
@@ -196,11 +364,11 @@ static func scroll_page(title_text: String, close_text: String, on_close: Callab
 static func _bar(is_header: bool) -> PanelContainer:
 	var p := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = SURFACE_SOLID
-	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.bg_color = BAR
+	sb.shadow_color = Color(0, 0, 0, 0.35)
 	sb.shadow_size = 14
 	sb.shadow_offset = Vector2(0, 4 if is_header else -4)
-	sb.border_color = SURFACE_BORDER
+	sb.border_color = BAR_BORDER
 	sb.set_content_margin_all(0)
 	if is_header:
 		sb.border_width_bottom = 4
@@ -233,7 +401,12 @@ static func panel(separation: int = SPACE_S) -> Array:
 	sb.bg_color = SURFACE
 	sb.set_corner_radius_all(PANEL_RADIUS)
 	sb.set_border_width_all(4)
+	sb.border_width_bottom = int(style.get("panel_lip", 4))   # a chunky lip, like the candy buttons
 	sb.border_color = SURFACE_BORDER
+	if bool(style.get("panel_shadow", false)) and int(style.get("shadow", 0)) == 0:
+		sb.shadow_color = Color(OUTLINE_DARK, 0.18)
+		sb.shadow_size = 10
+		sb.shadow_offset = Vector2(0, 6)
 	sb.set_content_margin_all(PANEL_PAD)
 	p.add_theme_stylebox_override("panel", sb)
 	var inner := VBoxContainer.new()
@@ -242,14 +415,15 @@ static func panel(separation: int = SPACE_S) -> Array:
 	return [p, inner]
 
 
-## Solid bordered popup (J picker style) for modals over the table.
+## Solid framed popup for modals over the table.
 static func popup_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = SURFACE_SOLID
 	sb.set_corner_radius_all(PANEL_RADIUS)
-	sb.set_border_width_all(6)
-	sb.border_color = Color(0.93, 0.76, 0.28)
-	sb.shadow_color = Color(0, 0, 0, 0.55)
+	sb.set_border_width_all(int(style.get("popup_frame", 6)))
+	sb.border_width_bottom = int(style.get("popup_frame_bottom", 6))
+	sb.border_color = FRAME
+	sb.shadow_color = Color(0, 0, 0, 0.5)
 	sb.shadow_size = 30
 	sb.set_content_margin_all(PANEL_PAD)
 	return sb
@@ -267,10 +441,10 @@ static func title(text: String, font_size: int = FONT_H1) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", GOLD_LIGHT)
+	l.add_theme_color_override("font_color", TITLE)
 	l.add_theme_constant_override("outline_size", int(font_size * 0.22))
 	l.add_theme_color_override("font_outline_color", OUTLINE_DARK)
-	l.add_theme_color_override("font_shadow_color", Color(0.0, 0.1, 0.05, 0.6))
+	l.add_theme_color_override("font_shadow_color", Color(OUTLINE_DARK, 0.55))
 	l.add_theme_constant_override("shadow_offset_y", int(font_size * 0.08))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
@@ -298,17 +472,17 @@ static func tagline(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", FONT_HEADING)
-	l.add_theme_color_override("font_color", TEXT_MINT)
+	l.add_theme_color_override("font_color", TAGLINE)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
 
-## Gold section heading inside a panel.
+## Section heading inside a panel.
 static func heading(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", FONT_HEADING)
-	l.add_theme_color_override("font_color", GOLD)
+	l.add_theme_color_override("font_color", TEXT_HEADING)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
@@ -318,7 +492,7 @@ static func body(text: String, wrap_width: float = 0.0, font_size: int = FONT_BO
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", TEXT)
+	l.add_theme_color_override("font_color", TEXT_INK)
 	if wrap_width > 0.0:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(wrap_width, 0)
@@ -348,7 +522,9 @@ static func button(text: String, variant: Variant, on_press: Callable, large: bo
 		b.add_theme_color_override(c, TEXT)
 	b.add_theme_constant_override("outline_size", 10)
 	b.add_theme_color_override("font_outline_color", face.darkened(0.45))
-	_apply_states(b, face, h / 3, 12)
+	var r := btn_radius(h)
+	_apply_states(b, face, r, 12)
+	_finish(b, face, r, 12)
 	b.pressed.connect(on_press)
 	return b
 
@@ -362,16 +538,17 @@ static func pill(text: String, selected: bool, size: Vector2 = Vector2(PILL_W, P
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", font_size)
 	b.custom_minimum_size = size
-	b.add_theme_color_override("font_color", TEXT_MINT)
+	b.add_theme_color_override("font_color", TEXT_OFF)
 	b.add_theme_color_override("font_hover_color", TEXT)
 	b.add_theme_color_override("font_pressed_color", TEXT_ON_GOLD)
 	b.add_theme_color_override("font_hover_pressed_color", TEXT_ON_GOLD)
-	var r := int(size.y / 2)
+	var r := pill_radius(size.y)
 	b.add_theme_stylebox_override("normal", candy(OFF, r, 8))
 	b.add_theme_stylebox_override("hover", candy(OFF.lightened(0.1), r, 8))
 	b.add_theme_stylebox_override("pressed", candy(GOLD, r, 8))
 	b.add_theme_stylebox_override("hover_pressed", candy(GOLD, r, 8))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_finish(b, OFF, r, 8, false)
 	return b
 
 
@@ -406,7 +583,9 @@ static func icon_button(kind: String, on_press: Callable, variant: Variant = Var
 	b.custom_minimum_size = Vector2(ICON_BTN, ICON_BTN)
 	b.size = Vector2(ICON_BTN, ICON_BTN)
 	_apply_states(b, face, ICON_BTN / 2, 8)
-	for state in ["normal", "hover", "pressed"]:   # softer shadow than full-size buttons
+	for state in ["normal", "hover", "pressed"]:   # softer shadow than full-size buttons (strong-shadow themes only)
+		if int(style.get("shadow", 0)) != 0:
+			break
 		var sb: StyleBoxFlat = b.get_theme_stylebox(state)
 		sb.shadow_color = Color(0, 0, 0, 0.18)
 		sb.shadow_size = 5 if state != "pressed" else 2
@@ -447,6 +626,8 @@ static func stepper(text: String, on_press: Callable) -> Button:
 	b.add_theme_color_override("font_color", TEXT)
 	b.add_theme_color_override("font_hover_color", TEXT)
 	b.add_theme_color_override("font_pressed_color", TEXT)
-	_apply_states(b, EMERALD, PILL_H / 2, 8)
+	var r := pill_radius(PILL_H)
+	_apply_states(b, SECONDARY, r, 8)
+	_finish(b, SECONDARY, r, 8, false)
 	b.pressed.connect(on_press)
 	return b

@@ -93,7 +93,7 @@ func _build_loading() -> void:
 	track.set_border_width_all(3)
 	track.set_corner_radius_all(22)
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = UI.AMBER
+	fill.bg_color = UI.PRIMARY
 	fill.set_corner_radius_all(22)
 	_bar.add_theme_stylebox_override("background", track)
 	_bar.add_theme_stylebox_override("fill", fill)

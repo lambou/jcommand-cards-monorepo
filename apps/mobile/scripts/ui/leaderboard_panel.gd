@@ -39,7 +39,7 @@ func _row(rank: int, e: Dictionary) -> Control:
 	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var pts := UI.body("%d pts%s" % [int(e["score"]), "  CLEAN" if e.get("clean", false) else ""], 0.0, UI.FONT_BODY)
 	if e.get("clean", false):
-		pts.add_theme_color_override("font_color", UI.GOLD)
+		pts.add_theme_color_override("font_color", UI.TEXT_ACCENT)
 	mid.add_child(pts)
 	var place := int(e["place"])
 	var detail := UI.hint("%s of %d  -  %s  -  %s" % [["", "1st", "2nd", "3rd", "4th"][clampi(place, 0, 4)], int(e["players"]), str(e["difficulty"]).capitalize(), str(e["date"])], 0.0)

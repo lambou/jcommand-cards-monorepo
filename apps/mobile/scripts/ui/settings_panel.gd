@@ -134,9 +134,9 @@ func _table_choice(i: int) -> Control:
 	btn.custom_minimum_size = thumb
 	# Soft drop shadow behind the card (the button's own style; the preview covers its fill).
 	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.02, 0.1, 0.07)
+	back.bg_color = UI.FRAME
 	back.set_corner_radius_all(TABLE_RADIUS)
-	back.shadow_color = Color(0, 0, 0, 0.45)
+	back.shadow_color = Color(UI.FRAME, 0.35)
 	back.shadow_size = 10
 	back.shadow_offset = Vector2(0, 5)
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
@@ -183,6 +183,7 @@ func _table_choice(i: int) -> Control:
 	name_label.text = TableBg.STYLES[i]
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 24)
+	name_label.add_theme_color_override("font_color", UI.TEXT_INK)
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.custom_minimum_size.x = thumb.x
 	box.add_child(name_label)
@@ -212,6 +213,7 @@ func _avatar_choice(i: int) -> Control:
 	l.text = Avatar.display_name(i)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", 24)
+	l.add_theme_color_override("font_color", UI.TEXT_INK)
 	box.add_child(l)
 	return box
 
@@ -259,11 +261,11 @@ func _refresh() -> void:
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0, 0, 0, 0)
 		var on: bool = i == Settings.table_style % TableBg.STYLES.size()
-		sb.border_color = Color(1.0, 0.85, 0.3) if on else Color(1, 1, 1, 0.22)
+		sb.border_color = UI.GOLD if on else Color(UI.SURFACE_BORDER, 0.6)
 		sb.set_border_width_all(6 if on else 2)
 		sb.set_corner_radius_all(TABLE_RADIUS)
 		sb.anti_aliasing = true
-		(_table_names[i] as Label).add_theme_color_override("font_color", Color(1.0, 0.85, 0.3) if on else Color(1, 1, 1, 0.7))
+		(_table_names[i] as Label).add_theme_color_override("font_color", UI.TEXT_HEADING if on else UI.TEXT_DIM)
 		(_table_frames[i] as Panel).add_theme_stylebox_override("panel", sb)
 	for i in _avatar_views.size():
 		(_avatar_views[i] as AvatarView).active = i == Settings.avatar % Avatar.STYLES.size()

@@ -34,6 +34,9 @@ deterministic, so the log is enough to **resume** an unfinished game (menu: Resu
     godot --headless --fixed-fps 60 --path apps/mobile -s res://scripts/tests/test_deal_table.gd   # real table: every deal style x 1-3 bots (you / a bot deals), smooth motion, nothing left over, drawing still works
     godot --headless --path apps/mobile -s res://scripts/tests/test_deal_settings_ui.gd # the "Dealing" setting button
     godot --headless --path apps/mobile -s res://scripts/tests/test_deal_hitch.gd       # (no --fixed-fps) the first card still leaves with the dealer's throw over a loading hitch
+    godot --path apps/mobile -- --dsplay                                                # design-system playground: every ui_kit component, switch theme / corners / gloss / shadow live (or open scenes/design_playground.tscn)
+    godot --path apps/mobile -- --dsshot=out.png                                        # screenshots of the playground page per theme (ui/ui_themes.gd)
+    godot --path apps/mobile -- --uitheme=cloud --menushot=out.png                     # any screen with another design-system theme: felt / lagoon / sky / dusk / ember
     godot --path apps/mobile -- --dealplay                                              # playground for the deal (or open scenes/deal_playground.tscn)
     tools/test-formfactors.sh                                                       # the tutorial at phone / tablet / PC / ultrawide window shapes (layout checks + screenshots)
     godot --path apps/mobile -- --tutorialshot=out.png                              # a screenshot of every tutorial step / nudge / chapter end
