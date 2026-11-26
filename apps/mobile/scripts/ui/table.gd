@@ -225,6 +225,8 @@ func _build() -> void:
 	_dealt = false
 	_lock_until = 0
 	_dealing = false
+	if game != null:
+		game.anim_gate_ms = 0
 	_shown_cur = ""
 	_turn_queue.clear()
 	_turn_gate_ms = 0
@@ -669,6 +671,8 @@ func _on_updated(events: Array) -> void:
 		var top: Dictionary = st["stack"][st["stack"].size() - 1]
 		_floor_held = -1
 		_set_floor(top, false)
+	if first:
+		_dealing = true # set before the first _refresh so the hand is not lit while the deal runs
 
 	# Remember where hand cards were, to launch "played" flights from there.
 	var old_rects := {}
@@ -766,6 +770,7 @@ func _queue_turn(events: Array, instant: bool) -> void:
 		return
 	var at := maxi(now, _turn_gate_ms) + int(_events_anim_time(events) * 1000.0)
 	_turn_gate_ms = at
+	game.anim_gate_ms = at # bots wait for the card to land before answering
 	if _turn_queue.is_empty() and at <= now:
 		_shown_cur = cur
 		return
@@ -784,7 +789,7 @@ func _advance_turn(serial: int) -> void:
 		changed = true
 	if changed:
 		_update_seats(game.state)
-		_update_banner(game.state, game.is_human_turn())
+		_refresh_turn_flags()
 	if not _turn_queue.is_empty(): # woke up early (or the head isn't due yet): never leave entries stranded
 		var wait := maxf(0.02, float(int(_turn_queue[0]["at"]) - Time.get_ticks_msec()) / 1000.0)
 		get_tree().create_timer(wait).timeout.connect(func(): _advance_turn(serial))
@@ -939,6 +944,7 @@ func _animate_deal(st: Dictionary) -> void:
 		_set_floor(floor_card, false)
 		_stack_note = "Starting card"
 		_update_captions()
+		_refresh_turn_flags() # the deal is over: only now do your playable cards light up
 	if glove:
 		_dealer_throw(float(plan["start"]["grab"]), send - float(plan["start"]["grab"]), dealer, plan["flick"],
 				_deal_aim(_center(stack_view).x, bank_c.x), bank_c, bank_w, func():
@@ -950,6 +956,7 @@ func _animate_deal(st: Dictionary) -> void:
 	else:
 		_deal_tick(_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, send, FLY + 0.1, land), send)
 	_lock_until = Time.get_ticks_msec() + int((send + FLY + (0.5 if glove else 0.2)) * 1000.0)
+	game.anim_gate_ms = _lock_until # bots don't start before the deal is over
 
 
 ## The deal's one sound per card, at the moment the card leaves the bank (`send` s from now, 0 = right now, as
@@ -1550,9 +1557,46 @@ func _update_seats(st: Dictionary) -> void:
 	_update_check_state(st)
 
 
+## Is it your turn AS THE TABLE SHOWS IT? The engine says "your turn" the instant a move is applied (and from the very
+## start of a deal), but the cards, bank and banner must wait for the animations: no highlight during the deal or
+## while the previous player's card is still flying.
+func _my_turn_shown() -> bool:
+	if game == null or game.state.is_empty() or _dealing or not game.is_human_turn():
+		return false
+	return _shown_cur == "" or _shown_cur == ME
+
+
+## Re-applies the turn-dependent look (hand lift/dim, bank, caption, avatar, banner) once the table catches up
+## with the engine: the deal has landed, or the turn indicator advanced.
+func _refresh_turn_flags() -> void:
+	if game == null or game.state.is_empty() or not is_inside_tree():
+		return
+	var st: Dictionary = game.state
+	var human_turn := _my_turn_shown()
+	var legal := {}
+	if human_turn:
+		for a in CardEngine.legal_actions(st, ME):
+			if a["type"] == "play":
+				legal[a["cardId"]] = true
+	for v in hand_views:
+		var ok: bool = legal.has(v.card["id"])
+		v.set_flags(human_turn and not ok, human_turn and ok)
+	_layout_hand(true)
+	var pending := int(st["pending"])
+	bank_view.set_flags(false, human_turn, ("+%d" % pending) if pending > 0 else "")
+	if human_turn and pending > 0:
+		bank_caption.text = "Tap to take %d" % pending
+	elif human_turn:
+		bank_caption.text = "Tap to draw 1"
+	else:
+		bank_caption.text = "Bank: %d" % st["bank"].size()
+	you_avatar.active = human_turn
+	_update_banner(st, human_turn)
+
+
 func _refresh() -> void:
 	var st: Dictionary = game.state
-	var human_turn: bool = game.is_human_turn()
+	var human_turn := _my_turn_shown()
 	_update_seats(st)
 	_update_peek()
 	you_avatar.active = human_turn

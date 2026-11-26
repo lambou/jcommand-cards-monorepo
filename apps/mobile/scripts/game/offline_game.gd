@@ -22,6 +22,12 @@ var names: Dictionary = {}
 var difficulty := "normal"
 var bot_delay := 0.9
 var bot_delay_max := -1.0 # when above bot_delay, each bot turn waits a random time in [bot_delay, bot_delay_max]
+## Presentation gate: a Time.get_ticks_msec() timestamp until which the table is still animating the last move.
+## Bots wait for it (plus a beat) before acting, so they never answer before the card has landed. 0 = nothing
+## playing (headless, tests, replays). Capped by MAX_GATE_WAIT so a stale value can never stall the game.
+var anim_gate_ms := 0
+const GATE_BEAT := 0.3
+const MAX_GATE_WAIT := 4.0
 var rng := RandomNumberGenerator.new()
 
 ## Score stats for EVERY player (points decide the final ranking, so bots need them too):
@@ -413,13 +419,34 @@ func _force_end(events: Array) -> void:
 	events.append({"type": "gameOver", "loser": state["loser"]})
 
 
+## Seconds until the table has finished animating (+ a beat), 0 when it is idle or in instant mode.
+## `cap_until` is this bot turn's hard deadline (ticks), so a stale far-future gate can delay a turn by at most MAX_GATE_WAIT.
+func _gate_wait(cap_until: int) -> float:
+	if bot_delay < 0.05 or anim_gate_ms <= 0:
+		return 0.0
+	var now := Time.get_ticks_msec()
+	var left := float(minf(anim_gate_ms, cap_until) - now) / 1000.0
+	if left <= 0.0:
+		return 0.0
+	return left + (GATE_BEAT if anim_gate_ms <= cap_until else 0.0)
+
+
 func _bot_loop() -> void:
 	_serial += 1
 	var mine := _serial
 	while not state["over"] and current_id() != HUMAN_ID:
-		await get_tree().create_timer(randf_range(bot_delay, bot_delay_max) if bot_delay_max > bot_delay else bot_delay).timeout
+		var think := randf_range(bot_delay, bot_delay_max) if bot_delay_max > bot_delay else bot_delay
+		var cap_until := Time.get_ticks_msec() + int(MAX_GATE_WAIT * 1000.0)
+		await get_tree().create_timer(maxf(think, _gate_wait(cap_until))).timeout
 		if mine != _serial or state["over"]:
 			return
+		# More animation may have been queued while waiting (a play then a draw/skip): wait it out too.
+		var extra := _gate_wait(cap_until)
+		while extra > 0.0:
+			await get_tree().create_timer(extra).timeout
+			if mine != _serial or state["over"]:
+				return
+			extra = _gate_wait(cap_until)
 		var id := current_id()
 		var act := _scripted_action()
 		if act.is_empty():
