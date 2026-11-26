@@ -939,12 +939,25 @@ func _animate_deal(st: Dictionary) -> void:
 		_dealer_throw(float(plan["start"]["grab"]), send - float(plan["start"]["grab"]), dealer, plan["flick"],
 				_deal_aim(_center(stack_view).x, bank_c.x), bank_c, bank_w, func():
 					_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, 0.0, FLY + 0.1, land)
+					_deal_tick(null, 0.0)
 					get_tree().create_timer(0.15).timeout.connect(func():
 						if is_instance_valid(hand3d):
 							hand3d.deal_end()))
 	else:
-		_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, send, FLY + 0.1, land)
+		_deal_tick(_fly(floor_card, false, true, bank_c, bank_w, _center(stack_view), stack_view.size.x, send, FLY + 0.1, land), send)
 	_lock_until = Time.get_ticks_msec() + int((send + FLY + (0.5 if glove else 0.2)) * 1000.0)
+
+
+## The deal's one sound per card, at the moment the card leaves the bank (`send` s from now, 0 = right now, as
+## when the dealer's hand throws it). It rides on the flyer's own tween so it starts on the same frame as the
+## flight and is dropped with it if the table goes away.
+func _deal_tick(flyer: Control, send: float) -> void:
+	if send <= 0.0 or flyer == null:
+		Sfx.play("deal", 0.6)
+		return
+	var tw := flyer.create_tween()
+	tw.tween_interval(send)
+	tw.tween_callback(func(): Sfx.play("deal", 0.6))
 
 
 ## The dealer's own hand is shown unless motion is reduced or both 3D-hand settings are off.
@@ -953,19 +966,23 @@ func _deal_glove_ok() -> bool:
 
 
 ## One dealt card flying from the bank to `seat` at time `send`. Yours is shown face-up as it lands.
+## Its one sound plays as it leaves (see _deal_tick), not on landing, so it is on the dealer's throw.
 func _deal_flight(seat: String, card: Dictionary, bank_c: Vector2, bank_w: float, send: float, style: int) -> Control:
 	if seat == ME:
 		var hv := _hand_view(card["id"])
 		if hv == null:
 			return null
 		var cid: int = card["id"]
-		var landed := func():
-			_unhide(cid)
-			Sfx.play("deal", 0.45)
+		var landed := func(): _unhide(cid)
+		var mine: Control
 		if style == DealPlan.FLY:
-			return _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, send, FLY, landed)
-		return _fly_flip(card, bank_c, bank_w, _center(hv), hv.size.x, send, landed, false, hv) # peeled and turned, like a draw
-	var flyer := _fly({}, false, false, bank_c, bank_w, _seat_center(seat), 70.0, send, FLY, func(): Sfx.play("deal", 0.3))
+			mine = _fly(card, false, true, bank_c, bank_w, _center(hv), hv.size.x, send, FLY, landed)
+		else:
+			mine = _fly_flip(card, bank_c, bank_w, _center(hv), hv.size.x, send, landed, false, hv) # peeled and turned, like a draw
+		_deal_tick(mine, send)
+		return mine
+	var flyer := _fly({}, false, false, bank_c, bank_w, _seat_center(seat), 70.0, send, FLY, Callable())
+	_deal_tick(flyer, send)
 	if style != DealPlan.FLY and flyer != null and not Settings.reduce(): # a little flick as it leaves the hand
 		var spin := _react_rng.randf_range(-0.35, 0.35)
 		var tw := flyer.create_tween()

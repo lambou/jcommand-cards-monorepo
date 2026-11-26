@@ -354,7 +354,7 @@ func _flyer(to_w: float) -> Control:
 ## Sends `v` from the bank to seat `seat` (slot `slot` of your row for seat 0).
 func _send(v: Control, seat: int, slot: int, card: Dictionary) -> void:
 	_lift_from_bank()
-	Sfx.play("draw", 0.4)
+	Sfx.play("deal", 0.6) # one card, one sound: on the throw, never on landing
 	var from_scale := bank.size.x / v.size.x
 	if seat == 0:
 		var to_c := _slot_center(slot)
@@ -362,8 +362,7 @@ func _send(v: Control, seat: int, slot: int, card: Dictionary) -> void:
 		CardFlip.run(self, v, card, dur, from_scale, _bank_c(), to_c, reduce_on)
 		_land_later(v, dur, func():
 			hand[slot].set_card(card, true)
-			hand[slot].visible = true
-			Sfx.play("deal", 0.45))
+			hand[slot].visible = true)
 	else:
 		var i := seat - 1
 		var to_c := _seat_center(i)
@@ -376,8 +375,7 @@ func _send(v: Control, seat: int, slot: int, card: Dictionary) -> void:
 			tw.tween_method(func(t: float): v.rotation = spin * sin(t * PI), 0.0, 1.0, dur)
 		_land_later(v, dur, func():
 			seat_counts[i] += 1
-			_update_seat(i)
-			Sfx.play("deal", 0.3))
+			_update_seat(i))
 
 
 func _land_later(v: Control, dur: float, on_land: Callable) -> void:
@@ -437,13 +435,12 @@ func deal() -> void:
 	var dur := maxf(fly_time, CardFlip.min_duration())
 	var launch_start := func():
 		_lift_from_bank()
-		Sfx.play("draw", 0.4)
+		Sfx.play("deal", 0.6)
 		CardFlip.run(self, sv, start, dur, 1.0, _bank_c(), stack.position + stack.size / 2.0, reduce_on)
 		_land_later(sv, dur, func():
 			stack.set_card(start, true)
 			stack.visible = true
-			stack_caption.text = "Starting card"
-			Sfx.play("deal", 0.45))
+			stack_caption.text = "Starting card")
 	if glove:
 		now = await _at(now, sg, gen)
 		if gen != _gen:

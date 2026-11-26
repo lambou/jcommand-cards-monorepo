@@ -71,7 +71,13 @@ func _build() -> void:
 	_noise(b, 0.0, 0.05, 0.4, 55.0, 0.5)
 	_tone(b, 0.0, 620.0, 0.05, 0.16, 60.0)
 	_streams["draw"] = _stream(b)
-	_streams["deal"] = _streams["draw"]
+
+	# Card dealt: a subtle, papery flick (it repeats once per card, so it stays short and soft). Played the
+	# moment the card leaves the dealer's hand, never on landing: one card, one sound, on the throw.
+	b = _buf(0.05)
+	_noise(b, 0.0, 0.04, 0.28, 90.0, 0.3)
+	_tone(b, 0.0, 1100.0, 0.025, 0.04, 120.0)
+	_streams["deal"] = _stream(b)
 
 	# A 2 sliding under the pile: a soft swish.
 	b = _buf(0.4)
