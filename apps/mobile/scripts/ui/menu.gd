@@ -161,7 +161,11 @@ func _show_welcome() -> void:
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.add_child(center)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UI.popup_style())
+	var welcome_style := UI.popup_style()
+	# Extra breathing room above the avatar and below the last button.
+	welcome_style.content_margin_top = UI.PANEL_PAD + 36
+	welcome_style.content_margin_bottom = UI.PANEL_PAD + 36
+	panel.add_theme_stylebox_override("panel", welcome_style)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UI.SPACE_S)
