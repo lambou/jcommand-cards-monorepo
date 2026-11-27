@@ -12,7 +12,6 @@ const AppVersion := preload("res://scripts/game/app_version.gd")
 
 const LOGO := UI.LOGO
 const SPLASH_LOGO := 360.0   # logo edge length on the 1080-wide canvas
-const SPLASH_IN := 0.7
 const SPLASH_HOLD := 0.9
 const SPLASH_OUT := 0.5
 const MIN_LOADING := 1.2   # keep the loading screen readable even when everything is cached
@@ -114,14 +113,11 @@ func _build_loading() -> void:
 
 func _run_splash() -> void:
 	var logo: Control = _splash.get_node("Logo")
-	var reduce := Settings.reduce()
-	logo.modulate.a = 0.0
-	logo.scale = Vector2.ONE * (1.0 if reduce else 0.8)
+	# The engine boot splash (assets/branding/splash.png, set in project.godot) already shows this exact
+	# frame (same gradient, logo centred at SPLASH_LOGO px), so start fully visible: no pop between them.
+	logo.modulate.a = 1.0
+	logo.scale = Vector2.ONE
 	_splash_tween = create_tween()
-	_splash_tween.tween_property(logo, "modulate:a", 1.0, SPLASH_IN)
-	if not reduce:
-		_splash_tween.parallel().tween_property(logo, "scale", Vector2.ONE, SPLASH_IN) \
-			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_splash_tween.tween_interval(SPLASH_HOLD)
 	_splash_tween.tween_property(_splash, "modulate:a", 0.0, SPLASH_OUT)
 	_splash_tween.tween_callback(_start_loading)
