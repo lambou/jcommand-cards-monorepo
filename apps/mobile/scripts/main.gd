@@ -731,37 +731,115 @@ func _comboshot(path: String) -> void:
 	get_tree().quit()
 
 
-## Promo reel: a rigged 1v1 hand plays three Aces back to back (x2, x3 combos), then the Joker - the lion
-## roars (the black Joker, legal on the black Ace of Clubs) and Rex has to take 4. Meant for `godot --write-movie reel.avi --fixed-fps 30 -- --combomovie`; the frame
-## numbers it prints let you trim the deal off the front.
+## Promo reel: three Aces back to back (x2, x3 combos), then the black Joker - the lion roars and Rex takes 4.
+## Meant for `godot --write-movie reel.avi --fixed-fps 30 -- --combomovie`; the printed frame numbers let you trim the deal.
+##
+## Every move obeys the real rules and the position is never forced: we only swap REAL cards of the dealt deck into
+## the human hand (so no card exists twice) and keep Rex free of 7s/Jokers so he really has to draw. The state's
+## `required`, `pending` and `stack` are untouched. Each play is checked against the engine's own legal actions and
+## the script exits with an error if any step is not legal. Sequence, with R = the suit the dealt pile asks for:
+##   Ace of R   (Ace on the required suit)  -> sets suit R,  skips Rex
+##   Ace of X   (Ace on an Ace, same rank)   -> sets suit X,  skips Rex   (x2 combo)
+##   Ace of B   (Ace on an Ace, B is black)  -> sets suit B,  skips Rex   (x3 combo)
+##   Black Joker (black on a black suit)     -> Rex must take 4
 func _combomovie() -> void:
+	const CardEngine := preload("res://scripts/engine/engine.gd")
 	var t := _start_game(1, "normal")
 	t.game.bot_delay = 99.0
 	while t._locked() or not t.game.is_human_turn():
 		await get_tree().create_timer(0.05).timeout
 	await get_tree().create_timer(0.4).timeout
 	var st: Dictionary = t.game.state
-	st["required"] = {"kind": "free"}
-	st["pending"] = 0
-	var hand: Array = st["players"][0]["hand"]
-	hand.clear()
-	hand.append({"id": 9001, "rank": "A", "suit": "H", "color": "red"})
-	hand.append({"id": 9002, "rank": "A", "suit": "D", "color": "red"})
-	hand.append({"id": 9003, "rank": "A", "suit": "C", "color": "black"})
-	hand.append({"id": 9004, "rank": "JOKER", "suit": "", "color": "black"})
-	hand.append({"id": 9005, "rank": "5", "suit": "H", "color": "red"})
-	hand.append({"id": 9006, "rank": "9", "suit": "S", "color": "black"})
-	st["current"] = 0
+	var req: Dictionary = st["required"]
+	# Find a legal chain in THIS deal: three distinct Aces not on the pile, the first playable on the pile (the required
+	# suit, or any Ace if the pile top is itself an Ace or the opening card made it free), the last one black so the
+	# black Joker can follow it. If this deal has none, exit with code 2 and let the caller deal again.
+	var stack_top: Dictionary = st["stack"][st["stack"].size() - 1]
+	var any_first: bool = req["kind"] == "free" or stack_top["rank"] == "A"
+	var avail: Array = []
+	for su in ["H", "D", "C", "S"]:
+		var on_pile := false
+		for c in st["stack"]:
+			if c["rank"] == "A" and c["suit"] == su:
+				on_pile = true
+		if not on_pile:
+			avail.append(su)
+	var chain: Array = []
+	for f in avail:
+		if not (any_first or (req["kind"] == "suit" and req["suit"] == f)):
+			continue
+		for m in avail:
+			for l in avail:
+				if chain.is_empty() and f != m and m != l and f != l and (l == "C" or l == "S"):
+					chain = [f, m, l]
+	if chain.is_empty():
+		print("REEL_NO_CHAIN required=", req, " pile top=", stack_top["rank"], stack_top["suit"])
+		get_tree().quit(2)
+		return
+	# Pull the real cards we need out of wherever they are (bank or Rex's hand), parking the old human hand in the bank.
+	var human: Dictionary = st["players"][0]
+	var rex: Dictionary = st["players"][1]
+	var bank: Array = st["bank"]
+	var wanted: Array = []
+	for su in chain:
+		wanted.append({"rank": "A", "suit": su})
+	wanted.append({"rank": "JOKER", "color": "black"})
+	wanted.append({"rank": "5", "suit": "H"})
+	wanted.append({"rank": "9", "suit": "S"})
+	var new_hand: Array = []
+	for w in wanted:
+		var found := {}
+		for pool in [human["hand"], bank, rex["hand"]]:
+			for c in pool:
+				if c["rank"] == w["rank"] and (w.get("suit", c["suit"]) == c["suit"]) and (w.get("color", c["color"]) == c["color"]):
+					found = c
+					break
+			if not found.is_empty():
+				pool.erase(found)
+				break
+		if found.is_empty():
+			push_error("reel: card %s not available (it is on the pile)" % str(w))
+			get_tree().quit(1)
+			return
+		new_hand.append(found)
+	for c in human["hand"]:
+		bank.push_back(c)
+	human["hand"] = new_hand
+	# Rex must have no 7 or Joker (he could answer the Joker with one); swap any for harmless bank cards.
+	for c in rex["hand"].duplicate():
+		if c["rank"] == "7" or c["rank"] == "JOKER":
+			rex["hand"].erase(c)
+			for bc in bank:
+				if bc["rank"] != "7" and bc["rank"] != "JOKER" and bc["rank"] != "A" and bc["rank"] != "2":
+					bank.erase(bc)
+					rex["hand"].append(bc)
+					break
+			bank.push_back(c)
 	t.game.updated.emit([])
 	await get_tree().create_timer(0.5).timeout
-	print("REEL_START ", Engine.get_frames_drawn())
-	for i in 3:
-		t.game.human_play(9001 + i)
-		await get_tree().create_timer(0.8).timeout
-	# The black Joker goes on the black Ace of Clubs by the real rules (a red one is only legal on red).
-	print("JOKER_PLAY ", t.game.human_play(9004))   # the lion roars
-	await get_tree().create_timer(1.9).timeout
-	t.game._apply({"type": "takePenalty", "playerId": "bot1"})
+	print("REEL_START ", Engine.get_frames_drawn(), " chain ", chain)
+	var order := [new_hand[0], new_hand[1], new_hand[2], new_hand[3]]
+	for c in order:
+		var legal := false
+		for a in CardEngine.legal_actions(t.game.state, "you"):
+			if a["type"] == "play" and a["cardId"] == c["id"]:
+				legal = true
+		if not legal:
+			push_error("reel: %s %s is NOT legal here (required %s, pending %s)" % [c["rank"], c["suit"], str(t.game.state["required"]), str(t.game.state["pending"])])
+			get_tree().quit(1)
+			return
+		print("PLAY ", c["rank"], c["suit"], c["color"], " required=", t.game.state["required"], " ok=", t.game.human_play(c["id"]))
+		await get_tree().create_timer(0.8 if c["rank"] == "A" else 1.9).timeout
+	var pen: Dictionary = {"type": "takePenalty", "playerId": "bot1"}
+	var rex_legal := false
+	for a in CardEngine.legal_actions(t.game.state, "bot1"):
+		if a["type"] == "takePenalty":
+			rex_legal = true
+	print("REX takes penalty legal=", rex_legal, " pending=", t.game.state["pending"])
+	if not rex_legal:
+		get_tree().quit(1)
+		return
+	t.game._apply(pen)
 	await get_tree().create_timer(1.5).timeout
 	print("REEL_END ", Engine.get_frames_drawn())
 	get_tree().quit()
