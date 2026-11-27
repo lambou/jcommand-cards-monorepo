@@ -12,6 +12,7 @@ const AppVersion := preload("res://scripts/game/app_version.gd")
 
 const LOGO := UI.LOGO
 const SPLASH_LOGO := 360.0   # logo edge length on the 1080-wide canvas
+const SPLASH_BG := Color(0.08, 0.29, 0.29)   # keep equal to boot_splash/bg_color in project.godot
 const SPLASH_HOLD := 0.9
 const SPLASH_OUT := 0.5
 const MIN_LOADING := 1.2   # keep the loading screen readable even when everything is cached
@@ -49,6 +50,13 @@ func _build_splash() -> void:
 	_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_splash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_splash)
+	# Flat colour = project.godot's boot_splash/bg_color, so the engine splash flows into this one on any
+	# screen shape; it fades out with the splash to reveal the gradient.
+	var flat := ColorRect.new()
+	flat.color = SPLASH_BG
+	flat.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	flat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_splash.add_child(flat)
 	var logo := TextureRect.new()
 	logo.texture = load(LOGO) if ResourceLoader.exists(LOGO) else null
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
