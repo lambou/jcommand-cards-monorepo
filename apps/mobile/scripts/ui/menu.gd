@@ -15,6 +15,7 @@ const LeaderboardPanel := preload("res://scripts/ui/leaderboard_panel.gd")
 const HistoryPanel := preload("res://scripts/ui/history_panel.gd")
 const Recorder := preload("res://scripts/game/recorder.gd")
 const MenuBackdrop := preload("res://scripts/ui/menu_backdrop.gd")
+const AppVersion := preload("res://scripts/game/app_version.gd")
 
 const RULES_TEXT := """GOAL
 Be the first to play all your cards.
@@ -82,6 +83,7 @@ func _ready() -> void:
 		box.add_child(b)
 		b.modulate.a = 0.0   # hidden until the entrance animation lifts it in
 	_pill_up.call_deferred(buttons)
+	add_child(AppVersion.make_label())
 	# First launch only (debug runs and screenshots skip it): offer the tutorial once, never force it.
 	if Recorder.enabled and not Settings.tutorial_seen:
 		Settings.tutorial_seen = true

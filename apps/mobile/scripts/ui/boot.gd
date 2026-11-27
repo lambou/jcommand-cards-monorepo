@@ -8,6 +8,7 @@ signal finished
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Avatar := preload("res://scripts/ui/avatar.gd")
 const Settings := preload("res://scripts/game/settings.gd")
+const AppVersion := preload("res://scripts/game/app_version.gd")
 
 const LOGO := UI.LOGO
 const SPLASH_LOGO := 360.0   # logo edge length on the 1080-wide canvas
@@ -108,6 +109,7 @@ func _build_loading() -> void:
 	tip.add_theme_color_override("font_color", UI.TEXT_DIM)
 	box.add_child(UI.spacer(60))
 	box.add_child(tip)
+	_loading.add_child(AppVersion.make_label())
 
 
 func _run_splash() -> void:

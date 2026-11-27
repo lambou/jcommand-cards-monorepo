@@ -27,3 +27,10 @@ sounds-preview/
 # Preview GIF of the crown loop (the game only loads crown.png + crown.json)
 apps/mobile/assets/crown/crown.gif
 tools/blender/_logo_out/
+
+# Release pipeline: generated at build time / secrets
+apps/mobile/build_info.json
+apps/mobile/android/
+build/
+keystores/
+android-signing.json
