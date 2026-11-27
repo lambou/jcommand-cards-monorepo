@@ -732,7 +732,7 @@ func _comboshot(path: String) -> void:
 
 
 ## Promo reel: a rigged 1v1 hand plays three Aces back to back (x2, x3 combos), then the Joker - the lion
-## roars and Rex has to take 4. Meant for `godot --write-movie reel.avi --fixed-fps 30 -- --combomovie`; the frame
+## roars (the black Joker, legal on the black Ace of Clubs) and Rex has to take 4. Meant for `godot --write-movie reel.avi --fixed-fps 30 -- --combomovie`; the frame
 ## numbers it prints let you trim the deal off the front.
 func _combomovie() -> void:
 	var t := _start_game(1, "normal")
@@ -748,7 +748,7 @@ func _combomovie() -> void:
 	hand.append({"id": 9001, "rank": "A", "suit": "H", "color": "red"})
 	hand.append({"id": 9002, "rank": "A", "suit": "D", "color": "red"})
 	hand.append({"id": 9003, "rank": "A", "suit": "C", "color": "black"})
-	hand.append({"id": 9004, "rank": "JOKER", "suit": "", "color": "red"})
+	hand.append({"id": 9004, "rank": "JOKER", "suit": "", "color": "black"})
 	hand.append({"id": 9005, "rank": "5", "suit": "H", "color": "red"})
 	hand.append({"id": 9006, "rank": "9", "suit": "S", "color": "black"})
 	st["current"] = 0
@@ -758,9 +758,7 @@ func _combomovie() -> void:
 	for i in 3:
 		t.game.human_play(9001 + i)
 		await get_tree().create_timer(0.8).timeout
-	st = t.game.state   # the engine swaps the state dict on every action
-	st["required"] = {"kind": "free"}
-	st["pending"] = 0
+	# The black Joker goes on the black Ace of Clubs by the real rules (a red one is only legal on red).
 	print("JOKER_PLAY ", t.game.human_play(9004))   # the lion roars
 	await get_tree().create_timer(1.9).timeout
 	t.game._apply({"type": "takePenalty", "playerId": "bot1"})
