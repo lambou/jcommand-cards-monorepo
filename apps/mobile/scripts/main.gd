@@ -14,6 +14,7 @@ extends Control
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
 ##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
+##   --combomovie            the same chain, paced for a promo clip; record with `--write-movie out.avi --fixed-fps 30`, prints REEL_START/REEL_END frame numbers
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --outshot=<file.png>    the table with one bot already out (how a finished seat looks)
 ##   --penalty=N             a 2-bot game where you take an N-card penalty on your first turn, then play on (to try the draw animation)
@@ -136,6 +137,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--comboshot="):
 			_comboshot(a.substr(12))
+			return
+		elif a.begins_with("--combomovie"):
+			_combomovie()
 			return
 		elif a.begins_with("--bonusshot="):
 			_bonusshot(a.substr(12))
@@ -724,6 +728,39 @@ func _comboshot(path: String) -> void:
 	t.game.human_play(id)
 	await get_tree().create_timer(0.95).timeout
 	_save(path, names[4])
+	get_tree().quit()
+
+
+## Promo reel: a rigged 1v1 hand plays a chain of four Aces (x2, x3, jackpot) back to back.
+## Meant for `godot --write-movie reel.avi --fixed-fps 30 -- --combomovie`; the frame numbers it prints let you trim the deal off the front.
+func _combomovie() -> void:
+	var t := _start_game(1, "normal")
+	t.game.bot_delay = 99.0
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(0.4).timeout
+	var st: Dictionary = t.game.state
+	st["required"] = {"kind": "free"}
+	st["pending"] = 0
+	var hand: Array = st["players"][0]["hand"]
+	hand.clear()
+	var suits := {"H": "red", "D": "red", "C": "black", "S": "black"}
+	var id := 9001
+	for su in suits:
+		hand.append({"id": id, "rank": "A", "suit": su, "color": suits[su]})
+		id += 1
+	hand.append({"id": id, "rank": "5", "suit": "H", "color": "red"})
+	hand.append({"id": id + 1, "rank": "9", "suit": "S", "color": "black"})
+	st["current"] = 0
+	t.game.updated.emit([])
+	await get_tree().create_timer(0.5).timeout
+	print("REEL_START ", Engine.get_frames_drawn())
+	for i in 4:
+		t.game.human_play(9001 + i)
+		await get_tree().create_timer(0.8).timeout
+	t.game.human_play(id)
+	await get_tree().create_timer(1.1).timeout
+	print("REEL_END ", Engine.get_frames_drawn())
 	get_tree().quit()
 
 
