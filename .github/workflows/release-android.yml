@@ -308,6 +308,22 @@ jobs:
           envsubst '${VERSION_CODE} ${VERSION_NAME} ${RELEASE_KEYSTORE_PATH} ${RELEASE_KEY_ALIAS} ${RELEASE_KEY_PASSWORD}' \
             < .github/android/export_presets.tpl.cfg > "${PROJECT_DIR}/export_presets.cfg"
 
+      - name: Tell Godot which JDK and Android SDK to use
+        # The runner image ships newer JDKs (25) that Godot's gradle 8.11 cannot run on ("Unsupported class
+        # file major version 69"); Godot does not reliably follow JAVA_HOME, so pin it in the editor settings.
+        run: |
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          EOF
+          sed -i 's/^ *//' ~/.config/godot/editor_settings-4.7.tres
+          cat ~/.config/godot/editor_settings-4.7.tres
+          "${JAVA_HOME}/bin/java" -version
+
       - name: Export signed AAB
         run: |
           set -o pipefail
