@@ -1,11 +1,11 @@
-"""Pack the roar frames from make_joker.py into one spritesheet per mane colour, plus a preview GIF.
+"""Pack the roar frames from make_joker.py into one spritesheet per mane colour, plus preview GIFs (written to tools/previews/, never into assets).
 
     python tools/blender/pack_joker.py <frames_dir> <out_dir> [frame_px=256] [cols=6]
 
 Reads <frames_dir>/<color>/f00.png.. (roar) and <frames_dir>/<color>_idle/f00.png.. (idle loop) and writes
-<out_dir>/joker_<color>_roar.png / joker_<color>_idle.png, matching .gif previews and <out_dir>/meta.json. Frames are rendered bigger and downsampled here for clean edges. Needs Pillow.
+<out_dir>/joker_<color>_roar.png / joker_<color>_idle.png, and <out_dir>/meta.json. Frames are rendered bigger and downsampled here for clean edges. Needs Pillow.
 
-The sheets are NOT committed (apps/mobile/assets/joker/*.png is gitignored); regenerate them with
+The sheets in apps/mobile/assets/joker/ are game assets and ARE committed. Regenerate them with
   blender -b -P tools/blender/make_joker.py -- --color red --frames 30 --size 384 --out <abs frames dir>
   blender -b -P tools/blender/make_joker.py -- --color red --idle 30 --size 384 --out <abs frames dir>
   (same for --color black), then run this script with <out_dir> = apps/mobile/assets/joker.
@@ -15,6 +15,8 @@ import os
 import sys
 
 from PIL import Image
+
+PREVIEW_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "previews")
 
 COLORS = ["red", "black"]
 FPS = 24
@@ -27,6 +29,7 @@ def main():
     px = int(sys.argv[3]) if len(sys.argv) > 3 else 256
     cols = int(sys.argv[4]) if len(sys.argv) > 4 else 6
     os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(PREVIEW_DIR, exist_ok=True)
     meta = {"fps": FPS, "frame_px": px, "cols": cols, "sheets": {}, "idle": {}}
     for color, anim in [(c, a) for c in COLORS for a in ("roar", "idle")]:
         d = os.path.join(frames_dir, color if anim == "roar" else color + "_idle")
@@ -49,7 +52,7 @@ def main():
             f = Image.new("RGBA", im.size, bg)
             f.alpha_composite(im)
             gif.append(f.convert("P", palette=Image.ADAPTIVE))
-        gif[0].save(os.path.join(out_dir, f"joker_{color}_{anim}.gif"), save_all=True, append_images=gif[1:],
+        gif[0].save(os.path.join(PREVIEW_DIR, f"joker_{color}_{anim}.gif"), save_all=True, append_images=gif[1:],
                     duration=int(1000 / FPS), loop=0, disposal=2)
         entry = {"file": f"joker_{color}_{anim}.png", "frames": len(files), "rows": rows}
         if anim == "roar":
