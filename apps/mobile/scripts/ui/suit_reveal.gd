@@ -48,7 +48,7 @@ func start(parent: Control, suit_id: String, delay: float = 0.0, card: Control =
 		await parent.get_tree().create_timer(delay).timeout
 		# The table may have been freed (or taken out) during the wait, e.g. leaving the game mid-reveal.
 		if not is_instance_valid(parent) or not parent.is_inside_tree():
-			free()
+			queue_free() # not free(): a bare free() fails to compile in release exports, which silently killed the whole reveal
 			return
 	parent.add_child(self)
 	if started.is_valid():
