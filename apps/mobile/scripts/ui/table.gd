@@ -44,7 +44,10 @@ const FLY := 0.42 # seconds for a card to travel
 const FLIP_FLY := 0.55 # a drawn card is peeled off the bank, turned over and carried: long enough to see the turn
 const PILE_PER_LAYER := 8 # cards in the bank per visible layer of pile thickness
 const STAGGER := 0.07 # delay between cards of one batch
-const REACH := 0.3 # seconds the 3D hand takes to reach a card before it flies
+const OVER_BEAT := 0.7 # pause after the last animation before the results appear
+const OVER_BEAT_LOSS := 1.3 # longer when you lost, so it registers
+const OVER_FADE := 0.35 # results fade-in
+const REACH := 0.3# seconds the 3D hand takes to reach a card before it flies
 const HURRY_AFTER_MS := 14000 # a bot nudges you when your turn has taken this long
 const BOT_SAY_GAP_MS := 2200 # at most one bot sticker per this many ms, so the table stays calm
 const SLIDE_UNDER_TIME := 0.5 # lift 0.16 + slide 0.3, then the hand lets go as the pile lowers
@@ -2130,16 +2133,27 @@ func _tutorial_finish() -> void:
 # ---------------------------------------------------------------- game over
 
 func _show_over(st: Dictionary) -> void:
-	# Let the last card land before the results cover the table.
-	await get_tree().create_timer(0.0 if game.bot_delay < 0.05 else 0.9).timeout
+	var my_place := int(_find(st, ME)["place"])
+	var i_got_out: bool = _find(st, ME)["hand"].is_empty()
+	# Let the last animation finish (the queued gate), then hold a beat before the results cover the table.
+	# Losing gets a longer beat so it registers.
+	if game.bot_delay >= 0.05:
+		var remaining := maxf(0.0, float(_turn_gate_ms - Time.get_ticks_msec()) / 1000.0)
+		await get_tree().create_timer(remaining).timeout
+		if game == null or not is_inside_tree():
+			return
+		if not i_got_out:
+			_flash("You lost")
+		await get_tree().create_timer(OVER_BEAT if i_got_out else OVER_BEAT_LOSS).timeout
 	if game == null or not is_inside_tree():
 		return
 	over_panel = Control.new()
 	over_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	over_panel.z_index = 2000
 	over_panel.add_child(UI.background())
-	var my_place := int(_find(st, ME)["place"])
-	var i_got_out: bool = _find(st, ME)["hand"].is_empty()
+	if game.bot_delay >= 0.05:
+		over_panel.modulate.a = 0.0
+		create_tween().tween_property(over_panel, "modulate:a", 1.0, OVER_FADE)
 	var title := "You lost" # left holding cards: lost outright, points don't matter
 	if i_got_out:
 		if my_place == 1:
