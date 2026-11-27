@@ -114,6 +114,7 @@ const MARGIN_SCREEN := 50  # edge margin for full-screen content
 const MAX_CONTENT_W := 980  # widest a page's content gets (1080 minus margins); wider screens just get more side margin
 const MENU_W := 800         # start menu: options panel and every button share this width
 const LOGO := "res://assets/branding/logo.png"
+const LOGO_TITLE_TEX := "res://assets/branding/logo_title.png"   # logo.png pre-scaled to 300 px: the 1024 px one shimmers at ~150
 const LOGO_TITLE := 150     # logo edge next to the FONT_DISPLAY title
 
 enum Variant { PRIMARY, SECONDARY, TERTIARY, DANGER }
@@ -455,9 +456,9 @@ static func brand_header(text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
-	if ResourceLoader.exists(LOGO):
+	if ResourceLoader.exists(LOGO_TITLE_TEX):
 		var logo := TextureRect.new()
-		logo.texture = load(LOGO)
+		logo.texture = load(LOGO_TITLE_TEX)
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		logo.custom_minimum_size = Vector2(LOGO_TITLE, LOGO_TITLE)
