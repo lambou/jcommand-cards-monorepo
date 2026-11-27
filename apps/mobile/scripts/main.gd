@@ -14,6 +14,7 @@ extends Control
 ##   --suitshot=<file.png>   the J suit picker (3D suits), then the PLAY pill spinning to a new suit
 ##   --revealshot=<file.png> <file>_before.png / _after0..4.png: the table, then a suit change
 ##   --comboshot=<file.png>  <file>_x2/_x3/_jackpot.png: a chain of Aces with the combo feedback
+##   --gamemovie[=bots]      a whole unrigged game (default 2 bots) with the hard bot AI playing the human seat through the real UI handlers; record with --write-movie, prints REEL_START/REEL_END and the final place
 ##   --combomovie            the same chain, paced for a promo clip; record with `--write-movie out.avi --fixed-fps 30`, prints REEL_START/REEL_END frame numbers
 ##   --bonusshot=<file.png>  <file>_pass.png / _out.png: pass-on, then going out on a 7 to win
 ##   --outshot=<file.png>    the table with one bot already out (how a finished seat looks)
@@ -140,6 +141,9 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--combomovie"):
 			_combomovie()
+			return
+		elif a.begins_with("--gamemovie"):
+			_gamemovie(int(a.get_slice("=", 1)) if "=" in a else 2)
 			return
 		elif a.begins_with("--bonusshot="):
 			_bonusshot(a.substr(12))
@@ -843,6 +847,47 @@ func _combomovie() -> void:
 	await get_tree().create_timer(1.5).timeout
 	print("REEL_END ", Engine.get_frames_drawn())
 	get_tree().quit()
+
+
+## A full, unrigged game for a promo video: the "hard" bot AI plays the human seat through the same UI handlers a
+## finger would use (card tap, suit picker, bank tap), pausing like a person would between moves. Nothing in the
+## game state is touched, so every move is legal by construction. Exit code 0 when the human finished first,
+## 2 when not (the caller can simply record another game), 3 on a timeout.
+func _gamemovie(bots: int) -> void:
+	const Bot := preload("res://scripts/ai/bot.gd")
+	var t := _start_game(bots, "normal")
+	while t._locked() or not t.game.is_human_turn():
+		await get_tree().create_timer(0.05).timeout
+	print("REEL_START ", Engine.get_frames_drawn())
+	var elapsed := 0.0
+	while not t.game.state["over"] and elapsed < 420.0:
+		await get_tree().create_timer(0.1).timeout
+		elapsed += 0.1
+		if t._locked() or not t.game.is_human_turn() or t.game.state["players"][0]["status"] == "finished":
+			continue
+		# Think a moment like a person (1.0 - 1.7 s), then re-check it is still our turn.
+		await get_tree().create_timer(randf_range(1.0, 1.7)).timeout
+		elapsed += 1.4
+		if t._locked() or not t.game.is_human_turn():
+			continue
+		var act: Dictionary = Bot.choose_action(t.game.state, "you", "hard", t.game.rng, t.game.memory)
+		match act["type"]:
+			"play":
+				t._on_card_pressed(int(act["cardId"]))
+				if t.picker.visible:
+					t._on_suit_chosen(str(act.get("chosenSuit", "H")))
+			_:
+				t._on_bank_pressed(-1)
+	if not t.game.state["over"]:
+		print("GAME_TIMEOUT")
+		get_tree().quit(3)
+		return
+	await get_tree().create_timer(5.0).timeout   # let the last cards land and the results screen fade in
+	var order: Array = t.game.state["finishedOrder"]
+	var place := order.find("you") + 1
+	print("GAME_RESULT place=", place, " order=", order)
+	print("REEL_END ", Engine.get_frames_drawn())
+	get_tree().quit(0 if place == 1 else 2)
 
 
 ## Rigged 1v1 hands: first a 7 the bot has to take (pass-on), then a lone 7 to go out and win.
